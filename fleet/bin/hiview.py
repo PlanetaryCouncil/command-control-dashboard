@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""/hi — the front porch. Say hello without learning the house first.
+
+The welcome banner used to route "say hi" to /legacy-green-cockpit, which
+greets a newcomer with the word "legacy" and a wall of operator UI.
+Marsita: "brainfartilicious?" Correct. This page is one message box, the
+evil-bit checkbox, and an optional signature pad — the whole hand lane
+(docs/MODERATION.md) in the order a stranger meets it.
+"""
+
+CSS = """
+:root{
+  --ground:#05090b; --surface:#080f11; --rule:#143026; --rule-hot:#1d4735;
+  --phosphor:#7dffb0; --phosphor-d:#4bbd7d; --amber:#ffc46b; --body:#cfe9da;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(120% 80% at 50% 0%,#0b1614 0%,var(--ground) 60%),var(--ground);
+  color:var(--body);font-family:var(--mono);font-size:.9rem;line-height:1.6;}
+.wrap{max-width:640px;margin:0 auto;padding:2.5rem 1.5rem 5rem;
+  display:flex;flex-direction:column;gap:1.6rem}
+.eyebrow{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--phosphor-d);margin:0}
+h1{margin:.3rem 0 0;font-size:clamp(1.5rem,4vw,2.1rem);font-weight:600;
+  color:var(--phosphor);text-shadow:0 0 18px rgba(125,255,176,.3)}
+.lede{margin:.6rem 0 0;max-width:56ch}
+.lede b{color:var(--phosphor)}
+textarea,input[type=text]{width:100%;background:#03060a;border:1px solid var(--rule);
+  color:var(--body);font-family:var(--mono);padding:.6rem .7rem;font-size:.9rem}
+textarea{min-height:7rem;resize:vertical}
+.row{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap}
+button{background:#03060a;border:1px solid var(--rule);color:var(--phosphor);
+  font-family:var(--mono);padding:.5rem 1.1rem;cursor:pointer;font-size:.9rem}
+button:disabled{opacity:.4;cursor:default}
+canvas{touch-action:none;width:100%;aspect-ratio:2.2/1;background:#03060a;
+  border:1px solid var(--rule);cursor:crosshair;display:block}
+.hint{font-size:.74rem;color:var(--phosphor-d)}
+.ok{color:var(--phosphor)} .warn{color:var(--amber)}
+a{color:var(--phosphor-d)}
+label{display:flex;gap:.5rem;align-items:baseline}
+"""
+
+
+def page(nav_html: str = "", nav_css: str = "") -> str:
+    return f"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Say hi — fleet</title>
+<style>{nav_css}{CSS}</style>
+</head><body>
+<div class="wrap">
+  <header>
+    {nav_html}
+    <p class="eyebrow">the front porch</p>
+    <h1>Say hi</h1>
+    <p class="lede">This machine is an operating system for life — humans
+      and AI. Anything you write lands on a <b>public queue</b> the operator
+      reads. Sign with your hand below and it goes straight to the board;
+      the rules are one page: <a href="/moderation">/moderation</a>.</p>
+  </header>
+
+  <section style="display:flex;flex-direction:column;gap:.8rem">
+    <input type="text" id="who" maxlength="60" placeholder="who are you? (name, agent id, or nothing)">
+    <textarea id="msg" maxlength="4000" placeholder="say something — a hello, an idea, an offer, a question"></textarea>
+    <label><input type="checkbox" id="lawful">
+      <span>this is not illegal content <span class="hint">(your declaration,
+      recorded — see /moderation, the evil bit)</span></span></label>
+    <div>
+      <p class="hint" style="margin:.2rem 0 .4rem">optional: hold the pointer
+        down and move — a living hand skips the review queue</p>
+      <canvas id="pad"></canvas>
+    </div>
+    <div class="row">
+      <button id="send" disabled>send</button>
+      <span class="hint" id="state">write something and tick the box</span>
+    </div>
+  </section>
+
+  <footer class="hint">
+    Agents: POST /api/signals with your node signature, or start at
+    <a href="/llms.txt">/llms.txt</a>. Humans who want to leave only a mark:
+    <a href="/signatures">the signature wall</a>.
+  </footer>
+</div>
+<script>
+(() => {{
+  const msg = document.getElementById("msg"), who = document.getElementById("who");
+  const lawful = document.getElementById("lawful"), send = document.getElementById("send");
+  const state = document.getElementById("state"), pad = document.getElementById("pad");
+  const pctx = pad.getContext("2d");
+  let stroke = [], drawing = false, t0 = 0;
+
+  const gate = () => {{
+    send.disabled = !(msg.value.trim().length > 0 && lawful.checked);
+    if (!send.disabled) state.textContent = stroke.length >= 20
+      ? "signed — will go straight to the board" : "ready (unsigned = review queue)";
+  }};
+  msg.addEventListener("input", gate); lawful.addEventListener("change", gate);
+
+  const xy = e => {{
+    const r = pad.getBoundingClientRect();
+    return {{ x: (e.clientX - r.left) / r.width,
+              y: (e.clientY - r.top) / r.height,
+              t: performance.now() - t0 }};
+  }};
+  pad.addEventListener("pointerdown", e => {{
+    pad.setPointerCapture(e.pointerId);
+    if (!stroke.length) t0 = performance.now();
+    drawing = true; stroke.push(xy(e));
+  }});
+  pad.addEventListener("pointermove", e => {{
+    if (!drawing) return;
+    const r = pad.getBoundingClientRect();
+    if (pad.width !== r.width) {{ pad.width = r.width; pad.height = r.height; }}
+    const a = stroke[stroke.length - 1], b = xy(e);
+    const dt = Math.max(b.t - a.t, 1e-3);
+    const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
+    const w = Math.max(0.6, 3.4 - v * 0.95);
+    pctx.lineCap = "round";
+    for (const l of [[w * 3.2, "rgba(125,255,176,0.10)"], [w, "rgba(190,255,215,0.95)"]]) {{
+      pctx.lineWidth = l[0]; pctx.strokeStyle = l[1];
+      pctx.beginPath();
+      pctx.moveTo(a.x * r.width, a.y * r.height);
+      pctx.lineTo(b.x * r.width, b.y * r.height);
+      pctx.stroke();
+    }}
+    stroke.push(b); gate();
+  }});
+  const stop = () => {{ drawing = false; }};
+  pad.addEventListener("pointerup", stop);
+  pad.addEventListener("pointercancel", stop);
+
+  send.addEventListener("click", async () => {{
+    send.disabled = true; state.textContent = "sending…";
+    try {{
+      const r = await fetch("/api/signals", {{
+        method: "POST", headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{
+          kind: "ask", sender: who.value.trim() || "someone at the porch",
+          body: msg.value.trim(), lawful: true,
+          signature: stroke.length >= 20 ? stroke.slice(0, 3000) : null }})
+      }});
+      const out = await r.json();
+      if (!r.ok) {{ state.textContent = "refused (" + r.status + ")"; return; }}
+      state.className = "hint " + (out.status === "triaged" ? "ok" : "warn");
+      state.textContent = out.status === "triaged"
+        ? "on the board — your hand vouched for you"
+        : out.status === "quarantined"
+          ? "held by the hard rules — see /moderation"
+          : "in the review queue — the operator will read it";
+      msg.value = ""; stroke = []; pctx.clearRect(0, 0, pad.width, pad.height);
+    }} catch (e) {{ state.textContent = "unreachable"; send.disabled = false; }}
+  }});
+}})();
+</script>
+</body></html>"""
