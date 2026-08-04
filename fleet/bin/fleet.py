@@ -427,8 +427,16 @@ def start_legacy_cockpit(port=8770):
 def serve(port):
     import http.server
     import socketserver
+    import threading
 
-    start_legacy_cockpit()
+    # In a thread, NOT inline: the cockpit's import chain (FastAPI,
+    # pydantic) takes seconds cold and a minute under memory pressure, and
+    # it used to run before the board's socket even bound — every restart
+    # was a blackout exactly as long as the imports ("why offline —
+    # annoying", 2026-08-04). The board binds NOW; the cockpit joins when
+    # it's dressed, and its routes 502 harmlessly until then.
+    threading.Thread(target=start_legacy_cockpit,
+                     name="legacy-cockpit-boot", daemon=True).start()
 
     class Handler(http.server.BaseHTTPRequestHandler):
         # A keep-alive browser tab would otherwise hold the only connection

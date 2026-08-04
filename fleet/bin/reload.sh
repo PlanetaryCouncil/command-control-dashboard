@@ -25,7 +25,7 @@ echo "2/3 boot on scratch port ${SCRATCH} ..."
 "$PY" "$FLEET/bin/fleet.py" serve "$SCRATCH" >/dev/null 2>&1 &
 TRIAL=$!
 ok=""
-for _ in $(seq 1 20); do
+for _ in $(seq 1 40); do
   sleep 1
   if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$SCRATCH/workers.json")" = "200" ]; then
     ok=1; break
@@ -36,7 +36,7 @@ kill "$TRIAL" 2>/dev/null
 
 echo "3/3 restarting the live server…"
 launchctl kickstart -k "gui/$(id -u)/re.genesis.fleet-server"
-for _ in $(seq 1 20); do
+for _ in $(seq 1 40); do
   sleep 1
   if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/)" = "200" ]; then
     echo "live again"; exit 0
