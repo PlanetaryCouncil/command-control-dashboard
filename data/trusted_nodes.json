@@ -20,6 +20,11 @@
       "node_id": "friendly-agent",
       "device": "paired by code from [redacted-ipv4]",
       "paired_at": "2026-08-03T19:32:34.759288+00:00"
+    },
+    {
+      "node_id": "mac-two",
+      "device": "paired by code from [redacted-ipv6]",
+      "paired_at": "2026-08-04T16:07:54.501155+00:00"
     }
   ]
 }
