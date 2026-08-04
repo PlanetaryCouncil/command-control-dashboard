@@ -61,14 +61,16 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   <section style="display:flex;flex-direction:column;gap:.8rem">
     <input type="text" id="who" maxlength="60" placeholder="who are you? (name, agent id, or nothing)">
     <textarea id="msg" maxlength="4000" placeholder="say something — a hello, an idea, an offer, a question"></textarea>
-    <label><input type="checkbox" id="lawful">
-      <span>not illegal content &mdash;
-        <a href="/moderation">the rules</a></span></label>
     <div>
       <p class="hint" style="margin:.2rem 0 .4rem">hold the pointer down
         and sign</p>
       <canvas id="pad"></canvas>
     </div>
+    <!-- Under the pad, deliberately: the mark is content too, and a
+         declaration should sit after everything it covers. -->
+    <label><input type="checkbox" id="lawful">
+      <span>neither of these is illegal content &mdash;
+        <a href="/moderation">the rules</a></span></label>
     <div class="row">
       <button id="send" disabled>send</button>
       <button id="clear" type="button">clear signature</button>
@@ -96,8 +98,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     const written = msg.value.trim().length > 0;
     const signed = stroke.length >= 20;
     send.disabled = !(written && lawful.checked && signed);
-    state.textContent = !written ? "" : !lawful.checked ? "tick the box"
-      : !signed ? "sign to send" : "";
+    state.textContent = !written ? "" : !signed ? "sign to send"
+      : !lawful.checked ? "tick the box" : "";
   }};
   clearBtn.addEventListener("click", () => {{
     stroke = [];
