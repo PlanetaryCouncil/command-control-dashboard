@@ -118,5 +118,42 @@
     ctx.fillRect(0, 0, W, H);
   }
 
+  // The unfolded truth: the path exactly as the hand made it, speed still
+  // setting weight — the thick-and-thin of real ink. Marsita, 2026-08-04:
+  // "No fold, realistic signature." The fold stays for agents, whose paths
+  // are timelines rather than handwriting; a hand deserves to look like one.
+  function drawRawSignature(canvas, points) {
+    if (!canvas || !points || points.length < 3) return;
+    const ctx = canvas.getContext("2d");
+    const rect = fitCanvas(canvas, ctx);
+    const W = rect.width, H = rect.height;
+    ctx.fillStyle = "#03060a";
+    ctx.fillRect(0, 0, W, H);
+
+    const xs = points.map(p => p.x), ys = points.map(p => p.y);
+    const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+    const minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+    const span = Math.max(maxX - minX, maxY - minY, 1e-6);
+    const pad = 0.12;
+    const S = Math.min(W, H) * (1 - pad * 2);
+    const px = p => ((p.x - (minX + maxX) / 2) / span) * S + W / 2;
+    const py = p => ((p.y - (minY + maxY) / 2) / span) * S + H / 2;
+
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    for (let i = 1; i < points.length; i++) {
+      const a = points[i - 1], b = points[i];
+      const dt = Math.max(b.t - a.t, 1e-3);
+      const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
+      ctx.strokeStyle = "rgba(125, 255, 176, 0.9)";
+      ctx.lineWidth = Math.max(0.6, 3.2 - v * 0.9);
+      ctx.beginPath();
+      ctx.moveTo(px(a), py(a));
+      ctx.lineTo(px(b), py(b));
+      ctx.stroke();
+    }
+  }
+
   global.drawSignature = drawSignature;
+  global.drawRawSignature = drawRawSignature;
 })(window);

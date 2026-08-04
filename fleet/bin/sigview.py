@@ -235,7 +235,9 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       if (c.pinned) cv.style.borderColor = "var(--amber)";
       card.append(cv, name, meta);
       wall.append(card);
-      requestAnimationFrame(() => drawSignature(cv, c.seed, c.points, 0));
+      requestAnimationFrame(() => c.kind === "human"
+        ? drawRawSignature(cv, c.points)
+        : drawSignature(cv, c.seed, c.points, 0));
     }}
   }}
 
@@ -308,7 +310,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       if (wallEl.querySelector(".empty")) wallEl.innerHTML = "";
       wallEl.prepend(card);
       requestAnimationFrame(() =>
-        drawSignature(cv, out.seed, stroke.map(p => ({{x:p.x, y:p.y, t:p.t}})), 0));
+        drawRawSignature(cv, stroke.map(p => ({{x:p.x, y:p.y, t:p.t}}))));
       stroke = []; pctx.clearRect(0, 0, pad.width, pad.height);
     }} catch (e) {{ state.textContent = "unreachable"; send.disabled = false; }}
   }});
