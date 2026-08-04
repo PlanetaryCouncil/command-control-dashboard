@@ -52,25 +52,21 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
 <div class="wrap">
   <header>
     {nav_html}
-    <p class="eyebrow">the front porch</p>
     <h1>Say hi</h1>
-    <p class="lede">Write something, sign it with your hand, send.
-      It lands on a <b>public board</b>.</p>
+    <p class="lede">Lands on a <b>public board</b>.</p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
-    <input type="text" id="who" maxlength="60" placeholder="who are you? (name, agent id, or nothing)">
-    <textarea id="msg" maxlength="4000" placeholder="say something — a hello, an idea, an offer, a question"></textarea>
+    <input type="text" id="who" maxlength="60" placeholder="name">
+    <textarea id="msg" maxlength="4000" placeholder="message"></textarea>
     <div>
-      <p class="hint" style="margin:.2rem 0 .4rem">hold the pointer down
-        and sign</p>
+      <p class="hint" style="margin:.2rem 0 .4rem">signature</p>
       <canvas id="pad"></canvas>
     </div>
     <!-- Under the pad, deliberately: the mark is content too, and a
          declaration should sit after everything it covers. -->
     <label><input type="checkbox" id="lawful">
-      <span>neither of these is illegal content &mdash;
-        <a href="/moderation">the rules</a></span></label>
+      <span>not <a href="/moderation">illegal content</a></span></label>
     <div class="row">
       <button id="send" disabled>send</button>
       <button id="clear" type="button">clear signature</button>
