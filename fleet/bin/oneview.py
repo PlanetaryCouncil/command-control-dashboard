@@ -903,7 +903,12 @@ async function poll(){
 
 function connect(){
   const es = new EventSource("events");
-  es.onmessage = m => { $("#pulse").className=""; try{ addEvent(JSON.parse(m.data)); }catch(e){} };
+  es.onmessage = m => { $("#pulse").className=""; try{
+    const ev = JSON.parse(m.data); addEvent(ev);
+    // A new piece announces itself on the stream; the gallery re-hangs
+    // immediately instead of waiting out the 5-minute poll.
+    if ((ev.msg || "").includes("[art]")) loadArt();
+  }catch(e){} };
   es.onerror = () => { $("#pulse").className = "stale"; };
 }
 
