@@ -214,7 +214,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   // ------------------------------------------------ the collected hands
   const wall = document.getElementById("collected");
   const collected = ((data && data.collected) || []).slice()
-    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+    .sort((a, b) => ((b.pinned ? 1 : 0) - (a.pinned ? 1 : 0))
+      || String(b.ts || "").localeCompare(String(a.ts || "")));
   if (collected.length) {{
     wall.innerHTML = "";
     for (const c of collected) {{
@@ -278,19 +279,37 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   pad.addEventListener("pointercancel", stop);
 
   send.addEventListener("click", async () => {{
+    // Read the name FIRST — Marsita signed twice on 2026-08-04 and both
+    // marks arrived anonymous while a 900ms auto-reload ate the page under
+    // them ("I signed and nothing happened"). No reloads: the new mark
+    // walks into the wall while you watch.
+    const who = document.getElementById("signame").value;
     send.disabled = true; state.textContent = "signing…";
     try {{
       const r = await fetch("/api/signatures/sign", {{
         method: "POST", headers: {{ "Content-Type": "application/json" }},
-        body: JSON.stringify({{
-          name: document.getElementById("signame").value,
-          points: stroke.slice(0, 3000) }})
+        body: JSON.stringify({{ name: who, points: stroke.slice(0, 3000) }})
       }});
       const out = await r.json();
-      state.textContent = r.ok
-        ? "signed — seed " + String(out.seed || "").slice(0, 12) + "…"
-        : "refused (" + r.status + ")";
-      if (r.ok) setTimeout(() => location.reload(), 900);
+      if (!r.ok) {{ state.textContent = "refused (" + r.status + ")";
+                    send.disabled = false; return; }}
+      state.textContent = "signed, " + (out.name || "friend")
+        + " — seed " + String(out.seed || "").slice(0, 12) + "…";
+      const card = document.createElement("div");
+      card.className = "card";
+      const cv = document.createElement("canvas");
+      const nm = document.createElement("div");
+      nm.className = "name"; nm.textContent = out.name || "anonymous";
+      const mt = document.createElement("div");
+      mt.className = "meta";
+      mt.innerHTML = "<span>human · just now</span>";
+      card.append(cv, nm, mt);
+      const wallEl = document.getElementById("collected");
+      if (wallEl.querySelector(".empty")) wallEl.innerHTML = "";
+      wallEl.prepend(card);
+      requestAnimationFrame(() =>
+        drawSignature(cv, out.seed, stroke.map(p => ({{x:p.x, y:p.y, t:p.t}})), 0));
+      stroke = []; pctx.clearRect(0, 0, pad.width, pad.height);
     }} catch (e) {{ state.textContent = "unreachable"; send.disabled = false; }}
   }});
 }})();
