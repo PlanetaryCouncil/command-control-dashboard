@@ -53,7 +53,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   <header>
     {nav_html}
     <h1>Say hi</h1>
-    <p class="lede">Lands on a <b>public board</b>.</p>
+    <p class="lede">Lands on a <a href="/"><b>public board</b></a>.</p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
@@ -150,11 +150,11 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       const out = await r.json();
       if (!r.ok) {{ state.textContent = "refused (" + r.status + ")"; return; }}
       state.className = "hint " + (out.status === "triaged" ? "ok" : "warn");
-      state.textContent = out.status === "triaged"
-        ? "on the board — your hand vouched for you"
+      state.innerHTML = out.status === "triaged"
+        ? 'on <a href="/">the board</a>'
         : out.status === "quarantined"
-          ? "held by the hard rules — see /moderation"
-          : "in the review queue — the operator will read it";
+          ? 'held by <a href="/moderation">the rules</a>'
+          : "in the queue";
       msg.value = ""; stroke = []; pctx.clearRect(0, 0, pad.width, pad.height);
     }} catch (e) {{ state.textContent = "unreachable"; send.disabled = false; }}
   }});
