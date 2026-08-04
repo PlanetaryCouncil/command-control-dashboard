@@ -230,7 +230,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       const meta = document.createElement("div");
       meta.className = "meta";
       meta.innerHTML = "<span>" + (c.kind || "human")
-        + (c.pinned ? " · first hand" : "") + "</span><span>"
+        + (c.pinned ? " · pinned" : "") + "</span><span>"
         + String(c.ts || "").slice(5, 16).replace("T", " ") + "</span>";
       if (c.pinned) cv.style.borderColor = "var(--amber)";
       card.append(cv, name, meta);
