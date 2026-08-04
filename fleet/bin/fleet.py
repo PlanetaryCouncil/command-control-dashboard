@@ -784,6 +784,35 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/api/convene":
+                # "Boys please work" — the operator summons the council on
+                # demand instead of waiting out the schedule. Local-only:
+                # convening costs real agent-minutes on a 4-core box, so a
+                # stranger doesn't get the gavel. council.py's own lock
+                # handles a sitting already in session.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                try:
+                    cfg = json.loads((FLEET / "config.json").read_text())
+                    agents = ",".join(cfg.get("council", {}).get(
+                        "agents", ["claude", "hermes", "openclaw"]))
+                    rounds = str(cfg.get("council", {}).get("rounds", 2))
+                except (OSError, ValueError):
+                    agents, rounds = "claude,hermes,openclaw", "2"
+                log = (FLEET / "logs" / "convene.log").open("a")
+                subprocess.Popen(
+                    ["/usr/local/bin/python3", str(FLEET / "bin" / "council.py"),
+                     "--agents", agents, "--rounds", rounds],
+                    stdout=log, stderr=log, start_new_session=True)
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                ev.emit("fleet", "info",
+                        f"[council] convened by the operator — {agents}")
+                self._send(json.dumps({"convened": agents}).encode(),
+                           "application/json")
+                return
+
             if path == "/api/signatures/judge":
                 # Purgatory's only exits. Local-only, like all curation.
                 if self._remote():
