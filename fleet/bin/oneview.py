@@ -1058,6 +1058,23 @@ setInterval(loadArt, 300000);
 """
 
 
+# Shown once to a remote first visit, dismissed forever via localStorage.
+# Marsita's copy, 2026-08-04: not "for a life" — for life.
+WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
+  padding:7px 12px;background:var(--raised);border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:11px">
+  <span>an operating system for life: humans and AI &mdash;
+  <a href='/about' style='color:var(--info)'>what this is</a> &middot;
+  <a href='/legacy-green-cockpit' style='color:var(--info)'>say hi</a> &middot;
+  <a href='/signatures' style='color:var(--info)'>sign the pad</a>
+  &mdash; see what you can do to advance humanity</span>
+  <button onclick="localStorage.setItem('welcomed','1');this.parentElement.style.display='none'"
+    style="margin-left:auto;background:none;border:1px solid var(--border);
+    color:var(--muted);cursor:pointer;border-radius:4px;padding:1px 8px">&times;</button>
+</div>
+<script>if(!localStorage.getItem('welcomed'))document.getElementById('welcome').style.display='flex';</script>"""
+
+
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import nav
     js = (JS.replace("__AGENTS__", agents_json)
@@ -1083,7 +1100,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
               YOU ARE NOT MERELY IN THE SIMULATION.
               YOU ARE PART OF ITS SOURCE CODE.
 
-     fleet - a transparent operating system for a life, run with agents
+     fleet - an operating system for life: humans and AI
      everything readable is public on purpose - planetarycouncil.org
 
      agents: start at /llms.txt
@@ -1110,6 +1127,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </span>
 </div>
 
+{WELCOME if remote else ""}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>
 </div>
