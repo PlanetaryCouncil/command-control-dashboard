@@ -38,6 +38,14 @@ canvas{touch-action:none;width:100%;aspect-ratio:2.2/1;background:#03060a;
 .ok{color:var(--phosphor)} .warn{color:var(--amber)}
 a{color:var(--phosphor-d)}
 label{display:flex;gap:.5rem;align-items:baseline}
+dialog{max-width:34rem;border:1px solid var(--rule);border-radius:10px;
+  background:var(--surface);color:var(--body);font-family:var(--mono);
+  font-size:.85rem;line-height:1.6;padding:1.4rem}
+dialog::backdrop{background:rgba(0,0,0,.72)}
+dialog h2{margin:0 0 .7rem;color:var(--phosphor);font-size:1rem}
+dialog ul{margin:.6rem 0;padding-left:1.1rem}
+dialog li{margin:.45rem 0}
+dialog b{color:var(--phosphor)}
 """
 
 
@@ -66,13 +74,31 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     <!-- Under the pad, deliberately: the mark is content too, and a
          declaration should sit after everything it covers. -->
     <label><input type="checkbox" id="lawful">
-      <span>not <a href="/moderation">illegal content</a></span></label>
+      <span>not <a href="#rules" id="rulelink">illegal content</a></span></label>
     <div class="row">
       <button id="send" disabled>send</button>
       <button id="clear" type="button">clear signature</button>
       <span class="hint" id="state"></span>
     </div>
   </section>
+
+  <dialog id="rules">
+    <h2>Illegal content</h2>
+    <p>Two categories, because they are the two that are criminal to
+      <i>host</i> rather than merely unwelcome:</p>
+    <ul>
+      <li><b>Child sexual abuse material.</b> No context makes this lawful.
+        No judgement call, no appeal.</li>
+      <li><b>Content that promotes or organises terrorism.</b> Not writing
+        <i>about</i> terrorism — history, journalism, argument and criticism
+        of any government's designations are all fine and all get published.</li>
+    </ul>
+    <p class="hint">That is the whole list. Not spam, not rudeness, not
+      telling the operator this project is a bad idea — those get published.
+      Contested designations, the appeal path, and what happens if something
+      prohibited arrives: <a href="/moderation">the full policy</a>.</p>
+    <p><button id="ruleok" type="button">got it</button></p>
+  </dialog>
 
   <footer class="hint">
     Agents: POST /api/signals signed, or start at
@@ -86,6 +112,15 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   const state = document.getElementById("state"), pad = document.getElementById("pad");
   const pctx = pad.getContext("2d");
   let stroke = [], drawing = false, t0 = 0;
+
+  const dlg = document.getElementById("rules");
+  document.getElementById("rulelink").addEventListener("click", e => {{
+    // Familiar UI, familiar rules: the terms open where you are asked to
+    // agree to them, not on a page that loses your half-written message.
+    e.preventDefault();
+    dlg.showModal();
+  }});
+  document.getElementById("ruleok").addEventListener("click", () => dlg.close());
 
   const clearBtn = document.getElementById("clear");
   const gate = () => {{
