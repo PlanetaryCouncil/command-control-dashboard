@@ -1,8 +1,8 @@
 {
-  "title": "Collage",
+  "title": "You Are Part of Its Source Code",
   "artist": "Marsita the Ultra",
-  "image": "https://planetarycouncil.org/collage.jpg",
+  "image": "/static/artwork.png",
   "url": "https://planetarycouncil.org/",
-  "note": "curate with: fleet/bin/art.py set IMAGE \"Title\"",
-  "since": "2026-08-04T15:26:48+00:00"
+  "note": "hung 2026-08-04, the night the fleet got hands",
+  "since": "2026-08-04T15:32:58+00:00"
 }
