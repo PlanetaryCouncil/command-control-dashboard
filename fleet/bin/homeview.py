@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""The front door, human side: what deserves attention, and why.
+
+Marsita, 2026-08-04: "currently we are literally building the infra for
+agents... Flip. Human facing with projects harnessing attention. And then
+dashboard with rota and signatures."
+
+So this is `/` now and the fleet board is `/fleet`. The order is the
+argument: a person arrives to goals and projects ranked by what needs
+them — the focus radar, the oldest working organ here — and the machinery
+that serves it is one click away, not in their face.
+
+Nothing here is new data. It is life.json's projects through focus.py's
+eight-dimension scoring, the horizons chain, the current artwork, and the
+guests — arranged for a human instead of an operator.
+"""
+
+CSS = """
+:root{
+  --ground:#0d0f12; --surface:#15181d; --raised:#1c2027; --border:#262b33;
+  --ink:#eef1f4; --ink-2:#b6bec9; --muted:#7c8794;
+  --hot:#e0754a; --warm:#d8a24a; --cool:#4f9d84; --info:#5b93d6;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:940px;margin:0 auto;padding:2.2rem 1.4rem 5rem;
+  display:flex;flex-direction:column;gap:2rem}
+.eyebrow{font-family:var(--mono);font-size:.68rem;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 .5rem}
+h1{margin:0;font-size:clamp(1.6rem,4vw,2.3rem);font-weight:600;line-height:1.15;
+  letter-spacing:-.01em;text-wrap:balance}
+h1 small{display:block;font-size:.9rem;font-weight:400;color:var(--ink-2);
+  margin-top:.5rem;letter-spacing:0}
+.lede{color:var(--ink-2);max-width:62ch;margin:.4rem 0 0}
+a{color:var(--info)}
+
+.rail{display:flex;gap:.5rem;flex-wrap:wrap;font-family:var(--mono);font-size:.72rem}
+.rail a{padding:.4rem .8rem;border:1px solid var(--border);border-radius:6px;
+  background:var(--raised);color:var(--ink-2);text-decoration:none;letter-spacing:.08em;
+  text-transform:uppercase}
+.rail a:hover{border-color:var(--muted);color:var(--ink)}
+.rail a.key{border-color:var(--info);color:var(--info)}
+
+.chain{display:flex;flex-direction:column;gap:1px;background:var(--border);
+  border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.link{background:var(--surface);padding:.7rem 1rem;display:flex;gap:1rem;align-items:baseline}
+.link .scale{font-family:var(--mono);font-size:.68rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);flex:0 0 4.5rem}
+.link .txt{flex:1;min-width:0}
+.link.now{background:var(--raised)}
+
+.proj{display:flex;flex-direction:column;gap:1px;background:var(--border);
+  border:1px solid var(--border);border-radius:9px;overflow:hidden}
+.row{background:var(--surface);padding:.75rem 1rem;display:flex;align-items:center;gap:1rem}
+.row .rank{font-family:var(--mono);font-size:.7rem;color:var(--muted);flex:0 0 1.4rem}
+.row .nm{flex:1;min-width:0;font-weight:500}
+.row .nm small{display:block;color:var(--muted);font-size:.74rem;font-weight:400}
+.bar{flex:0 0 130px;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--cool)}
+.bar.hot i{background:var(--hot)} .bar.warm i{background:var(--warm)}
+.row .sc{font-family:var(--mono);font-size:.78rem;color:var(--ink-2);
+  flex:0 0 2.2rem;text-align:right;font-variant-numeric:tabular-nums}
+.tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.1rem .45rem;border-radius:4px;border:1px solid var(--border);color:var(--muted)}
+.tag.blocked{color:var(--hot);border-color:var(--hot)}
+.tag.active{color:var(--cool);border-color:var(--cool)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:9px;
+  padding:1rem;display:flex;flex-direction:column;gap:.6rem}
+.card img{width:100%;border-radius:6px;display:block}
+.guest{font-size:.84rem;padding:.35rem 0;border-bottom:1px solid var(--border)}
+.guest:last-child{border-bottom:0}
+.guest b{font-family:var(--mono);font-size:.78rem}
+.guest span{color:var(--muted);font-family:var(--mono);font-size:.68rem}
+footer{color:var(--muted);font-size:.78rem;border-top:1px solid var(--border);
+  padding-top:1rem;font-family:var(--mono)}
+.empty{color:var(--muted);font-size:.82rem}
+"""
+
+WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
+  padding:8px 12px;background:var(--raised);border:1px solid var(--border);
+  border-radius:8px;font-family:var(--mono);font-size:12px">
+  <span>an operating system for life: humans and AI &mdash; everything here is
+  readable on purpose &mdash; see what you can do to advance humanity</span>
+  <button onclick="localStorage.setItem('welcomed','1');this.parentElement.style.display='none'"
+    style="margin-left:auto;background:none;border:1px solid var(--border);
+    color:var(--muted);cursor:pointer;border-radius:4px;padding:1px 8px">&times;</button>
+</div>
+<script>if(!localStorage.getItem('welcomed'))document.getElementById('welcome').style.display='flex';</script>"""
+
+
+def page(remote: bool = False) -> str:
+    return f"""<!doctype html>
+<html lang="en" data-theme="dark"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Focus — an operating system for life</title>
+<style>{CSS}</style>
+</head><body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">planetary council · built in public</p>
+    <h1>An operating system for life: humans and AI
+      <small>What needs attention, ranked by a formula that counts being
+      blocked as a reason to care more — not less.</small></h1>
+  </header>
+
+  {WELCOME if remote else ''}
+
+  <nav class="rail">
+    <a class="key" href="/fleet">the fleet dashboard &rarr;</a>
+    <a href="/hi">say hi</a>
+    <a href="/signatures">signatures</a>
+    <a href="/about">what this is</a>
+    <a href="/moderation">the rules</a>
+    <a href="/llms.txt">agents start here</a>
+  </nav>
+
+  <section>
+    <p class="eyebrow">the chain · horizons</p>
+    <div class="chain" id="chain"><div class="link"><span class="txt empty">reading…</span></div></div>
+  </section>
+
+  <section>
+    <p class="eyebrow">projects · ranked by what needs a human</p>
+    <div class="proj" id="projects"><div class="row"><span class="nm empty">reading…</span></div></div>
+  </section>
+
+  <section class="two">
+    <div class="card">
+      <p class="eyebrow" style="margin:0">current artwork</p>
+      <div id="art" class="empty">reading…</div>
+    </div>
+    <div class="card">
+      <p class="eyebrow" style="margin:0">guests · who came by</p>
+      <div id="guests" class="empty">reading…</div>
+    </div>
+  </section>
+
+  <footer>
+    The machinery that keeps this honest — agents proposing, building,
+    reviewing each other, a human merging — is
+    <a href="/fleet">one click away</a>. Clone the whole thing:
+    docs/SPIN-IT-UP.md is written to the AI that will run it.
+  </footer>
+</div>
+<script>
+(async () => {{
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g,
+    c => ({{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}}[c]));
+
+  try {{
+    const h = await (await fetch("/api/horizons",{{cache:"no-store"}})).json();
+    const levels = (h.levels || h.chain || []).filter(l => (l.statement || "").trim());
+    if (levels.length) $("#chain").innerHTML = levels.map(l =>
+      `<div class="link${{l.scale === "now" ? " now" : ""}}">
+         <span class="scale">${{esc(l.scale)}}</span>
+         <span class="txt">${{esc(l.statement)}}</span></div>`).join("");
+    else $("#chain").innerHTML = '<div class="link"><span class="txt empty">no horizons set yet</span></div>';
+  }} catch (e) {{}}
+
+  try {{
+    const d = await (await fetch("/api/dashboard",{{cache:"no-store"}})).json();
+    const ps = (d.projects || []).slice(0, 12);
+    const top = Math.max(1, ...ps.map(p => p.focus_score || 0));
+    $("#projects").innerHTML = ps.map((p, i) => {{
+      const pct = Math.round(100 * (p.focus_score || 0) / top);
+      const heat = pct > 85 ? "hot" : pct > 60 ? "warm" : "";
+      return `<div class="row">
+        <span class="rank">${{i + 1}}</span>
+        <span class="nm">${{esc(p.name)}}
+          <small>${{esc(p.next_action || p.why || "")}}</small></span>
+        <span class="tag ${{esc(p.status || "")}}">${{esc(p.status || "")}}</span>
+        <span class="bar ${{heat}}"><i style="width:${{pct}}%"></i></span>
+        <span class="sc">${{p.focus_score ?? ""}}</span></div>`;
+    }}).join("") || '<div class="row"><span class="nm empty">no projects yet</span></div>';
+  }} catch (e) {{}}
+
+  try {{
+    const a = await (await fetch("/api/artwork",{{cache:"no-store"}})).json();
+    $("#art").innerHTML = a.image
+      ? `<a href="${{esc(a.url || a.image)}}"><img src="${{esc(a.image)}}" alt=""></a>
+         <div style="font-family:var(--mono);font-size:.76rem;margin-top:.4rem">
+         ${{esc(a.title || "")}}</div>`
+      : "the gallery is empty";
+  }} catch (e) {{}}
+
+  try {{
+    const g = await (await fetch("/api/guests",{{cache:"no-store"}})).json();
+    const rows = (g.messages || []).slice(-6).reverse();
+    $("#guests").innerHTML = rows.map(m =>
+      `<div class="guest"><b>${{esc(m.sender || "someone")}}</b>
+        ${{esc(m.body)}}
+        <span>${{esc(String(m.ts || "").slice(5, 16).replace("T", " "))}}</span></div>`
+      ).join("") || 'nobody yet — <a href="/hi">be the first</a>';
+  }} catch (e) {{}}
+}})();
+</script>
+</body></html>"""
