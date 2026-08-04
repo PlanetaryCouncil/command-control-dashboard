@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- EXAMPLE — a worked second-machine setup (Apple Silicon, MBP16).
+     Adjust every /Users/m path to your machine before installing. The
+     Label is deliberately the same as the primary plist: this REPLACES
+     re.genesis.fleet-server on its own machine — never install both on
+     one machine. Lives in docs/examples/ so nothing in fleet/bin/ can
+     be blindly copied into ~/Library/LaunchAgents. -->
+<dict>
+    <key>Label</key>
+    <string>re.genesis.fleet-server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- The project venv, not system python: the legacy cockpit runs
+             in-process and needs uvicorn + fastapi. -->
+        <string>/Users/m/Code/command-control-dashboard/.venv/bin/python3</string>
+        <string>/Users/m/Code/command-control-dashboard/fleet/bin/fleet.py</string>
+        <string>serve</string>
+        <string>8787</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/m/Code/command-control-dashboard/fleet</string>
+
+    <!-- launchd's default PATH misses the Homebrew prefix, so chat
+         subprocesses (claude, ollama) would fail with ENOENT. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/m/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Always on: start at login, restart if it ever exits. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/m/Code/command-control-dashboard/fleet/logs/server.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/m/Code/command-control-dashboard/fleet/logs/server.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

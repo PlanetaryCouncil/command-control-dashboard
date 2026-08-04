@@ -11,7 +11,7 @@ set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO" || exit 1
 
-CLAUDE_BIN="${CLAUDE_BIN:-$HOME/.local/bin/claude}"
+CLAUDE_BIN="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
 WINDOW_DAYS="${WINDOW_DAYS:-14}"
 TIMEOUT_SECS="${TIMEOUT_SECS:-1800}"
 STAMP="$(date +%Y-%m-%dT%H-%M-%S)"
