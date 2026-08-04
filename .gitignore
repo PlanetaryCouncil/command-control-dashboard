@@ -33,3 +33,6 @@ data/triage_patterns.json
 data/node_secrets.json
 data/pairing.json
 fleet/data/indexnow-key.txt
+
+# vendored assets stay out — but the gallery ships with the house
+!fleet/static/artwork.png

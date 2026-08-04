@@ -96,6 +96,22 @@ KNOWN = (
 _lock = threading.Lock()
 _last_worker_write = 0.0
 
+# Our own dudes. The gateways poll /api/fleet through the funnel every minute
+# and were 20% of "public" traffic labelled browser/Python-urllib (openclaw
+# caught it in council, 2026-08-04). Marsita's word for them: homies.
+HOMIES_FILE = FLEET / "data" / "homies.txt"
+
+
+def _is_homie(path, ip):
+    if path == "/api/fleet":
+        return True
+    try:
+        prefixes = [l.strip() for l in HOMIES_FILE.read_text().splitlines()
+                    if l.strip() and not l.startswith("#")]
+    except OSError:
+        return False
+    return any(ip.startswith(pre) for pre in prefixes)
+
 
 def classify(ua):
     """(name, kind) for a User-Agent string, best effort."""
@@ -120,6 +136,8 @@ def record(method, path, status, ip, ua):
     """
     global _last_worker_write
     name, kind = classify(ua)
+    if _is_homie(str(path), str(ip or "")):
+        name, kind = "homies", "homie"
     rec = {
         "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "ip": str(ip or "")[:60],
@@ -153,8 +171,8 @@ def record(method, path, status, ip, ua):
 
 def _announce_first_sighting(name, kind):
     """One event per newly-seen crawler name, so the stream shows arrivals."""
-    if kind in ("browser", "unknown"):
-        return
+    if kind in ("browser", "unknown", "homie"):
+        return          # your own dudes don't ring the doorbell
     try:
         seen = set(json.loads(SEEN.read_text()))
     except (OSError, ValueError):
@@ -185,6 +203,11 @@ def hits(hours=24):
         except ValueError:
             continue
         if rec.get("ts", "") >= cutoff:
+            # Re-tag on read so rows logged before the homie rule existed
+            # count correctly without rewriting history.
+            if rec.get("kind") != "homie" and _is_homie(rec.get("path", ""),
+                                                        rec.get("ip", "")):
+                rec = {**rec, "name": "homies", "kind": "homie"}
             out.append(rec)
     return out
 
@@ -204,9 +227,13 @@ def write_worker():
     """Publish the guest book as a worker, so the board and the council
     pick it up through the same workers/*.json glob as everything else."""
     s = summarize(24)
-    top = " · ".join(f"{n} {c}" for n, c in list(s["by_name"].items())[:4])
-    summary = (f"24h: {s['total']} public hits · {top}" if s["total"]
-               else "24h: no public hits")
+    homies = s["by_kind"].get("homie", 0)
+    strangers = s["total"] - homies
+    top = " · ".join(f"{n} {c}" for n, c in s["by_name"].items()
+                     if n != "homies")
+    summary = (f"24h: {strangers} public · {homies} homies"
+               + (f" · {top}" if top else "")) if s["total"] \
+        else "24h: no hits at all"
     WORKER.parent.mkdir(exist_ok=True)
     WORKER.write_text(json.dumps({
         "worker": "visitors",

@@ -519,7 +519,8 @@ def serve(port):
                 # A remote viewer gets an empty one — blocking /api/kill is no
                 # use if the page hands the token out on the way in.
                 token = "" if self._remote() else KILL_TOKEN
-                self._send(oneview.page(seed, agents, token).encode())
+                self._send(oneview.page(seed, agents, token,
+                                        remote=self._remote()).encode())
                 return
 
             if path == "/board":
@@ -611,7 +612,9 @@ def serve(port):
             if path == "/signatures":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import nav, sigview
-                self._send(sigview.page(nav.html("/signatures"), nav.CSS).encode())
+                self._send(sigview.page(nav.html("/signatures",
+                                                 remote=self._remote()),
+                                        nav.CSS).encode())
                 return
 
             if path == "/api/kill-token":
@@ -730,7 +733,8 @@ def serve(port):
                     return
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import procs, events as ev
-                res = procs.kill_fleet(dry_run=bool(body.get("dry_run")))
+                res = procs.kill_fleet(dry_run=bool(body.get("dry_run")),
+                                       only=body.get("only") or None)
                 if not res["dry_run"] and res["killed"]:
                     ev.emit("fleet", "warn",
                             f"KILL SWITCH — SIGKILL sent to {len(res['killed'])} "
