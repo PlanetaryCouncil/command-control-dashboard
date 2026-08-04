@@ -68,6 +68,27 @@ a{color:var(--info)}
 .tag.blocked{color:var(--hot);border-color:var(--hot)}
 .tag.active{color:var(--cool);border-color:var(--cool)}
 
+.hero{display:grid;grid-template-columns:minmax(0,340px) 1fr;gap:1.4rem;
+  align-items:stretch}
+@media (max-width:760px){.hero{grid-template-columns:1fr}}
+.hero #heroart{display:block;border-radius:10px;overflow:hidden;
+  border:1px solid var(--border);background:var(--surface);min-height:180px}
+.hero #heroart img{width:100%;display:block}
+.pulse{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:1rem;display:flex;flex-direction:column;gap:.5rem;min-width:0}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;
+  background:var(--cool);margin-right:.4rem;vertical-align:middle}
+@media (prefers-reduced-motion:no-preference){
+  .dot{animation:bp 2s ease-in-out infinite}
+  @keyframes bp{0%,100%{opacity:1}50%{opacity:.25}}
+}
+.tk{font-family:var(--mono);font-size:.72rem;line-height:1.5;color:var(--ink-2);
+  padding:.22rem 0;border-bottom:1px solid var(--border);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk:last-child{border-bottom:0}
+.tk b{color:var(--info);font-weight:500}
+.hint{font-size:.78rem;color:var(--muted);margin:.4rem 0 0}
+.link .txt small{display:block;color:var(--muted);font-size:.76rem}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem}
 @media (max-width:720px){.two{grid-template-columns:1fr}}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:9px;
@@ -111,6 +132,18 @@ def page(remote: bool = False) -> str:
   </header>
 
   {WELCOME if remote else ''}
+
+  <section class="hero">
+    <a href="/signatures" id="heroart" title="the current artwork"></a>
+    <div class="pulse">
+      <p class="eyebrow" style="margin:0 0 .4rem">
+        <span class="dot"></span> live &mdash; the fleet, right now</p>
+      <div id="ticker"><div class="tk empty">listening…</div></div>
+      <p class="hint">Agents propose, build on branches, review each other's
+        code and ask a human to merge. This is that happening, unedited.
+        <a href="/fleet">watch the full board &rarr;</a></p>
+    </div>
+  </section>
 
   <nav class="rail">
     <a class="key" href="/fleet">the fleet dashboard &rarr;</a>
@@ -157,11 +190,13 @@ def page(remote: bool = False) -> str:
 
   try {{
     const h = await (await fetch("/api/horizons",{{cache:"no-store"}})).json();
-    const levels = (h.levels || h.chain || []).filter(l => (l.statement || "").trim());
+    const levels = (h.levels || h.chain || [])
+      .filter(l => (l.goal || l.statement || "").trim());
     if (levels.length) $("#chain").innerHTML = levels.map(l =>
       `<div class="link${{l.scale === "now" ? " now" : ""}}">
          <span class="scale">${{esc(l.scale)}}</span>
-         <span class="txt">${{esc(l.statement)}}</span></div>`).join("");
+         <span class="txt">${{esc(l.goal || l.statement)}}
+           <small>${{esc(l.why || "")}}</small></span></div>`).join("");
     else $("#chain").innerHTML = '<div class="link"><span class="txt empty">no horizons set yet</span></div>';
   }} catch (e) {{}}
 
@@ -184,11 +219,36 @@ def page(remote: bool = False) -> str:
 
   try {{
     const a = await (await fetch("/api/artwork",{{cache:"no-store"}})).json();
+    if (a.image) $("#heroart").innerHTML =
+      `<img src="${{esc(a.image)}}" alt="${{esc(a.title || "")}}">`;
     $("#art").innerHTML = a.image
       ? `<a href="${{esc(a.url || a.image)}}"><img src="${{esc(a.image)}}" alt=""></a>
          <div style="font-family:var(--mono);font-size:.76rem;margin-top:.4rem">
          ${{esc(a.title || "")}}</div>`
       : "the gallery is empty";
+  }} catch (e) {{}}
+
+  // The pulse. Same event stream the fleet board uses — the page is alive
+  // because the machine is, not because of an animation.
+  const tick = $("#ticker");
+  const paint = e => {{
+    const msg = String(e.msg || "");
+    if (!msg || /^\[e2e\]/.test(msg)) return;
+    const row = document.createElement("div");
+    row.className = "tk";
+    row.innerHTML = `<b>${{esc(e.agent || "fleet")}}</b> ${{esc(msg.slice(0, 150))}}`;
+    if (tick.querySelector(".empty")) tick.innerHTML = "";
+    tick.prepend(row);
+    while (tick.children.length > 7) tick.lastChild.remove();
+  }};
+  try {{
+    const seed = await (await fetch("/api/council",{{cache:"no-store"}})).json();
+    (seed.turns || []).slice(-4).forEach(t => paint(
+      {{agent: t.agent, msg: "[council] " + String(t.text || "").slice(0, 150)}}));
+  }} catch (e) {{}}
+  try {{
+    const es = new EventSource("/events");
+    es.onmessage = m => {{ try {{ paint(JSON.parse(m.data)); }} catch (e) {{}} }};
   }} catch (e) {{}}
 
   try {{
