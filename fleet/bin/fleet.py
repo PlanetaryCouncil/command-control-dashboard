@@ -605,7 +605,18 @@ def serve(port):
             if path == "/api/signatures":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import signature
-                self._send(json.dumps({"signatures": signature.signatures()}).encode(),
+                collected = []
+                f = FLEET / "data" / "signatures-collected.jsonl"
+                try:
+                    for line in f.read_text(errors="replace").splitlines()[-24:]:
+                        try:
+                            collected.append(json.loads(line))
+                        except ValueError:
+                            pass
+                except OSError:
+                    pass
+                self._send(json.dumps({"signatures": signature.signatures(),
+                                       "collected": collected}).encode(),
                            "application/json")
                 return
 
@@ -696,6 +707,55 @@ def serve(port):
             if forwards(path):
                 n = int(self.headers.get("Content-Length") or 0)
                 self._forward(path, self.rfile.read(min(n, 1_000_000)))
+                return
+
+            if path == "/api/signatures/sign":
+                # The entropy collection. Anyone — human at a trackpad,
+                # agent with a synthesized path — may sign the pad. The
+                # mark is the path; the seed is SHA-256 over it; both are
+                # kept. Deliberately public: collecting how hands differ
+                # is the artistic project, and a pad only locals can sign
+                # collects one hand.
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 200_000:
+                        self.send_error(413)
+                        return
+                    body = json.loads(self.rfile.read(n).decode())
+                    pts = body.get("points") or []
+                    if not (20 <= len(pts) <= 3000):
+                        raise ValueError("20..3000 points")
+                    step = max(1, len(pts) // 600)   # cap stored entropy
+                    pts = [{"x": round(float(p["x"]), 4),
+                            "y": round(float(p["y"]), 4),
+                            "t": round(float(p["t"]), 1)}
+                           for p in pts[::step]]
+                    name = str(body.get("name") or "anonymous").strip()[:40] \
+                        or "anonymous"
+                except Exception:
+                    self.send_error(400)
+                    return
+                import hashlib
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                seed = hashlib.sha256(
+                    json.dumps(pts, sort_keys=True).encode()).hexdigest()
+                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                       "name": name, "kind": "human",
+                       "remote": self._remote(), "seed": seed, "points": pts}
+                f = FLEET / "data" / "signatures-collected.jsonl"
+                try:
+                    if f.exists() and f.stat().st_size > 8_000_000:
+                        f.rename(f.with_suffix(".jsonl.1"))
+                    with f.open("a") as fh:
+                        fh.write(json.dumps(rec) + "\n")
+                except OSError:
+                    self.send_error(500)
+                    return
+                ev.emit("visitors", "ok",
+                        f"[signatures] a hand signed the pad: {name}")
+                self._send(json.dumps({"seed": seed, "name": name}).encode(),
+                           "application/json")
                 return
 
             if path == "/api/paste-image":
