@@ -570,6 +570,42 @@ def serve(port):
                     self._send(b'{"levels": []}', "application/json")
                 return
 
+            if path == "/api/guests":
+                # Guests on the main board: their words (the public signal
+                # queue) and their hands (the collected marks), one payload.
+                # Direct file reads, same cheap-read rule as horizons.
+                out = {"messages": [], "marks": []}
+                try:
+                    inbox = json.loads(
+                        (FLEET.parent / "data" / "inbox.json").read_text())
+                    for sg in inbox.get("signals", [])[-8:]:
+                        if sg.get("public", True):
+                            out["messages"].append({
+                                "sender": str(sg.get("sender", ""))[:40],
+                                "body": str(sg.get("body", ""))[:140],
+                                "status": sg.get("status", ""),
+                                "ts": str(sg.get("received_at",
+                                                 sg.get("ts", "")))[:16]})
+                except (OSError, ValueError):
+                    pass
+                try:
+                    f = FLEET / "data" / "signatures-collected.jsonl"
+                    rows = []
+                    for line in f.read_text(errors="replace").splitlines():
+                        try:
+                            d = json.loads(line)
+                        except ValueError:
+                            continue
+                        if d.get("status") != "purgatory":
+                            rows.append({"name": d.get("name", "")[:40],
+                                         "kind": d.get("kind", "human"),
+                                         "points": d.get("points", [])})
+                    out["marks"] = rows[-8:]
+                except OSError:
+                    pass
+                self._send(json.dumps(out).encode(), "application/json")
+                return
+
             if path == "/api/artwork":
                 # The gallery slot: one curated piece, set by art.py. An
                 # absent file is an empty gallery, not an error.
