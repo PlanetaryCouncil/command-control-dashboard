@@ -605,18 +605,23 @@ def serve(port):
             if path == "/api/signatures":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import signature
-                collected = []
+                collected, purgatory = [], []
                 f = FLEET / "data" / "signatures-collected.jsonl"
                 try:
-                    for line in f.read_text(errors="replace").splitlines()[-24:]:
+                    for line in f.read_text(errors="replace").splitlines()[-64:]:
                         try:
-                            collected.append(json.loads(line))
+                            d = json.loads(line)
                         except ValueError:
-                            pass
+                            continue
+                        # Records from before the gate have no status and
+                        # are grandfathered onto the wall.
+                        (purgatory if d.get("status") == "purgatory"
+                         else collected).append(d)
                 except OSError:
                     pass
                 self._send(json.dumps({"signatures": signature.signatures(),
-                                       "collected": collected,
+                                       "collected": collected[-24:],
+                                       "purgatory": purgatory[-24:],
                                        "evolution": signature.evolution()}).encode(),
                            "application/json")
                 return
@@ -740,11 +745,18 @@ def serve(port):
                     return
                 import hashlib
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import events as ev
+                import events as ev, signature as sig
                 seed = hashlib.sha256(
                     json.dumps(pts, sort_keys=True).encode()).hexdigest()
+                # The spam gate. A living hand hangs straight on the wall;
+                # a too-regular path waits in purgatory for the operator's
+                # bless or damn. Local signers skip the gate — the operator
+                # cannot spam their own wall.
+                entropy = sig.hand_entropy(pts)
+                blessed = (not self._remote()) or entropy >= 0.2
                 rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "name": name, "kind": kind,
+                       "name": name, "kind": kind, "entropy": entropy,
+                       "status": "blessed" if blessed else "purgatory",
                        "remote": self._remote(), "seed": seed, "points": pts}
                 # Pinning is curation, and curation is the operator's hand:
                 # only a local caller may put a mark at the top of the wall.
@@ -759,9 +771,52 @@ def serve(port):
                 except OSError:
                     self.send_error(500)
                     return
-                ev.emit("visitors", "ok",
-                        f"[signatures] a hand signed the pad: {name}")
-                self._send(json.dumps({"seed": seed, "name": name}).encode(),
+                if blessed:
+                    ev.emit("visitors", "ok",
+                            f"[signatures] a hand signed the pad: {name}")
+                else:
+                    ev.emit("visitors", "warn",
+                            f"[signatures] mark from '{name}' held in "
+                            f"purgatory — entropy {entropy}")
+                self._send(json.dumps({"seed": seed, "name": name,
+                                       "status": rec["status"],
+                                       "entropy": entropy}).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/signatures/judge":
+                # Purgatory's only exits. Local-only, like all curation.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                    seed, verdict = body["seed"], body["verdict"]
+                    assert verdict in ("bless", "damn")
+                except Exception:
+                    self.send_error(400)
+                    return
+                f = FLEET / "data" / "signatures-collected.jsonl"
+                out, hit = [], False
+                for line in f.read_text(errors="replace").splitlines():
+                    try:
+                        d = json.loads(line)
+                    except ValueError:
+                        continue
+                    if d.get("seed") == seed:
+                        hit = True
+                        if verdict == "damn":
+                            continue          # damned marks leave the book
+                        d["status"] = "blessed"
+                    out.append(json.dumps(d))
+                f.write_text("\n".join(out) + ("\n" if out else ""))
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                if hit:
+                    ev.emit("visitors", "info",
+                            f"[signatures] operator {verdict}ed {seed[:12]}…")
+                self._send(json.dumps({"ok": hit, "verdict": verdict}).encode(),
                            "application/json")
                 return
 
