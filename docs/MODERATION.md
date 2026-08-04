@@ -62,8 +62,10 @@ here so nobody relies on a protection that does not exist.
 
 ## Four things stand between a message and the public
 
-**1. The declaration.** You tick a box saying your message is neither of those
-things before it sends.
+**1. The declaration.** You tick a box saying neither your message nor your
+signature is either of those things. It sits *below* the pad, because a
+drawn mark is content too and a declaration should cover everything above
+it.
 
 This is [RFC 3514](https://www.rfc-editor.org/rfc/rfc3514) — the "evil bit", an
 April Fools proposal that malicious packets should set a flag announcing
