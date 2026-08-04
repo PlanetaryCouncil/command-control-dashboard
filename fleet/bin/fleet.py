@@ -10,6 +10,7 @@ so adding a worker to the board means adding a worker, not editing this file.
 
 import html
 import json
+import os
 import re
 import subprocess
 import sys
@@ -597,7 +598,7 @@ def serve(port):
                 except (OSError, ValueError):
                     pass
                 try:
-                    f = FLEET / "data" / "signatures-collected.jsonl"
+                    f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                     rows = []
                     for line in f.read_text(errors="replace").splitlines():
                         try:
@@ -659,7 +660,7 @@ def serve(port):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import signature
                 collected, purgatory = [], []
-                f = FLEET / "data" / "signatures-collected.jsonl"
+                f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                 try:
                     for line in f.read_text(errors="replace").splitlines()[-64:]:
                         try:
@@ -826,7 +827,7 @@ def serve(port):
                 # only a local caller may put a mark at the top of the wall.
                 if body.get("pin") and not self._remote():
                     rec["pinned"] = True
-                f = FLEET / "data" / "signatures-collected.jsonl"
+                f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                 try:
                     if f.exists() and f.stat().st_size > 8_000_000:
                         f.rename(f.with_suffix(".jsonl.1"))
@@ -890,7 +891,7 @@ def serve(port):
                 except Exception:
                     self.send_error(400)
                     return
-                f = FLEET / "data" / "signatures-collected.jsonl"
+                f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                 out, hit = [], False
                 for line in f.read_text(errors="replace").splitlines():
                     try:

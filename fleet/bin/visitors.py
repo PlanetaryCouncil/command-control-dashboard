@@ -99,7 +99,11 @@ _last_worker_write = 0.0
 # Our own dudes. The gateways poll /api/fleet through the funnel every minute
 # and were 20% of "public" traffic labelled browser/Python-urllib (openclaw
 # caught it in council, 2026-08-04). Marsita's word for them: homies.
-HOMIES_FILE = FLEET / "data" / "homies.txt"
+# Out of the repo by default: a home IPv6 /64 is a location fingerprint,
+# and this repo is public. Override with $FLEET_HOMIES.
+HOMIES_FILE = Path(os.environ.get(
+    "FLEET_HOMIES", Path.home() / ".config" / "fleet" / "homies.txt"))
+HOMIES_EXAMPLE = FLEET / "data" / "homies.txt"
 
 
 def _is_homie(path, ip):
@@ -109,6 +113,8 @@ def _is_homie(path, ip):
         prefixes = [l.strip() for l in HOMIES_FILE.read_text().splitlines()
                     if l.strip() and not l.startswith("#")]
     except OSError:
+        return False
+    if not prefixes:
         return False
     return any(ip.startswith(pre) for pre in prefixes)
 

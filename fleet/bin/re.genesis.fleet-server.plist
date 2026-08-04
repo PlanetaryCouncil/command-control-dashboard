@@ -22,6 +22,12 @@
          chat subprocesses (claude, hermes, openclaw) would fail with ENOENT. -->
     <key>EnvironmentVariables</key>
     <dict>
+        <!-- Private state, deliberately outside the public repo: the
+             guest book's home-IP prefixes and the raw signature paths. -->
+        <key>FLEET_HOMIES</key>
+        <string>/Users/YOU/.config/fleet/homies.txt</string>
+        <key>FLEET_SIGNATURES</key>
+        <string>/Users/YOU/.config/fleet/signatures-collected.jsonl</string>
         <key>PATH</key>
         <string>/Users/YOU/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
