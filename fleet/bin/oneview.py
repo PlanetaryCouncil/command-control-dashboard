@@ -913,6 +913,16 @@ function connect(){
   es.onerror = () => { $("#pulse").className = "stale"; };
 }
 
+const convBtn = document.getElementById("convenebtn");
+if (convBtn) convBtn.addEventListener("click", async () => {
+  convBtn.disabled = true; convBtn.textContent = "convening…";
+  try { await fetch("api/convene", { method: "POST" }); }
+  catch (e) {}
+  convBtn.textContent = "council sits";
+  setTimeout(() => { convBtn.disabled = false;
+                     convBtn.innerHTML = "&#128483; convene"; }, 8000);
+});
+
 const tick = () => { const d = new Date();
   $("#clock").textContent = [d.getHours(),d.getMinutes(),d.getSeconds()]
     .map(x => String(x).padStart(2,"0")).join(":"); };
@@ -1067,6 +1077,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
+    {'' if remote else '<button id="convenebtn" title="Summon the council now instead of waiting for the schedule">&#128483; convene</button>'}
     {'' if remote else '<button id="termbtn" aria-pressed="false">&#9646; terminal</button>'}
     {nav.html("/", remote=remote)}
     <span id="clock"></span>
