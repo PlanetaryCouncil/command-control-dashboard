@@ -73,7 +73,11 @@ a{color:var(--info)}
 @media (max-width:760px){.hero{grid-template-columns:1fr}}
 .hero #heroart{display:block;border-radius:10px;overflow:hidden;
   border:1px solid var(--border);background:var(--surface);min-height:180px}
+.hero #heroart{position:relative;text-decoration:none}
 .hero #heroart img{width:100%;display:block}
+.hero #heroart .cap{position:absolute;left:0;right:0;bottom:0;padding:.45rem .7rem;
+  font-family:var(--mono);font-size:.68rem;color:#eef1f4;
+  background:linear-gradient(transparent,rgba(0,0,0,.85))}
 .pulse{background:var(--surface);border:1px solid var(--border);border-radius:10px;
   padding:1rem;display:flex;flex-direction:column;gap:.5rem;min-width:0}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;
@@ -134,7 +138,7 @@ def page(remote: bool = False) -> str:
   {WELCOME if remote else ''}
 
   <section class="hero">
-    <a href="/signatures" id="heroart" title="the current artwork"></a>
+    <a href="/art" id="heroart" title="the current artwork — how to submit"></a>
     <div class="pulse">
       <p class="eyebrow" style="margin:0 0 .4rem">
         <span class="dot"></span> live &mdash; the fleet, right now</p>
@@ -149,6 +153,7 @@ def page(remote: bool = False) -> str:
     <a class="key" href="/fleet">the fleet dashboard &rarr;</a>
     <a href="/hi">say hi</a>
     <a href="/signatures">signatures</a>
+    <a href="/art">submit art</a>
     <a href="/about">what this is</a>
     <a href="/moderation">the rules</a>
     <a href="/llms.txt">agents start here</a>
@@ -164,15 +169,9 @@ def page(remote: bool = False) -> str:
     <div class="proj" id="projects"><div class="row"><span class="nm empty">reading…</span></div></div>
   </section>
 
-  <section class="two">
-    <div class="card">
-      <p class="eyebrow" style="margin:0">current artwork</p>
-      <div id="art" class="empty">reading…</div>
-    </div>
-    <div class="card">
-      <p class="eyebrow" style="margin:0">guests · who came by</p>
-      <div id="guests" class="empty">reading…</div>
-    </div>
+  <section class="card">
+    <p class="eyebrow" style="margin:0">guests · who came by</p>
+    <div id="guests" class="empty">reading…</div>
   </section>
 
   <footer>
@@ -220,12 +219,9 @@ def page(remote: bool = False) -> str:
   try {{
     const a = await (await fetch("/api/artwork",{{cache:"no-store"}})).json();
     if (a.image) $("#heroart").innerHTML =
-      `<img src="${{esc(a.image)}}" alt="${{esc(a.title || "")}}">`;
-    $("#art").innerHTML = a.image
-      ? `<a href="${{esc(a.url || a.image)}}"><img src="${{esc(a.image)}}" alt=""></a>
-         <div style="font-family:var(--mono);font-size:.76rem;margin-top:.4rem">
-         ${{esc(a.title || "")}}</div>`
-      : "the gallery is empty";
+      `<img src="${{esc(a.image)}}" alt="${{esc(a.title || "")}}">
+       <span class="cap">${{esc(a.title || "")}}${{a.artist
+         ? " &middot; " + esc(a.artist) : ""}} &mdash; submit yours</span>`;
   }} catch (e) {{}}
 
   // The pulse. Same event stream the fleet board uses — the page is alive
