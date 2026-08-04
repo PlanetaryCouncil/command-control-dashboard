@@ -139,18 +139,34 @@
     const px = p => ((p.x - (minX + maxX) / 2) / span) * S + W / 2;
     const py = p => ((p.y - (minY + maxY) / 2) / span) * S + H / 2;
 
+    // Smooth, weighted, deep — real pen aesthetics. Quadratic curves
+    // through midpoints kill the polyline corners; width follows speed and
+    // is eased between segments so it swells rather than steps; a wide
+    // soft underglow beneath a crisp core gives the ink depth.
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1], b = points[i];
+    const wOf = i => {
+      const a = points[Math.max(i - 1, 0)], b = points[i];
       const dt = Math.max(b.t - a.t, 1e-3);
       const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
-      ctx.strokeStyle = "rgba(125, 255, 176, 0.9)";
-      ctx.lineWidth = Math.max(0.6, 3.2 - v * 0.9);
-      ctx.beginPath();
-      ctx.moveTo(px(a), py(a));
-      ctx.lineTo(px(b), py(b));
-      ctx.stroke();
+      return Math.max(0.6, 3.4 - v * 0.95);
+    };
+    const widths = points.map((_, i) => wOf(i));
+    for (let i = 1; i < widths.length - 1; i++)
+      widths[i] = (widths[i - 1] + widths[i] * 2 + widths[i + 1]) / 4;
+
+    for (const layer of [{ mul: 3.2, style: "rgba(125, 255, 176, 0.10)" },
+                         { mul: 1.0, style: "rgba(190, 255, 215, 0.95)" }]) {
+      for (let i = 1; i < points.length - 1; i++) {
+        const a = points[i - 1], b = points[i], c = points[i + 1];
+        ctx.strokeStyle = layer.style;
+        ctx.lineWidth = widths[i] * layer.mul;
+        ctx.beginPath();
+        ctx.moveTo((px(a) + px(b)) / 2, (py(a) + py(b)) / 2);
+        ctx.quadraticCurveTo(px(b), py(b),
+                             (px(b) + px(c)) / 2, (py(b) + py(c)) / 2);
+        ctx.stroke();
+      }
     }
   }
 
