@@ -17,6 +17,7 @@ stay where they belong on their own page — this is navigation only.
 # both a CONSOLE button and a TERMINAL tab was the same word twice.
 PAGES = [
     ("/", "focus"),
+    ("/orbit", "orrery"),
     ("/fleet", "fleet"),
     ("/hi", "say hi"),
     ("/chat", "chat"),
