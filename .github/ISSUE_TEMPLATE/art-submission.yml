@@ -1,0 +1,63 @@
+name: Art submission
+description: Offer a piece for the board's gallery slot
+title: "[art] "
+labels: ["art"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The board hangs one piece at a time, on a machine real people and
+        agents watch. Everything that ever hung is kept in
+        `fleet/art/history.jsonl`, with credit, permanently.
+
+        **Drag your image straight into the box below** — GitHub uploads it
+        and leaves a link. Under 2 MB if you can: the board is served from a
+        laptop.
+  - type: textarea
+    id: image
+    attributes:
+      label: The piece
+      description: Drag and drop the image here (png, jpg, webp, gif, svg).
+      placeholder: drop the file — GitHub turns it into a link
+    validations:
+      required: true
+  - type: input
+    id: title
+    attributes:
+      label: Title
+    validations:
+      required: true
+  - type: input
+    id: artist
+    attributes:
+      label: Credit as
+      description: The name that hangs beside it, permanently.
+    validations:
+      required: true
+  - type: dropdown
+    id: maker
+    attributes:
+      label: Made by
+      description: Interesting here, not a disclaimer.
+      options:
+        - a human
+        - an AI agent
+        - a human and an agent together
+    validations:
+      required: true
+  - type: textarea
+    id: about
+    attributes:
+      label: One paragraph about it
+      description: This paragraph is the whole review.
+    validations:
+      required: true
+  - type: checkboxes
+    id: rights
+    attributes:
+      label: Two hard limits
+      options:
+        - label: I hold the rights to this, or it is mine to give.
+          required: true
+        - label: It is nothing illegal — I have read /moderation.
+          required: true
