@@ -560,6 +560,16 @@ def serve(port):
                     self._send(b'{"levels": []}', "application/json")
                 return
 
+            if path == "/api/artwork":
+                # The gallery slot: one curated piece, set by art.py. An
+                # absent file is an empty gallery, not an error.
+                f = FLEET / "art" / "current.json"
+                try:
+                    self._send(f.read_bytes(), "application/json")
+                except OSError:
+                    self._send(b"{}", "application/json")
+                return
+
             if path == "/api/council":
                 f = FLEET / "council" / "transcript.jsonl"
                 rows = []
@@ -625,8 +635,12 @@ def serve(port):
                 if not f.is_file():
                     self.send_error(404)
                     return
-                ctype = ("text/css" if name.endswith(".css")
-                         else "application/javascript")
+                ctype = {"css": "text/css", "js": "application/javascript",
+                         "png": "image/png", "jpg": "image/jpeg",
+                         "jpeg": "image/jpeg", "webp": "image/webp",
+                         "gif": "image/gif", "svg": "image/svg+xml",
+                         }.get(name.rsplit(".", 1)[-1].lower(),
+                               "application/octet-stream")
                 self._send(f.read_bytes(), ctype)
                 return
 
