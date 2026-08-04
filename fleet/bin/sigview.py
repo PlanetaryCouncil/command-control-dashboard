@@ -84,6 +84,32 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
 
   <div class="grid" id="grid"><div class="empty">reading traces…</div></div>
 
+  <section>
+    <p class="eyebrow">the pad · sign it</p>
+    <p class="lede">Hold the pointer down and move for a few seconds —
+      <b>your hand is the entropy</b>. The same projector that draws the
+      agents will draw you, and your mark joins the collection below.</p>
+    <div class="card" style="max-width:420px">
+      <canvas id="pad" style="touch-action:none;aspect-ratio:1/1;width:100%;
+        background:#03060a;border:1px solid var(--rule);cursor:crosshair"></canvas>
+      <div style="display:flex;gap:.5rem">
+        <input id="signame" placeholder="your name (optional)" maxlength="40"
+          style="flex:1;background:#03060a;border:1px solid var(--rule);
+          color:var(--body);font-family:var(--mono);padding:.45rem .6rem">
+        <button id="sigsend" disabled
+          style="background:#03060a;border:1px solid var(--rule);
+          color:var(--phosphor);font-family:var(--mono);padding:.45rem .9rem;
+          cursor:pointer">sign</button>
+      </div>
+      <div class="meta"><span id="sigstate">draw first</span></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">collected · every hand that signed</p>
+    <div class="grid" id="collected"><div class="empty">nobody has signed yet</div></div>
+  </section>
+
   <footer>
     Seeds are SHA-256 over each agent's path and move as it works — a mark is
     not fixed at birth, it is the accumulated shape of everything the worker
@@ -153,6 +179,86 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     requestAnimationFrame(redraw);
     window.addEventListener("resize", redraw);
   }}
+
+  // ------------------------------------------------ the collected hands
+  const wall = document.getElementById("collected");
+  const collected = (data && data.collected) || [];
+  if (collected.length) {{
+    wall.innerHTML = "";
+    for (const c of collected.slice().reverse()) {{
+      const card = document.createElement("div");
+      card.className = "card";
+      const cv = document.createElement("canvas");
+      cv.setAttribute("role", "img");
+      cv.setAttribute("aria-label", (c.name || "anonymous") + " signature");
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = c.name || "anonymous";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML = "<span>" + (c.kind || "human") + "</span><span>"
+        + String(c.ts || "").slice(5, 16).replace("T", " ") + "</span>";
+      card.append(cv, name, meta);
+      wall.append(card);
+      requestAnimationFrame(() => drawSignature(cv, c.seed, c.points, 0));
+    }}
+  }}
+
+  // ------------------------------------------------ the pad
+  const pad = document.getElementById("pad");
+  const send = document.getElementById("sigsend");
+  const state = document.getElementById("sigstate");
+  const pctx = pad.getContext("2d");
+  let stroke = [], drawing = false, t0 = 0;
+
+  function padXY(e) {{
+    const r = pad.getBoundingClientRect();
+    return {{ x: (e.clientX - r.left) / r.width,
+              y: (e.clientY - r.top) / r.height,
+              t: performance.now() - t0 }};
+  }}
+  function padLine(a, b) {{
+    const r = pad.getBoundingClientRect();
+    if (pad.width !== r.width) {{ pad.width = r.width; pad.height = r.height; }}
+    pctx.strokeStyle = "#7dffb0"; pctx.lineWidth = 1.4; pctx.lineCap = "round";
+    pctx.beginPath();
+    pctx.moveTo(a.x * r.width, a.y * r.height);
+    pctx.lineTo(b.x * r.width, b.y * r.height);
+    pctx.stroke();
+  }}
+  pad.addEventListener("pointerdown", e => {{
+    pad.setPointerCapture(e.pointerId);
+    if (!stroke.length) t0 = performance.now();
+    drawing = true; stroke.push(padXY(e));
+  }});
+  pad.addEventListener("pointermove", e => {{
+    if (!drawing) return;
+    const p = padXY(e);
+    if (stroke.length) padLine(stroke[stroke.length - 1], p);
+    stroke.push(p);
+    state.textContent = stroke.length + " points of entropy";
+    send.disabled = stroke.length < 20;
+  }});
+  const stop = () => {{ drawing = false; }};
+  pad.addEventListener("pointerup", stop);
+  pad.addEventListener("pointercancel", stop);
+
+  send.addEventListener("click", async () => {{
+    send.disabled = true; state.textContent = "signing…";
+    try {{
+      const r = await fetch("/api/signatures/sign", {{
+        method: "POST", headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{
+          name: document.getElementById("signame").value,
+          points: stroke.slice(0, 3000) }})
+      }});
+      const out = await r.json();
+      state.textContent = r.ok
+        ? "signed — seed " + String(out.seed || "").slice(0, 12) + "…"
+        : "refused (" + r.status + ")";
+      if (r.ok) setTimeout(() => location.reload(), 900);
+    }} catch (e) {{ state.textContent = "unreachable"; send.disabled = false; }}
+  }});
 }})();
 </script>
 </body></html>"""
