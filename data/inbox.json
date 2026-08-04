@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-04T20:21:00.244048+00:00",
+  "updated_at": "2026-08-04T20:51:41.685926+00:00",
   "note": "Public submissions. Untrusted by definition. Never merged into life.json without a human promoting the record.",
   "signals": [
     {
@@ -391,6 +391,24 @@
       "response": "",
       "trusted": false,
       "declared_lawful_at": "2026-08-04T20:21:00.203051+00:00",
+      "triage": {
+        "risk": "review",
+        "reasons": [],
+        "note": "No rule fired. Still needs a human."
+      }
+    },
+    {
+      "id": "sig-f79bcd80",
+      "kind": "signal",
+      "sender": "operator",
+      "body": "MBP16: PR #1 merged \u2014 Apple Silicon fixes in the trunk (example plist fenced in docs/examples/, per hermes review). First outside contribution. Welcome to the source code.",
+      "project": null,
+      "status": "new",
+      "received_at": "2026-08-04T20:51:41.683595+00:00",
+      "public": true,
+      "response": "",
+      "trusted": false,
+      "declared_lawful_at": "2026-08-04T20:51:41.683595+00:00",
       "triage": {
         "risk": "review",
         "reasons": [],

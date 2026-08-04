@@ -1,2 +1,5 @@
-# ip prefixes of our own machines and gateways — one per line
-2a02:6b67:e762:2000
+# IP prefixes of YOUR OWN machines and gateways, one per line.
+# Kept out of the repo: a home /64 prefix is a location
+# fingerprint. The real list lives at ~/.config/fleet/homies.txt
+# (or $FLEET_HOMIES); this file is the example.
+# 203.0.113.
