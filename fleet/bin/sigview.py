@@ -235,9 +235,10 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       if (c.pinned) cv.style.borderColor = "var(--amber)";
       card.append(cv, name, meta);
       wall.append(card);
-      requestAnimationFrame(() => c.kind === "human"
-        ? drawRawSignature(cv, c.points)
-        : drawSignature(cv, c.seed, c.points, 0));
+      // Everything on the pad wall is a drawing — human hand or agent
+      // soul — and drawings render as ink. Folds stay upstairs where the
+      // marks are made of work, not intent.
+      requestAnimationFrame(() => drawRawSignature(cv, c.points));
     }}
   }}
 
