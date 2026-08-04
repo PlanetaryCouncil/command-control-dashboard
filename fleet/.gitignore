@@ -1,0 +1,10 @@
+logs/
+index.html
+.DS_Store
+__pycache__/
+*.pyc
+events.jsonl
+workers/
+uploads/
+digests/
+blackboard-proof/

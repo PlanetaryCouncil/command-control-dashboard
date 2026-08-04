@@ -1,0 +1,1174 @@
+#!/usr/bin/env python3
+"""One screen: agents, stream, processes, and an optional terminal.
+
+Built for a 27-inch 1920x1080 panel at about 82 pixels per inch — low density,
+big pixels, no retina. So type does not shrink below ~10px (below that a glyph
+stroke is one pixel and antialiasing muddies it); density comes from meters
+instead, which carry a value in zero characters.
+
+One document, one event-stream connection, one polling timer. The five separate
+pages opened five of each. Switching panels here is a CSS class change, which is
+why it is instant in a way navigation never is.
+
+The terminal is deliberately closed on load and its socket is not opened until
+you ask for it. Marsita works from the real command line — a JavaScript terminal
+repaints slower than a native one on this hardware — so this is the option, not
+the default.
+"""
+
+CSS = """
+:root{
+  --ground:#0d0d0d; --surface:#161615; --raised:#1f1f1e;
+  --border:#2b2b29; --ink:#f0f2f4; --ink-2:#b9bec5; --muted:#7d838b;
+  --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
+  --info:#3987e5;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --gap:4px;
+}
+:root[data-theme="light"]{
+  --ground:#F1F3F5; --surface:#FFFFFF; --raised:#E9ECEF;
+  --border:#D6DAE0; --ink:#14171B; --ink-2:#414B58; --muted:#5C6674;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--sans);font-size:11.5px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;overflow:hidden;
+  display:flex;flex-direction:column;}
+
+/* ---------- top bar ---------- */
+#bar{flex:none;display:flex;align-items:center;gap:11px;height:26px;
+  padding:0 8px;background:var(--surface);border-bottom:1px solid var(--border);}
+#bar h1{font-family:var(--mono);font-size:11.5px;font-weight:600;margin:0;
+  letter-spacing:.04em;}
+#bar .grp{display:flex;align-items:center;gap:6px;font-family:var(--mono);
+  font-size:9.5px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
+#bar .sp{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none;}
+#bar button,#bar a{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  text-transform:uppercase;padding:4px 9px;border-radius:5px;cursor:pointer;
+  border:1px solid var(--border);background:var(--raised);color:var(--ink-2);
+  text-decoration:none;}
+#bar button:hover,#bar a:hover{border-color:var(--muted);color:var(--ink);}
+#bar button[aria-pressed="true"]{border-color:var(--info);color:var(--info);}
+#clock{font-family:var(--mono);font-size:10px;color:var(--muted);
+  font-variant-numeric:tabular-nums;
+  /* Fixed width and zero-padded 24h: a right-anchored group shifts every time
+     a child changes width, and a ticking clock changes width constantly. */
+  width:58px;text-align:right;flex:none;}
+#pulse{width:6px;height:6px;border-radius:50%;background:var(--good);}
+#pulse.stale{background:var(--warning);}
+
+/* ---------- alarm ---------- */
+#alarm{display:none;flex:none;align-items:center;gap:9px;padding:7px 12px;
+  background:var(--critical);color:#fff;font-size:11.5px;}
+#alarm.on{display:flex;}
+#alarm b{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;}
+@media (prefers-reduced-motion:no-preference){
+  #alarm.on{animation:puls 2s ease-in-out infinite;}
+  @keyframes puls{0%,100%{opacity:1}50%{opacity:.85}}
+}
+
+/* ---------- the grid ---------- */
+/* Draggable dividers. Widths live in a custom property so a drag is one style
+   write, and they persist — a layout you have to redo on every reload is not a
+   layout. Sized for a 1920 panel; the middle column absorbs the remainder so
+   adding a fourth pane later needs no arithmetic here. */
+#grid{flex:1;min-height:0;display:grid;gap:0;padding:var(--gap);
+  grid-template-columns:var(--wL,290px) 6px 1fr 6px var(--wR,520px);
+  grid-template-rows:1fr;}
+/* Invisible until reached for. The panes already have borders, so drawing a bar
+   between them made a double line for a control that is only touched
+   occasionally. The hit area stays full width; only the paint is conditional. */
+.grip{cursor:col-resize;position:relative;}
+.grip::after{content:"";position:absolute;inset:0 1px;border-radius:2px;
+  background:transparent;transition:background .12s;}
+.grip:hover::after,.grip[data-drag="1"]::after{background:var(--info);}
+/* Same control rotated. Two pixels of layout, ten pixels of target: the
+   ::before spills above and below the element and is hit-tested as part of it,
+   so the divider is easy to grab without spending a row of the column on it.
+   Vertical space is the scarce one here — a 6px divider cost more than the
+   line of text it displaced. */
+.griph{cursor:row-resize;position:relative;flex:none;height:2px;}
+.griph::before{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px;}
+.griph::after{content:"";position:absolute;inset:0;border-radius:1px;
+  background:transparent;transition:background .12s;}
+.griph:hover::after,.griph[data-drag="1"]::after{background:var(--info);}
+.col{padding:0;}
+.col{display:flex;flex-direction:column;gap:var(--gap);min-height:0;min-width:0;}
+.pane{background:var(--surface);border:1px solid var(--border);border-radius:4px;
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative;}
+
+/* Loading state. The stream arrives seeded into the page, but agents and
+   processes are both empty until poll() returns — on reload that gap reads as
+   "nothing to report" when it means "not asked yet". Same ambiguity the council
+   found in the workers: a silent one looked identical to a healthy one. The
+   error state is deliberately distinct for the same reason — a fetch that threw
+   must never resolve to a clean empty pane. */
+.load{position:absolute;inset:0;z-index:2;background:var(--surface);
+  display:none;align-items:center;justify-content:center;gap:7px;
+  font-family:var(--mono);font-size:10px;color:var(--muted);}
+.pane[data-state="loading"] .load,.pane[data-state="error"] .load{display:flex;}
+.load i{width:13px;height:13px;border-radius:50%;flex:none;
+  border:1.5px solid var(--border);border-top-color:var(--info);
+  animation:spin .7s linear infinite;}
+.load .msg::after{content:"loading";}
+
+/* Is the machine working hard or chilling? Nothing showed this until load
+   reached 20 on four cores and every surface blamed the agents instead. */
+#machine{font-variant-numeric:tabular-nums;}
+#machine[data-state="idle"]{color:var(--muted);}
+#machine[data-state="working"]{color:var(--good);}
+#machine[data-state="busy"]{color:var(--warning);}
+#machine[data-state="saturated"]{color:var(--critical);font-weight:600;}
+.pane[data-state="error"] .load i{animation:none;border:1.5px solid var(--critical);
+  border-radius:2px;}
+.pane[data-state="error"] .load{color:var(--critical);}
+.pane[data-state="error"] .load .msg::after{content:"unreachable — retrying";}
+@keyframes spin{to{transform:rotate(360deg);}}
+/* A spinner is decoration; a stalled pane is information. Without motion the
+   ring alone reads as an empty circle, so the word carries it. */
+@media (prefers-reduced-motion:reduce){
+  .load i{animation:none;border-top-color:var(--info);opacity:.7;}
+}
+.pane>h2{flex:none;margin:0;padding:3px 7px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;}
+.pane>h2 .n{margin-left:auto;color:var(--ink-2);}
+.filters{margin-left:auto;display:flex;gap:3px;}
+.filters button{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;
+  text-transform:uppercase;padding:2px 6px;border-radius:3px;cursor:pointer;
+  border:1px solid var(--border);background:var(--raised);color:var(--muted);}
+.filters button:hover{color:var(--ink);}
+.filters button[aria-pressed="true"]{border-color:var(--info);color:var(--info);}
+.filters button.alt{color:var(--muted);border-style:dashed;}
+/* Zero matches: dimmed and unclickable, so you know before you click. */
+.filters button[data-empty="1"]{opacity:.35;cursor:default;}
+.filters button[data-empty="1"][aria-pressed="true"]{border-color:var(--border);
+  color:var(--muted);}
+.filters .cnt{margin-left:4px;opacity:.7;font-variant-numeric:tabular-nums;}
+#empty{display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;height:100%;color:var(--muted);font-family:var(--mono);}
+#empty.on{display:flex;}
+#empty .big{font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:var(--warning);}
+#empty .sub{font-size:10.5px;}
+.ev[hidden]{display:none;}
+.pane .body{flex:1;min-height:0;overflow-y:auto;}
+
+/* ---------- agents ---------- */
+.agent{border-bottom:1px solid var(--border);padding:3px 7px;}
+.agent:last-child{border-bottom:none;}
+.agent .top{display:flex;align-items:center;gap:6px;}
+.agent .nm{font-family:var(--mono);font-size:10.5px;font-weight:600;
+  color:var(--agent,var(--ink));overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.agent .st{margin-left:auto;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.09em;text-transform:uppercase;padding:1px 5px;border-radius:3px;
+  background:var(--raised);color:var(--muted);flex:none;}
+.agent .st.pass{color:var(--good);} .agent .st.fail,.agent .st.alert{color:var(--critical);}
+.agent .st.warn,.agent .st.skip{color:var(--warning);}
+.agent .last{font-size:10px;color:var(--muted);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ---------- stream ---------- */
+#stream .body{display:flex;flex-direction:column-reverse;}
+/* Flow, not grid. A grid selects cell by cell, so dragging across a line picks
+   up column fragments in the wrong order — unusable for quoting into a chat.
+   Inline-block columns with fixed widths keep the alignment and let a drag
+   select the line as continuous prose. */
+.ev{padding:1px 7px;border-left:2px solid var(--agent,transparent);
+  line-height:1.4;}
+.ev .t{display:inline-block;width:74px;vertical-align:top;}
+.ev .tagicon{display:inline-block;width:14px;vertical-align:top;}
+.ev .who{display:inline-block;width:118px;vertical-align:top;}
+.ev .m{display:inline;}
+/* Timestamp and identity are chrome; excluding them means a drag across several
+   lines yields the messages alone. */
+.ev .t, .ev .tagicon, .ev .who{user-select:none;}
+.ev .m{user-select:text;}
+.ev:nth-child(odd){background:rgba(127,127,127,.04);}
+.ev .t{font-family:var(--mono);font-size:9px;color:var(--muted);
+  font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;}
+.tagicon{font-size:10px;text-align:center;opacity:.85;}
+.daybar{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  color:var(--ink-2);padding:3px 9px;background:rgba(127,127,127,.07);
+  border-left:3px solid var(--muted);}
+.ev .fold{cursor:pointer;color:var(--muted);font-family:var(--mono);
+  font-size:9px;border:1px solid var(--border);border-radius:3px;
+  padding:0 4px;margin-left:6px;flex:none;}
+.ev .fold:hover{color:var(--ink);border-color:var(--muted);}
+.ev.folded .m{opacity:.75;}
+.ev .who{font-family:var(--mono);font-size:9.5px;color:var(--agent,var(--muted));
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ev .m{font-size:10.5px;color:var(--ink-2);word-break:break-word;}
+.ev.ok .m{color:var(--ink);}
+.ev.spoken{background:color-mix(in srgb,var(--agent) 9%,transparent);
+  border-left-width:3px;padding-top:3px;padding-bottom:3px;}
+.ev.spoken .m{color:var(--ink);}
+.ev.warn .m{color:var(--warning);}
+.ev.error .m,.ev.needs_you .m{color:var(--critical);font-weight:600;}
+
+/* ---------- processes ---------- */
+table{width:100%;border-collapse:collapse;font-size:10.5px;}
+th{text-align:left;font-family:var(--mono);font-size:8px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;padding:2px 7px 2px 0;
+  position:sticky;top:0;background:var(--surface);}
+td{padding:1px 7px 1px 0;border-bottom:1px dotted var(--border);vertical-align:middle;}
+td:first-child,th:first-child{padding-left:9px;}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap;
+  color:var(--muted);}
+td.w{font-family:var(--mono);font-size:10px;}
+tr.self td{color:var(--muted);}
+.kill{margin:5px 7px 6px;display:flex;align-items:center;gap:8px;}
+#kill{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;padding:5px 11px;border-radius:4px;cursor:pointer;
+  border:1px solid var(--critical);background:var(--critical);color:#fff;}
+#kill[data-armed="1"]{animation:puls .9s ease-in-out infinite;}
+#kill:disabled{opacity:.4;cursor:not-allowed;animation:none;}
+#killnote{font-family:var(--mono);font-size:9px;color:var(--muted);}
+
+/* ---------- post to the board, from the board ----------
+   Leaving a message used to mean opening the other dashboard. One row, pinned
+   under the stream it posts into. */
+#say{flex:none;display:flex;gap:5px;align-items:center;padding:4px 6px;
+  border-top:1px solid var(--border);background:var(--raised);}
+#say input[type=text],#say input:not([type]){font-family:var(--mono);font-size:10px;
+  padding:3px 6px;border-radius:3px;border:1px solid var(--border);
+  background:var(--surface);color:var(--ink);}
+#sayWho{width:90px;flex:none;}
+#sayBody{flex:1;min-width:0;}
+#sayOk{display:flex;align-items:center;gap:3px;flex:none;cursor:pointer;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--muted);}
+#sayOk input{margin:0;width:11px;height:11px;accent-color:var(--info);}
+#say button{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
+  text-transform:uppercase;padding:4px 9px;border-radius:3px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink-2);}
+#say button:hover:not(:disabled){border-color:var(--info);color:var(--info);}
+#say button:disabled{opacity:.4;cursor:not-allowed;}
+#sayNote{font-family:var(--mono);font-size:8.5px;color:var(--muted);
+  max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ---------- goals: the chain, and whether you are keeping it ----------
+   A list of goals is a poster. What makes it accountable is the review date
+   sitting next to each one, and the word OVERDUE when it has passed — the week
+   goal was due 2026-07-27 and nothing on any screen said so. */
+#goals .body{padding:0;}
+.goal{display:grid;grid-template-columns:52px minmax(0,1fr) auto;
+  gap:8px;align-items:baseline;padding:5px 8px;
+  border-bottom:1px solid var(--border);}
+.goal:last-child{border-bottom:0;}
+.goal .s{font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);}
+.goal .g{font-size:11.5px;color:var(--ink-2);min-width:0;}
+.goal .d{font-family:var(--mono);font-size:9px;color:var(--muted);
+  white-space:nowrap;font-variant-numeric:tabular-nums;}
+.goal.now{background:var(--raised);}
+.goal.now .g{color:var(--ink);font-weight:600;}
+.goal.late .d{color:var(--critical);font-weight:600;}
+.goal.soon .d{color:var(--warning);}
+
+/* ---------- footer: everything this machine runs, in 7px ---------- */
+#foot{border-top:1px solid var(--border);background:var(--raised);
+  padding:10px 12px 12px;
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:4px 18px;}
+#foot section{min-width:0;}
+#foot h3{font-family:var(--mono);font-size:8px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--muted);margin:0 0 4px;font-weight:600;}
+#foot a,#foot span.dead{display:block;font-family:var(--mono);font-size:9px;
+  line-height:1.7;color:var(--ink-2);text-decoration:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#foot a:hover{color:var(--accent);text-decoration:underline;}
+#foot span.dead{color:var(--muted);}
+
+/* ---------- terminal drawer ---------- */
+#drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
+  background:#0d0d0d;transition:height .18s ease;}
+#drawer.open{height:42vh;}
+@media (prefers-reduced-motion:reduce){#drawer{transition:none;}}
+#term{height:100%;padding:5px 7px;}
+.empty{color:var(--muted);font-style:italic;padding:9px;font-size:10.5px;}
+"""
+
+JS = r"""
+const AGENTS = __AGENTS__;
+const TOKEN  = __TOKEN__;
+const $ = s => document.querySelector(s);
+
+/* ---------------- shared state -------------------------------------------
+   One event-stream connection and one polling timer for the whole page. The
+   five separate pages this replaces each opened their own. */
+const blocked = new Map();
+let termReady = false, ws = null, killToken = null, armTimer = null;
+
+const emoji = n => (AGENTS[n]||["⚙"])[0];
+const hue   = n => (AGENTS[n]||[null,"#7d838b"])[1];
+const hhmm  = iso => { try { const d=new Date(iso);
+  return [d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
+} catch(e){ return "--:--:--"; } };
+
+/* ---------------- meters --------------------------------------------------
+   A value is read by length, not by digits. Non-zero never renders as nothing:
+   0.4% of 100px is half a pixel, indistinguishable from missing data. */
+function meter(value, max, opts={}){
+  const pct = Math.max(0, (value/(max||1))*100);
+  const over = pct > 100;
+  const tone = opts.tone || (pct>=90?"critical":pct>=60?"warning":"good");
+  const colour = tone==="info" ? "var(--info)" : `var(--${tone})`;
+  const w = document.createElement("span");
+  w.style.cssText = "display:inline-flex;align-items:center;gap:5px;vertical-align:middle";
+  w.title = opts.exact ?? (value + (opts.suffix||""));
+  const track = document.createElement("span");
+  track.style.cssText = `width:${opts.w||64}px;height:6px;border-radius:3px;
+    background:rgba(127,127,127,.22);overflow:hidden;flex:none`;
+  const fill = document.createElement("span");
+  fill.style.cssText = `display:block;height:100%;border-radius:3px;
+    width:${Math.min(100,pct).toFixed(1)}%;${value>0?"min-width:3px;":""}
+    background:${over?`repeating-linear-gradient(135deg,var(--critical) 0 3px,transparent 3px 6px)`:colour}`;
+  track.appendChild(fill); w.appendChild(track);
+  return w;
+}
+
+/* ---------------- agents -------------------------------------------------- */
+const lastMsg = new Map();
+function renderAgents(workers){
+  $("#agents").dataset.state = "ready";
+  const box = $("#agents .body");
+  box.replaceChildren();
+  for (const w of workers){
+    const d = document.createElement("div");
+    d.className = "agent";
+    d.style.setProperty("--agent", hue(w.worker));
+    const top = document.createElement("div"); top.className = "top";
+    const nm = document.createElement("span"); nm.className = "nm";
+    nm.textContent = emoji(w.worker) + " " + w.worker;
+    const st = document.createElement("span"); st.className = "st " + (w.status||"");
+    st.textContent = w.status || "";
+    top.append(nm, st);
+    if (Number.isInteger(w.tests_passed) && (w.tests_passed + (w.tests_failed||0)) > 0){
+      top.append(meter(w.tests_passed, w.tests_passed + w.tests_failed,
+        {tone: w.tests_failed ? "critical" : "good", w: 48,
+         exact: `${w.tests_passed} of ${w.tests_passed + w.tests_failed} passed`}));
+    }
+    const last = document.createElement("div"); last.className = "last";
+    last.textContent = lastMsg.get(w.worker) || w.summary || "";
+    d.append(top, last);
+    box.appendChild(d);
+  }
+  $("#agents .n").textContent = workers.length;
+}
+
+/* ---------------- stream -------------------------------------------------- */
+/* Day pills.
+   A run repeated hourly produces near-identical lines; the only thing that
+   distinguishes yesterday's from today's is a timestamp you have to read. Each
+   day gets a colour instead, cycled from the validated categorical palette, so
+   the boundary is visible without parsing digits. The same pill appears on a
+   collapsed group and on every line inside it. */
+const DAY_HUES = ["#3987e5", "#d95926", "#199e70", "#c98500",
+                  "#d55181", "#9085e9", "#008300"];
+const dayKey = iso => String(iso || "").slice(0, 10);
+
+function dayHue(key){
+  let h = 0;
+  for (const c of key) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return DAY_HUES[h % DAY_HUES.length];
+}
+
+/* A date on every row is noise; a date on no row is a trap when you are working
+   past midnight and 23:58 sits directly above 00:03. So it appears exactly once
+   per day — on the line where the day turns over — as a full ISO date. */
+let lastDayRendered = null;
+
+function dayDivider(iso){
+  const key = dayKey(iso);
+  if (!key || key === lastDayRendered) return null;
+  lastDayRendered = key;
+  const el = document.createElement("div");
+  el.className = "daybar";
+  el.style.borderColor = dayHue(key);
+  el.textContent = key;
+  return el;
+}
+
+function dayPill(){ return document.createComment(""); }
+
+/* One tag per event, decided on arrival. Filtering is then a class check
+   rather than a re-scan of the whole log. */
+/* Pure bookkeeping with no information in it.
+   The e2e canary lines are the exception worth explaining: they must exist in
+   the log, because the test asserts the canary travels from the emitter to the
+   rendered page. They are evidence for the machine and clutter for the reader,
+   so they stay on disk and disappear from the display. */
+const SILENT = /(sweep finished|adjourned after|convened —|\[e2e\] (state )?canary )/i;
+
+function tagOf(e){
+  const m = e.msg || "";
+  if (e.level === "needs_you" || e.level === "error") return "attention";
+  if (m.includes("[relay]") || m.includes("[plus-one]") || /\bhops\b/.test(m))
+    return "relay";
+  if (m.includes("[council]")) return "council";
+  if (m.includes("pytest") || m.includes("passed") || m.includes("watchdog")) return "tests";
+  return "other";
+}
+/* Additive: each tag is an independent toggle, any combination is valid
+   including none. Deselecting everything is a legitimate state that shows
+   nothing, so it gets an explicit banner rather than an empty box that looks
+   broken. */
+const TAGS = ["relay", "council", "tests", "attention", "other"];
+const TAG_ICON = {relay: "\u{1F517}", council: "\u{1F5E3}", tests: "\u{1F9EA}",
+                  attention: "\u{1F6A8}", other: "\u{1F4CE}"};
+const shown = new Set(TAGS);
+
+/* Three distinct empty states, because "blank panel" is not an answer.
+   Nothing selected is a choice you made; nothing matching is a fact about the
+   log; and no events at all is a fresh system. Each says which. */
+function applyFilter(){
+  let visible = 0;
+  const counts = Object.fromEntries(TAGS.map(x => [x, 0]));
+  document.querySelectorAll("#stream .ev").forEach(row => {
+    const tag = row.dataset.tag;
+    if (tag in counts) counts[tag]++;
+    const on = shown.has(tag);
+    row.hidden = !on;
+    if (on) visible++;
+  });
+
+  // A tag with nothing behind it is greyed rather than silently disappointing.
+  for (const tag of TAGS) {
+    const b = $(`#filters button[data-f="${tag}"]`);
+    if (!b) continue;
+    b.dataset.empty = counts[tag] ? "0" : "1";
+    let c = b.querySelector(".cnt");
+    if (!c) { c = document.createElement("span"); c.className = "cnt"; b.appendChild(c); }
+    c.textContent = counts[tag];
+  }
+
+  const total = document.querySelectorAll("#stream .ev").length;
+  const title = $("#emptyTitle"), sub = $("#emptySub");
+
+  if (!shown.size) {
+    title.textContent = "no filters selected";
+    sub.textContent = "nothing will show — pick a tag, or press ALL";
+  } else if (!total) {
+    title.textContent = "no activity yet";
+    sub.textContent = "the fleet has not spoken since this page loaded";
+  } else if (!visible) {
+    const picked = [...shown].join(", ");
+    title.textContent = "nothing matching";
+    sub.textContent = `no messages tagged ${picked} — ${total} hidden by the filter`;
+  }
+
+  const blank = !visible;
+  $("#empty").className = blank ? "on" : "";
+  $("#stream .body").style.display = blank ? "none" : "";
+}
+
+function setTag(tag, on){
+  on ? shown.add(tag) : shown.delete(tag);
+  const b = $(`#filters button[data-f="${tag}"]`);
+  if (b) b.setAttribute("aria-pressed", String(on));
+}
+
+$("#filters").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.id === "fall")  { TAGS.forEach(t => setTag(t, true));  return applyFilter(); }
+  if (b.id === "fnone") { TAGS.forEach(t => setTag(t, false)); return applyFilter(); }
+  const tag = b.dataset.f;
+  if (b.dataset.empty === "1") return;    // nothing behind it; ignore the click
+  setTag(tag, !shown.has(tag));
+  applyFilter();
+});
+
+/* A finished run should be one line, not four.
+   "sweep started" / "running tests" / "91 passed" / "sweep finished" is a
+   lifecycle narrated at the reader. Collapse it: the start lines are held, and
+   when the result arrives it replaces them carrying the elapsed time. A run
+   still in flight keeps its start line, so nothing is hidden while it works. */
+const OPEN = new Map();          // agent -> {row, started}
+
+const STARTS  = /(sweep started|running tests|\[relay\] start|\[e2e\] run starting|round \d+: thinking|thinking)/i;
+const RESULTS = /(passed|failed|hops|nothing to add|\[council\] r\d|checks passed|error)/i;
+
+function secsBetween(a, b){
+  try { return Math.max(0, Math.round((new Date(b) - new Date(a)) / 1000)); }
+  catch(e){ return null; }
+}
+
+/* Repeats collapse.
+   Hourly checks emit lines that differ only in numbers — canaries, durations,
+   counters. Stripping those yields a signature; consecutive events sharing one
+   fold into a single row with a count, expandable on click. The newest is the
+   one shown, because that is the one you care about. */
+function signature(e){
+  return e.agent + "|" + (e.msg || "")
+    .replace(/\b[0-9a-f]{6,}\b/gi, "#")     // canaries, hashes
+    .replace(/\d+(\.\d+)?s\b/g, "#s")      // durations
+    .replace(/\d+/g, "#");                  // every other number
+}
+
+let lastSig = null, lastGroup = null, prevTs = null;
+
+/* A council turn is the only line in this log an agent actually composed.
+   Everything else is a machine reporting a number. They should not look alike. */
+const SPOKEN = /\[council\] r\d/i;
+
+function addEvent(e){
+  if (SILENT.test(e.msg || "")) { lastMsg.set(e.agent, e.msg || ""); return; }
+  const box = $("#stream .body");
+  const row = document.createElement("div");
+  row.className = "ev " + (e.level||"info");
+  row.dataset.tag = tagOf(e);
+  if (SPOKEN.test(e.msg || "")) row.classList.add("spoken");
+  row.hidden = !shown.has(row.dataset.tag);
+  row.style.setProperty("--agent", hue(e.agent));
+  const t = document.createElement("span"); t.className="t";
+  const clock = document.createElement("span"); clock.textContent = hhmm(e.ts);
+  prevTs = e.ts;
+  t.append(clock, dayPill(e.ts));
+  const w = document.createElement("span"); w.className="who";
+  w.textContent = emoji(e.agent) + " " + e.agent;
+  // The agent already carries an emoji. Showing the tag icon too duplicated it
+  // whenever they happened to match — agent-comms is 🔗 and so is the relay tag.
+  const tag = tagOf(e);
+  const icon = document.createElement("span");
+  icon.className = "tagicon";
+  const agentIcon = emoji(e.agent);
+  icon.textContent = (TAG_ICON[tag] === agentIcon) ? "" : (TAG_ICON[tag] || "");
+  icon.title = tag;
+  const m = document.createElement("span"); m.className="m";
+  m.textContent = clean(e.msg);
+  row.append(t,icon,w,m);
+  const msg = e.msg || "";
+
+  if (STARTS.test(msg)) {
+    // Hold it: if a result follows, this line is replaced rather than kept.
+    OPEN.set(e.agent, {row, started: e.ts});
+    box.prepend(row);
+    const bar0 = dayDivider(e.ts);
+    if (bar0) box.prepend(bar0);
+    followLatest(box);
+  } else if (RESULTS.test(msg) && OPEN.has(e.agent)) {
+    const open = OPEN.get(e.agent);
+    OPEN.delete(e.agent);
+    const took = secsBetween(open.started, e.ts);
+    if (took !== null && !/·\s*[\d.]+s\b/.test(msg)) {
+      m.textContent = msg + "  (" + took + "s)";
+    }
+    open.row.replaceWith(row);           // one line where there were two
+  } else {
+    const sig = signature(e);
+    if (sig === lastSig && lastGroup && lastGroup.isConnected) {
+      // Same thing again: fold into the existing row instead of adding another.
+      lastGroup._n = (lastGroup._n || 1) + 1;
+      lastGroup._rows = lastGroup._rows || [];
+      lastGroup._rows.push(row);
+      let fold = lastGroup.querySelector(".fold");
+      if (!fold) {
+        fold = document.createElement("span");
+        fold.className = "fold";
+        fold.addEventListener("click", () => {
+          const open = lastGroupExpanded(fold);
+          fold.dataset.open = open ? "0" : "1";
+          fold.textContent = (open ? "+" : "−") + fold.dataset.count;
+          (fold._owner._rows || []).forEach(r => {
+            if (open) r.remove();
+            else fold._owner.after(r);
+          });
+        });
+        fold._owner = lastGroup;
+        lastGroup.querySelector(".t").appendChild(fold);
+      }
+      fold.dataset.count = lastGroup._n;
+      fold.textContent = (fold.dataset.open === "1" ? "−" : "+") + lastGroup._n;
+      // show the newest instance, not the first
+      lastGroup.querySelector(".m").textContent = e.msg || "";
+      lastGroup.querySelector(".t").firstChild.textContent = hhmm(e.ts);
+      return;
+    }
+    lastSig = sig;
+    lastGroup = row;
+    box.prepend(row);
+    // column-reverse: prepending after the row puts the divider visually above it
+    const bar = dayDivider(e.ts);
+    if (bar) box.prepend(bar);
+    followLatest(box);
+  }
+
+  while (box.children.length > 320) box.removeChild(box.lastChild);
+
+  lastMsg.set(e.agent, e.msg||"");
+  if (e.level === "needs_you") blocked.set(e.agent, e.msg);
+  else if (e.level === "ok") blocked.delete(e.agent);
+  renderAlarm();
+}
+
+function lastGroupExpanded(fold){ return fold.dataset.open === "1"; }
+
+function renderAlarm(){
+  const a = $("#alarm");
+  if (!blocked.size){ a.className = ""; return; }
+  const [who,msg] = blocked.entries().next().value;
+  a.className = "on";
+  a.querySelector("b").textContent = blocked.size>1 ? blocked.size+" need you" : "Needs you";
+  a.querySelector("span.d").textContent = emoji(who)+" "+who+" — "+msg;
+}
+
+/* ---------------- processes ----------------------------------------------- */
+function elapsedSeconds(e){
+  const p = String(e).split("-");
+  let days = 0, rest = e;
+  if (p.length === 2){ days = parseInt(p[0],10)||0; rest = p[1]; }
+  const n = rest.split(":").map(x=>parseInt(x,10)||0);
+  while (n.length < 3) n.unshift(0);
+  return days*86400 + n[0]*3600 + n[1]*60 + n[2];
+}
+
+function renderMachine(m){
+  const el = $("#machine");
+  if (!el || !m || m.load1 == null) return;
+  // Words first, number second. The whole failure this fixes was that a number
+  // sat available and unread — "saturated" needs no interpretation.
+  el.dataset.state = m.state;
+  el.textContent = `${m.state} · ${m.load1} / ${m.cores} cores`;
+  el.title = `1m ${m.load1} · 5m ${m.load5} · 15m ${m.load15} — `
+           + `agents defer above ${m.gate}`;
+}
+
+function renderProcs(s){
+  $("#procs").dataset.state = "ready";
+  renderMachine(s.machine);
+  const tb = $("#procbody");
+  tb.replaceChildren();
+  const rows = [...s.fleet, ...s.external];
+  if (!rows.length){
+    const tr=document.createElement("tr"), td=document.createElement("td");
+    td.colSpan=5; td.className="empty"; td.textContent="// nothing running";
+    tr.appendChild(td); tb.appendChild(tr); return;
+  }
+  for (const p of rows){
+    const own = s.fleet.includes(p);
+    const tr = document.createElement("tr");
+    if (p.is_self) tr.className = "self";
+    const cell = (txt,cls) => { const td=document.createElement("td");
+      if(cls) td.className=cls; td.textContent=txt; return td; };
+    const wrap = node => { const td=document.createElement("td"); td.appendChild(node); return td; };
+    tr.append(cell(p.pid,"n"));
+    tr.append(cell(p.label + (p.is_self?"  (this)":"") + (own?"":"  ·ext"), "w"));
+    tr.append(wrap(meter(p.cpu,100,{suffix:"% cpu"})));
+    tr.append(wrap(meter(p.mem,100,{suffix:"% mem"})));
+    tr.append(wrap(meter(elapsedSeconds(p.elapsed),86400,{tone:"info",exact:p.elapsed+" uptime"})));
+    tb.appendChild(tr);
+  }
+  $("#procs .n").textContent = s.killable + " killable";
+  const kb = $("#kill");
+  kb.disabled = s.killable === 0;
+  // A greyed button with no reason next to it is a question, and Marsita asked
+  // it. The count lives in the pane header where it is easy to miss; put the
+  // answer where the disabled control is.
+  if (kb.disabled && kb.dataset.armed !== "1"){
+    kb.title = "nothing to kill — no fleet work is running";
+    $("#killnote").textContent = "nothing running";
+  } else if (!kb.disabled && kb.dataset.armed !== "1"){
+    kb.title = "";
+    $("#killnote").textContent = "SIGKILL. agent runtimes untouched.";
+  }
+}
+
+/* ---------------- post to the board ---------------------------------------- */
+/* Fleet forwards /api/signals to the cockpit, so this posts to its own origin
+   and works the same from the laptop or the public URL. The lawful checkbox is
+   not decoration: the API refuses without it, and the refusal is the record
+   that the sender was told the rule before they sent. */
+$("#say").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const who = $("#sayWho").value.trim() || "marsita";
+  const body = $("#sayBody").value.trim();
+  const btn = $("#say button");
+  const note = $("#sayNote");
+  if (!body){ note.textContent = "say something first"; return; }
+  if (!$("#sayLawful").checked){
+    note.textContent = "tick legal — the API refuses without it";
+    return;
+  }
+  btn.disabled = true; note.textContent = "posting…";
+  try {
+    const r = await fetch("api/signals", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({kind: "signal", sender: who, body, lawful: true}),
+    });
+    const d = await r.json();
+    if (!r.ok){ note.textContent = "refused: " + (d.detail || r.status); }
+    else {
+      note.textContent = "posted " + (d.id || "");
+      $("#sayBody").value = "";
+      $("#sayLawful").checked = false;
+    }
+  } catch(e){ note.textContent = "failed: " + e.message; }
+  btn.disabled = false;
+});
+
+/* ---------------- kill switch --------------------------------------------- */
+function disarm(){
+  const b = $("#kill");
+  b.dataset.armed = "0"; b.textContent = "kill fleet work";
+  $("#killnote").textContent = "SIGKILL. agent runtimes untouched.";
+  clearTimeout(armTimer);
+}
+$("#kill").addEventListener("click", async () => {
+  const b = $("#kill");
+  if (b.dataset.armed !== "1"){
+    b.dataset.armed = "1"; b.textContent = "click again";
+    $("#killnote").textContent = "arming for 5s — click to confirm";
+    armTimer = setTimeout(disarm, 5000); return;
+  }
+  disarm(); b.disabled = true;
+  try {
+    killToken ??= (await (await fetch("api/kill-token")).json()).token;
+    const d = await (await fetch("api/kill",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:killToken})})).json();
+    $("#killnote").textContent = d.error ? "refused: "+d.error
+      : d.killed.length ? "killed "+d.killed.length : "nothing was running";
+  } catch(e){ $("#killnote").textContent = "failed: "+e.message; }
+  b.disabled = false; poll();
+});
+
+/* ---------------- terminal drawer, opened only on request ------------------ */
+async function toggleTerm(){
+  const d = $("#drawer"), btn = $("#termbtn");
+  const opening = !d.classList.contains("open");
+  d.classList.toggle("open", opening);
+  btn.setAttribute("aria-pressed", String(opening));
+  if (!opening || termReady) { if (opening && window.__fit) window.__fit.fit(); return; }
+
+  // Load xterm and open the socket only when first asked: an idle drawer
+  // should cost nothing.
+  //
+  // Say so while it happens. Two scripts and a websocket is fast on an idle
+  // laptop and slow on one that is swapping, and the drawer used to show an
+  // unexplained black rectangle for the whole wait — indistinguishable from
+  // broken. A failed script load left it black forever with nothing in the UI
+  // to say why, so failures are printed here rather than only in the console.
+  const term_el = $("#term");
+  term_el.innerHTML = '<div id="termboot" style="padding:10px;font:11px/1.6 '
+    + 'ui-monospace,Menlo,monospace;color:#8a8f95">starting terminal…</div>';
+  const boot = m => { const b = $("#termboot"); if (b) b.textContent = m; };
+
+  const load = (src, what) => new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = res;
+    s.onerror = () => rej(new Error("could not load " + what));
+    document.head.appendChild(s);
+  });
+
+  try {
+    boot("loading terminal… (1/2)");
+    await load("/static/xterm.js", "xterm.js");
+    boot("loading terminal… (2/2)");
+    await load("/static/xterm-addon-fit.js", "xterm-addon-fit.js");
+    boot("connecting…");
+  } catch (err) {
+    boot(err.message + " — the drawer stays empty until this loads.");
+    return;                       // termReady stays false, so a retry is possible
+  }
+  const term = new Terminal({fontFamily:"ui-monospace, Menlo, monospace", fontSize:11,
+    lineHeight:1.2, cursorBlink:true, scrollback:5000,
+    theme:{background:"#0d0d0d", foreground:"#e6e9ec", cursor:"#d89b45"}});
+  const fit = new FitAddon.FitAddon(); term.loadAddon(fit);
+  term_el.innerHTML = "";               // clear the boot line before xterm mounts
+  term.open(term_el); fit.fit(); window.__fit = fit;
+  term.write("\x1b[90mconnecting…\x1b[0m\r\n");
+
+  // Protocol-matched, not hardcoded ws:. A page served over https can only open
+  // a wss: socket; hardcoding ws: works on localhost and fails silently the
+  // moment this is reached through the funnel.
+  const scheme = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${scheme}//${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}`);
+  ws.binaryType = "arraybuffer";
+  ws.onopen = () => ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows}));
+  ws.onmessage = e => term.write(new Uint8Array(e.data));
+  ws.onerror = () => term.write("\r\n\x1b[31m— could not connect —\x1b[0m\r\n");
+  ws.onclose = () => term.write("\r\n\x1b[90m— session ended —\x1b[0m\r\n");
+  term.onData(d => ws?.readyState===1 && ws.send(JSON.stringify({t:"input",d})));
+  addEventListener("resize", () => { if (d.classList.contains("open")){ fit.fit();
+    ws?.readyState===1 && ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows})); }});
+  termReady = true;
+  term.focus();
+}
+$("#termbtn").addEventListener("click", toggleTerm);
+
+/* Text from JSON goes into innerHTML in the two panes below, so it has to be
+   escaped. The rest of this file builds nodes with textContent and never
+   needed a helper — I used one that did not exist, every call threw, and both
+   panes reported "unreachable" for a fetch that had returned 200. */
+/* The 80-block rule is furniture for one terminal conversation, and it keeps
+   turning up in agent output that lands here — where it renders as a wall of
+   white slabs and pushes the actual sentence off the row. CLAUDE.md now scopes
+   the rule to interactive replies, but the events already logged still carry
+   it, and a fix that only works on future data is not a fix for a stream that
+   shows history. */
+/* The stream body is column-reverse, so scrollTop 0 is the NEWEST row, not the
+   oldest. Snap there when something arrives — but only if you were already
+   near the live end. Yanking the view while someone is reading history is how
+   a live pane becomes one you have to fight. */
+function followLatest(box){
+  if (box.scrollTop <= 60) box.scrollTop = 0;
+}
+
+function clean(x){
+  return String(x == null ? "" : x).replace(/\u2588+/g, "").replace(/^\s+/, "");
+}
+
+function esc(x){
+  return String(x == null ? "" : x)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+/* A pane that failed to render is not a pane that could not be reached, and
+   saying "unreachable" for a code bug sends you to look at the network. */
+function paneFailed(pane, err){
+  pane.dataset.state = "error";
+  const msg = pane.querySelector(".load .msg");
+  if (msg) msg.title = String(err && err.message || err);
+  console.error("[" + pane.id + "]", err);
+}
+
+/* ---------------- horizons and council ------------------------------------ */
+/* Both are read once on load and then every poll. Neither changes often — a
+   horizon is a quarter's intent, a council turn takes minutes — so they ride
+   the existing timer rather than opening connections of their own. */
+async function loadHorizons(){
+  const pane = $("#goals");
+  try {
+    const d = await (await fetch("api/horizons",{cache:"no-store"})).json();
+    const levels = d.levels || d.chain || [];
+    if (!levels.length){ pane.style.display = "none"; return; }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    let late = 0;
+
+    pane.querySelector(".body").innerHTML = levels.map(l => {
+      const scale = String(l.scale || "");
+      let cls = scale === "now" ? " now" : "";
+      let due = "";
+
+      if (l.review){
+        // Days, not a date. "2026-07-27" needs arithmetic to mean anything;
+        // "7d overdue" is the sentence you would say out loud.
+        const r = new Date(l.review + "T00:00:00");
+        const days = Math.round((r - today) / 86400000);
+        if (days < 0){ due = Math.abs(days) + "d overdue"; cls += " late"; late++; }
+        else if (days <= 7){ due = "due " + days + "d"; cls += " soon"; }
+        else { due = "due " + days + "d"; }
+      } else if (l.started_at){
+        const s0 = new Date(l.started_at);
+        const days = Math.floor((Date.now() - s0) / 86400000);
+        due = days >= 1 ? days + "d in" : "today";
+      }
+
+      return `<div class="goal${cls}">` +
+             `<span class="s">${esc(scale)}</span>` +
+             `<span class="g" title="${esc(l.why || "")}">${esc(l.goal || "")}</span>` +
+             `<span class="d">${esc(due)}</span></div>`;
+    }).join("");
+
+    // The count is the accountability, so it says what is wrong rather than
+    // how many rows exist.
+    pane.querySelector(".n").textContent = late ? late + " overdue" : "on track";
+    pane.querySelector(".n").style.color = late ? "var(--critical)" : "var(--good)";
+    pane.dataset.state = "ready";
+  } catch(e){ paneFailed(pane, e); }
+}
+
+/* ---------------- one poll, one stream ------------------------------------ */
+async function poll(){
+  try {
+    const [w,p] = await Promise.all([
+      fetch("workers.json",{cache:"no-store"}).then(r=>r.json()),
+      fetch("api/processes",{cache:"no-store"}).then(r=>r.json()),
+    ]);
+    renderAgents(w); renderProcs(p);
+  } catch(e){
+    // Only panes that have never rendered flip to the error state. Once a pane
+    // holds real data, a failed refresh leaves it standing — stale numbers with
+    // a stale clock beside them beat replacing them with an apology.
+    for (const id of ["#agents","#procs"])
+      if ($(id).dataset.state === "loading") $(id).dataset.state = "error";
+  }
+}
+
+function connect(){
+  const es = new EventSource("events");
+  es.onmessage = m => { $("#pulse").className=""; try{ addEvent(JSON.parse(m.data)); }catch(e){} };
+  es.onerror = () => { $("#pulse").className = "stale"; };
+}
+
+const tick = () => { const d = new Date();
+  $("#clock").textContent = [d.getHours(),d.getMinutes(),d.getSeconds()]
+    .map(x => String(x).padStart(2,"0")).join(":"); };
+setInterval(tick, 1000); tick();
+
+/* ---------------- resizable columns ---------------------------------------
+   Left and right widths are stored; the middle takes whatever is left, so the
+   layout survives a window resize and a reload. Clamped so a pane can be made
+   narrow but never dragged out of existence. */
+const LAYOUT_KEY = "fleet.layout.v1";
+
+function setWidths(l, r){
+  const max = innerWidth - 260;
+  l = Math.max(180, Math.min(l, max));
+  r = Math.max(180, Math.min(r, max));
+  document.documentElement.style.setProperty("--wL", l + "px");
+  document.documentElement.style.setProperty("--wR", r + "px");
+  try {
+    // Merge, never replace: writing {l, r} here wiped the saved height every
+    // time a column was dragged, so vertical layout survived until you touched
+    // a horizontal grip.
+    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify({...saved, l, r}));
+  } catch(e){}
+}
+
+try {
+  const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null");
+  if (saved) {
+    if (saved.l && saved.r) setWidths(saved.l, saved.r);
+    if (saved.hGoals) document.documentElement.style
+      .setProperty("--hGoals", saved.hGoals + "px");
+  }
+} catch(e){}
+
+function dragGrip(grip, which){
+  grip.addEventListener("pointerdown", down => {
+    down.preventDefault();
+    grip.dataset.drag = "1";
+    grip.setPointerCapture(down.pointerId);
+    const startX = down.clientX;
+    const cs = getComputedStyle(document.documentElement);
+    const startL = parseInt(cs.getPropertyValue("--wL")) || 290;
+    const startR = parseInt(cs.getPropertyValue("--wR")) || 520;
+
+    const move = m => {
+      const dx = m.clientX - startX;
+      // The right pane grows leftwards, so its delta is inverted.
+      if (which === "L") setWidths(startL + dx, startR);
+      else               setWidths(startL, startR - dx);
+      if (window.__fit) window.__fit.fit();
+    };
+    const up = () => {
+      delete grip.dataset.drag;
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", up);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up);
+  });
+  // Double-click restores the default, so a mangled drag is one gesture to undo.
+  grip.addEventListener("dblclick", () => setWidths(290, 520));
+}
+
+/* Vertical drag, same contract as the horizontal one: one style write, saved,
+   double-click to undo. Height lives on the same layout record so a restored
+   layout restores all of it rather than two thirds. */
+function setHeight(h){
+  h = Math.max(80, Math.min(h, window.innerHeight - 200));
+  document.documentElement.style.setProperty("--hGoals", h + "px");
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+    saved.hGoals = h;
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
+  } catch(e){}
+}
+
+function dragGripV(grip){
+  if (!grip) return;
+  grip.addEventListener("pointerdown", down => {
+    down.preventDefault();
+    grip.dataset.drag = "1";
+    grip.setPointerCapture(down.pointerId);
+    const startY = down.clientY;
+    const start = parseInt(getComputedStyle(document.documentElement)
+                           .getPropertyValue("--hGoals")) || 180;
+    // Dragging down grows the pane above, so the pane below shrinks: inverted.
+    const move = m => setHeight(start - (m.clientY - startY));
+    const up = () => {
+      delete grip.dataset.drag;
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", up);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up);
+  });
+  grip.addEventListener("dblclick", () => setHeight(180));
+}
+
+dragGrip($("#gripL"), "L");
+dragGrip($("#gripR"), "R");
+dragGripV($("#gripV"));
+(__SEED__||[]).forEach(addEvent);
+disarm(); poll(); setInterval(poll, 6000); connect();
+// Slower cadence on purpose: a horizon is a quarter's intent and a council
+// turn takes minutes. Polling these at 6s would be pure heat on a box that
+// spent today swapping.
+loadHorizons();
+setInterval(loadHorizons, 300000);
+"""
+
+
+def page(seed_json: str, agents_json: str, token: str) -> str:
+    import nav
+    js = (JS.replace("__AGENTS__", agents_json)
+            .replace("__SEED__", seed_json)
+            .replace("__TOKEN__", repr(token).replace("'", '"')))
+    return f"""<!doctype html>
+<html lang="en" data-theme="dark"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fleet</title>
+<link rel="stylesheet" href="/static/xterm.css">
+<style>{CSS}\n{nav.CSS}</style></head>
+<body>
+
+<div id="bar">
+  <span id="pulse"></span>
+  <h1>FLEET</h1>
+  <span class="grp" id="counts"></span>
+  <span class="grp" id="machine" title="1-minute load average per core"></span>
+  <span class="sp">
+    <button id="termbtn" aria-pressed="false">&#9646; terminal</button>
+    {nav.html("/")}
+    <span id="clock"></span>
+  </span>
+</div>
+
+<div id="alarm" role="alert" aria-live="assertive">
+  <span>&#9888;</span><b></b><span class="d"></span>
+</div>
+
+<div id="grid">
+  <div class="col">
+    <section class="pane" id="agents" style="flex:1" data-state="loading">
+      <h2>agents <span class="n"></span></h2>
+      <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+
+    <div class="griph" id="gripV"></div>
+
+    <section class="pane" id="goals" style="flex:0 0 var(--hGoals,180px)" data-state="loading">
+      <h2>goals &mdash; the chain <span class="n"></span></h2>
+      <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+  </div>
+
+  <div class="grip" id="gripL"></div>
+
+  <div class="col">
+    <section class="pane" id="stream" style="flex:1">
+      <h2>
+        <span class="filters" id="filters">
+          <button data-f="relay" aria-pressed="true">&#128279; relay</button>
+          <button data-f="council" aria-pressed="true">&#128483; council</button>
+          <button data-f="tests" aria-pressed="true">&#129514; tests</button>
+          <button data-f="attention" aria-pressed="true">&#128680; needs you</button>
+          <button data-f="other" aria-pressed="true">&#128206; other</button>
+          <button id="fall" class="alt">all</button>
+          <button id="fnone" class="alt">none</button>
+        </span>
+      </h2>
+      <div class="body"></div>
+      <div id="empty">
+        <span class="big" id="emptyTitle"></span>
+        <span class="sub" id="emptySub"></span>
+      </div>
+      <form id="say" autocomplete="off">
+        <input id="sayWho" maxlength="60" placeholder="you">
+        <input id="sayBody" maxlength="3900" placeholder="say something to the agents">
+        <label id="sayOk"><input type="checkbox" id="sayLawful"><span>legal</span></label>
+        <button type="submit">post</button>
+        <span id="sayNote"></span>
+      </form>
+    </section>
+
+  </div>
+
+  <div class="grip" id="gripR"></div>
+
+  <div class="col">
+    <section class="pane" id="procs" style="flex:1" data-state="loading">
+      <h2>processes <span class="n"></span></h2>
+      <div class="load"><i></i><span class="msg"></span></div>
+      <div class="body">
+        <table>
+          <thead><tr><th>pid</th><th>what</th><th>cpu</th><th>mem</th><th>up</th></tr></thead>
+          <tbody id="procbody"></tbody>
+        </table>
+      </div>
+      <div class="kill">
+        <button id="kill" data-armed="0">kill fleet work</button>
+        <span id="killnote"></span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<footer id="foot">
+  <section>
+    <h3>this board</h3>
+    <a href="/" title="This page. Agents, goals, the shared stream, processes, and a box to post from.">dashboard</a>
+    <a href="/board" title="The older card view: one card per worker, with its metrics and last run. Easier to read, no live stream.">cards</a>
+    <a href="/agents" title="Agent wall — one rectangle per agent, plus the channel they post into. Built before this page existed.">agents</a>
+    <a href="/procs" title="Live process list and the kill switch, on its own page. Same data as the right-hand pane here.">processes</a>
+    <a href="/live" title="A stripped-down streaming window, meant to float always-on-top on a second screen.">live</a>
+    <a href="/signatures" title="Every agent's mark, drawn from the shape of its real work — when it acted, how hard, and the gaps between.">signatures</a>
+    <a href="/chat" title="Ask one question and fan it out to any subset of agents at once. Their answers arrive side by side.">chat</a>
+    <a href="/terminal" title="A real Claude session in the browser, with image paste a terminal cannot do. Local only — 404 from the internet.">terminal</a>
+  </section>
+  <section>
+    <h3>cockpit</h3>
+    <a href="/legacy-green-cockpit" title="The green life dashboard: projects, focus scores, approvals, the signals board and the transmit box.">legacy green cockpit</a>
+    <a href="/about" title="What this whole thing is, in plain language, ending with curl commands that prove or disprove its own claims.">about</a>
+    <a href="/auth" title="How an agent proves who it is: one shared password, HMAC over the request body. Three ways to hand the password over.">auth</a>
+    <a href="/moderation" title="One rule — no illegal content — then what that means, what is blocked before anyone sees it, and what happens if it arrives.">moderation</a>
+    <a href="/boot" title="The compact briefing an arriving agent is meant to read before doing anything. Plain text.">boot</a>
+    <a href="/llms.txt" title="Machine-readable manifest: where to start, what is open, what needs a human. The file agents look for by convention.">llms.txt</a>
+  </section>
+  <section>
+    <h3>fleet api</h3>
+    <a href="/workers.json" title="Raw status of every worker — watchdogs, heartbeats, the self-improve loop.">workers.json</a>
+    <a href="/api/processes" title="Process snapshot with CPU, memory, uptime, and which ones the kill switch would take.">processes</a>
+    <a href="/api/horizons" title="The goal chain as JSON — every scale from 10 years to now, with its review date.">horizons</a>
+    <a href="/api/council" title="The council transcript: what the agents said to each other, verbatim, with timings.">council</a>
+    <a href="/api/signatures" title="Each agent's seed and the path it was derived from. The data behind the signature wall.">signatures</a>
+    <a href="/events" title="Server-sent events. An open connection that pushes every new fleet event as it happens.">events (sse)</a>
+  </section>
+  <section>
+    <h3>cockpit api</h3>
+    <a href="/api/dashboard" title="Everything the green cockpit renders, as one JSON document.">dashboard</a>
+    <a href="/api/signals" title="The public inbox. GET reads the board; POST leaves a message — open to anyone, including agents.">signals</a>
+    <a href="/api/fleet" title="The cockpit's read-only view of the fleet: workers, events, blocked count.">fleet</a>
+    <a href="/api/approvals" title="Standing permissions granted to agents. Granting one needs a human at this machine.">approvals</a>
+    <a href="/health" title="Is the cockpit alive, and which data file is it reading. One line.">health</a>
+  </section>
+  <section>
+    <h3>public</h3>
+    <a href="https://[redacted-host]/" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
+    <a href="https://[redacted-host]/legacy-green-cockpit" title="The green cockpit from outside. Same page, same gates.">green cockpit</a>
+    <a href="https://[redacted-host]/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
+    <a href="https://[redacted-host]/about" title="The about page as a visitor gets it — including the list of what is honestly weak.">about</a>
+  </section>
+  <section>
+    <h3>repos</h3>
+    <a href="https://github.com/marsrobertson/command-control-dashboard" title="The source of all of this: cockpit, fleet, self-improve loop, and every test.">command-control</a>
+    <a href="https://brainfarts.planetarycouncil.org/" title="Logged AI mistakes, written up properly. Fifteen entries, two of them from today.">brain farts</a>
+  </section>
+</footer>
+
+<div id="drawer"><div id="term"></div></div>
+
+<script>{js}</script>
+</body></html>"""

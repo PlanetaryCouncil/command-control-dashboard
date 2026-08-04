@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push *)",
+      "Bash(git commit *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)",
+      "Bash(git reset *)",
+      "Bash(git rebase *)",
+      "Bash(sudo *)",
+      "Bash(rm -rf *)",
+      "Bash(ssh *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(npm publish *)",
+      "Bash(launchctl *)",
+      "Bash(crontab *)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(**/.env)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/Library/LaunchAgents/**)",
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}

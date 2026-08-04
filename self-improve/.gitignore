@@ -1,0 +1,10 @@
+.cycle.lock/
+logs/
+state/.guard/
+state/observations.json
+.DS_Store
+__pycache__/
+*.pyc
+dashboard.html
+__pycache__/
+*.pyc

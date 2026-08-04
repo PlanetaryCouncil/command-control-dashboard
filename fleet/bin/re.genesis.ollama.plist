@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>re.genesis.ollama</string>
+
+    <!-- The local model server. Before this plist it was started by hand, so
+         every reboot silently removed the fleet's only vendor-independent
+         voice ("I worry about no llama running", 2026-08-04). Idles near
+         zero: models load on demand and unload after the default keep_alive,
+         so the 8GB box only pays while a turn is being taken. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/ollama</string>
+        <string>serve</string>
+    </array>
+
+    <!-- Always on: start at login, restart if it ever exits. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/ollama.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/ollama.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
