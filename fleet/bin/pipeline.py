@@ -228,7 +228,10 @@ def write_worker() -> None:
                 if r.get("stage") == "verify" and r.get("ok")]
     rejected = [r for r in done.values()
                 if r.get("stage") == "verify" and not r.get("ok")]
-    summary = (" · ".join(f"{r['branch']} awaits your merge" for r in awaiting)
+    # The alert carries its own remedy: naming a branch makes Marsita go
+    # reconstruct the command; pasting one line clears the queue.
+    summary = (" · ".join(f"{r['branch']} awaits your merge — "
+                          f"git merge --no-ff {r['branch']}" for r in awaiting)
                or f"nothing awaiting ({len(rejected)} rejected, "
                   f"{len(done)} proposals processed)")
     WORKER.parent.mkdir(exist_ok=True)
