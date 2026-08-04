@@ -109,6 +109,13 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   </section>
 
 
+  <section id="purgsec" style="display:none">
+    <p class="eyebrow" style="color:var(--amber)">purgatory · held by the spam gate</p>
+    <p class="lede">Marks too regular to be a living hand wait here.
+      They hang on the wall only if the operator blesses them.</p>
+    <div class="grid" id="purgatory"></div>
+  </section>
+
   <section>
     <p class="eyebrow">agents · signed by their work</p>
     <div class="grid" id="grid"><div class="empty">reading traces…</div></div>
@@ -244,6 +251,50 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       // Everything on the pad wall is a drawing — human hand or agent
       // soul — and drawings render as ink. Folds stay upstairs where the
       // marks are made of work, not intent.
+      requestAnimationFrame(() => drawRawSignature(cv, c.points));
+    }}
+  }}
+
+  // ------------------------------------------------ purgatory
+  const purg = (data && data.purgatory) || [];
+  if (purg.length) {{
+    document.getElementById("purgsec").style.display = "";
+    const box = document.getElementById("purgatory");
+    const local = location.hostname === "127.0.0.1"
+      || location.hostname === "localhost";
+    for (const c of purg.slice().reverse()) {{
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.opacity = "0.55";
+      const cv = document.createElement("canvas");
+      const nm = document.createElement("div");
+      nm.className = "name"; nm.textContent = c.name || "anonymous";
+      const mt = document.createElement("div");
+      mt.className = "meta";
+      mt.innerHTML = "<span>entropy " + (c.entropy ?? "?")
+        + "</span><span>" + String(c.ts || "").slice(5, 16).replace("T", " ")
+        + "</span>";
+      card.append(cv, nm, mt);
+      if (local) {{
+        const row = document.createElement("div");
+        row.className = "meta";
+        for (const v of ["bless", "damn"]) {{
+          const b = document.createElement("button");
+          b.textContent = v;
+          b.style.cssText = "background:#03060a;border:1px solid var(--rule);"
+            + "color:var(--" + (v === "bless" ? "phosphor" : "amber")
+            + ");font-family:var(--mono);padding:.25rem .7rem;cursor:pointer";
+          b.onclick = async () => {{
+            await fetch("/api/signatures/judge", {{ method: "POST",
+              headers: {{ "Content-Type": "application/json" }},
+              body: JSON.stringify({{ seed: c.seed, verdict: v }}) }});
+            card.remove();
+          }};
+          row.append(b);
+        }}
+        card.append(row);
+      }}
+      box.append(card);
       requestAnimationFrame(() => drawRawSignature(cv, c.points));
     }}
   }}

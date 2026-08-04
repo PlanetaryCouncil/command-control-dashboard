@@ -164,6 +164,37 @@ def signatures(path=EVENTS, min_events=8):
     return out
 
 
+def hand_entropy(pts):
+    """0..1 — how alive a pad path is. The spam gate's whole theory:
+    a living hand cannot help varying its timing, its stride and its
+    direction; spam is too regular to fake all three. Calibrated on the
+    real wall 2026-08-04: every human hand scored 1.0, drawn agent souls
+    0.27-0.86, a parametric circle 0.124, a straight line 0.0.
+    """
+    if not pts or len(pts) < 10:
+        return 0.0
+    dts = [max(b["t"] - a["t"], 0.001) for a, b in zip(pts, pts[1:])]
+    segs = [math.hypot(b["x"] - a["x"], b["y"] - a["y"])
+            for a, b in zip(pts, pts[1:])]
+
+    def cv(v):
+        m = sum(v) / len(v)
+        if m <= 0:
+            return 0.0
+        return min(math.sqrt(sum((x - m) ** 2 for x in v) / len(v)) / m, 2.0)
+
+    turns, prev = 0, 0.0
+    for i in range(2, len(pts)):
+        ax, ay = pts[i-1]["x"] - pts[i-2]["x"], pts[i-1]["y"] - pts[i-2]["y"]
+        bx, by = pts[i]["x"] - pts[i-1]["x"], pts[i]["y"] - pts[i-1]["y"]
+        cross = ax * by - ay * bx
+        if i > 2 and (cross > 0) != (prev > 0):
+            turns += 1
+        prev = cross
+    flip = turns / max(len(pts) - 2, 1)
+    return round(min(1.0, 0.45 * cv(dts) + 0.35 * cv(segs) + 0.9 * flip), 3)
+
+
 def evolution(path=EVENTS, min_events=8, stages=4):
     """The same hand at four ages: quarter, half, three-quarters, now.
 
