@@ -11,8 +11,8 @@ FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="$(cd "$FLEET/.." && pwd)"
 CFG="$FLEET/config.json"
 AGENTS_DIR="$HOME/Library/LaunchAgents"
-PY="/usr/local/bin/python3"
-PATH_LINE="/Users/$USER/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+PY="$REPO/.venv/bin/python3"
+PATH_LINE="/Users/$USER/.local/bin:/opt/homebrew/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 [[ -f "$CFG" ]] || { echo "no config.json at $CFG"; exit 1; }
 python3 -c "import json,sys; json.load(open('$CFG'))" || { echo "config.json is not valid JSON"; exit 1; }
