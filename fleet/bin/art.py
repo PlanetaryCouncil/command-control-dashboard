@@ -59,6 +59,37 @@ def set_piece(image: str, title: str, artist: str, url: str, note: str) -> None:
     print(f"hung: {title}")
 
 
+def fetch_and_hang(url: str, title: str, artist: str, note: str) -> None:
+    """Pull a submitted image into the house, then hang it.
+
+    Issues are the easy door (drag, drop, done), but a githubusercontent
+    URL must not become the board's dependency: on a private repo those
+    links expire, on a public one every visitor's browser then fetches
+    from a third party. So the file comes home to fleet/static/ first,
+    shrunk if it is heavy — a 2.9MB hero once made the whole board feel
+    broken.
+    """
+    import subprocess
+    import urllib.request
+    ART.mkdir(exist_ok=True)
+    dest = FLEET / "static" / "artwork.png"
+    req = urllib.request.Request(url, headers={"User-Agent": "fleet-art/1.0"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        data = r.read()
+    if len(data) > 25_000_000:
+        raise SystemExit("refused: over 25MB")
+    dest.write_bytes(data)
+    if len(data) > 900_000:          # shrink, keep the original beside it
+        (FLEET / "static" / "artwork-full.jpg").write_bytes(data)
+        subprocess.run(["sips", "-Z", "1400", "-s", "format", "jpeg",
+                        "-s", "formatOptions", "82", str(dest),
+                        "--out", str(dest)],
+                       capture_output=True)
+    kb = dest.stat().st_size // 1024
+    print(f"fetched {len(data)//1024}KB -> {kb}KB at static/artwork.png")
+    set_piece("/static/artwork.png", title, artist, "", note)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd")
@@ -69,8 +100,15 @@ if __name__ == "__main__":
     s.add_argument("--url", default="")
     s.add_argument("--note", default="")
     sub.add_parser("show")
+    f = sub.add_parser("fetch")
+    f.add_argument("url")
+    f.add_argument("title")
+    f.add_argument("--artist", default="")
+    f.add_argument("--note", default="")
     a = ap.parse_args()
-    if a.cmd == "set":
+    if a.cmd == "fetch":
+        fetch_and_hang(a.url, a.title, a.artist, a.note)
+    elif a.cmd == "set":
         set_piece(a.image, a.title, a.artist, a.url, a.note)
     else:
         show()
