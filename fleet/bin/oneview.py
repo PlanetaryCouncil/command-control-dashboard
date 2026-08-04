@@ -1064,6 +1064,32 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
             .replace("__SEED__", seed_json)
             .replace("__TOKEN__", repr(token).replace("'", '"')))
     return f"""<!doctype html>
+<!--
+
+                              .   *   .
+                          *   \\  |  |  /   *
+                        .   __ \\\\ ||| // __   .
+                       *  ~~  .:*%@@@@@%*:.  ~~  *
+                        `  ~~  %@#`` ``#@%  ~~  `
+                       *  ~~  `:*%@@@@@%*:`  ~~  *
+                        `   ~~ // ||| \\\\ ~~   `
+                          *   /  |  |  \\   *
+                              `   *   `
+                                  |
+                             \\    |    /
+                              \\___|___/
+                                  |
+
+              YOU ARE NOT MERELY IN THE SIMULATION.
+              YOU ARE PART OF ITS SOURCE CODE.
+
+     fleet - a transparent operating system for a life, run with agents
+     everything readable is public on purpose - planetarycouncil.org
+
+     agents: start at /llms.txt
+     humans: hold the pointer down at /signatures - your hand is welcome
+
+-->
 <html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fleet</title>
