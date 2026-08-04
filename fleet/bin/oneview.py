@@ -909,6 +909,7 @@ function connect(){
     // A new piece announces itself on the stream; the gallery re-hangs
     // immediately instead of waiting out the 5-minute poll.
     if ((ev.msg || "").includes("[art]")) loadArt();
+    if (/\[(signals|signatures|visitors)\]/.test(ev.msg || "")) loadGuests();
   }catch(e){} };
   es.onerror = () => { $("#pulse").className = "stale"; };
 }
@@ -1055,6 +1056,49 @@ loadHorizons();
 setInterval(loadHorizons, 300000);
 loadArt();
 setInterval(loadArt, 300000);
+
+// Guests live on the main board now: their words and their hands together.
+// The signatures page is the archive; this pane is the doorway.
+async function loadGuests(){
+  const pane = $("#guests");
+  try {
+    const d = await (await fetch("api/guests",{cache:"no-store"})).json();
+    const body = pane.querySelector(".body");
+    body.innerHTML = "";
+    if (d.marks && d.marks.length) {
+      const strip = document.createElement("div");
+      strip.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px";
+      for (const m of d.marks.slice(-6)) {
+        const cv = document.createElement("canvas");
+        cv.style.cssText = "width:52px;height:52px;background:#03060a;border-radius:6px";
+        cv.title = (m.name || "anonymous") + " (" + m.kind + ")";
+        strip.append(cv);
+        requestAnimationFrame(() => window.drawRawSignature
+          && drawRawSignature(cv, m.points));
+      }
+      body.append(strip);
+    }
+    for (const msg of (d.messages || []).slice().reverse()) {
+      const row = document.createElement("div");
+      row.style.cssText = "margin-bottom:4px;font-size:10.5px;line-height:1.4";
+      const who = document.createElement("b");
+      who.textContent = msg.sender || "someone";
+      who.style.cssText = "font-family:var(--mono)";
+      const what = document.createElement("span");
+      what.textContent = " " + msg.body;
+      const st = document.createElement("span");
+      st.textContent = " · " + msg.status;
+      st.style.cssText = "color:var(--muted);font-family:var(--mono);font-size:9.5px";
+      row.append(who, what, st);
+      body.append(row);
+    }
+    if (!body.children.length)
+      body.innerHTML = "<span style='color:var(--muted)'>no guests yet — the porch is at /hi</span>";
+    pane.dataset.state = "ready";
+  } catch (e) { paneFailed(pane); }
+}
+loadGuests();
+setInterval(loadGuests, 120000);
 """
 
 
@@ -1111,6 +1155,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fleet</title>
 <link rel="stylesheet" href="/static/xterm.css">
+<script src="/static/signature.js"></script>
 <style>{CSS}\n{nav.CSS}</style></head>
 <body>
 
@@ -1151,6 +1196,12 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <section class="pane" id="art" style="flex:0 0 var(--hArt,240px)" data-state="loading">
       <h2>current artwork <span class="n"></span></h2>
       <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+
+    <section class="pane" id="guests" style="flex:0 0 var(--hGuests,200px)" data-state="loading">
+      <h2>guests <span class="n"></span></h2>
+      <div class="body" style="overflow-y:auto"></div>
       <div class="load"><i></i><span class="msg"></span></div>
     </section>
   </div>
