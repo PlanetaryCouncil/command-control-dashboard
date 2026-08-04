@@ -894,6 +894,48 @@ class Signal(BaseModel):
     # told and said otherwise" — a record of what the sender declared at the
     # moment they pressed send. It fails as a lock and works as a signature.
     lawful: bool = False
+    # Sign-to-send: an optional pad path ({x,y,t} points). A living hand is
+    # the cheapest honest anti-spam there is — bots are too regular to fake
+    # timing, stride and direction at once. Nobody is required to sign; a
+    # signed living hand just moves faster through the queue.
+    signature: list[dict] | None = None
+
+
+def hand_entropy(pts) -> float:
+    """0..1 — how alive a pad path is. Same formula as the fleet's wall
+    (fleet/bin/signature.py); duplicated because the cockpit must import
+    nothing from the fleet at request time (board_state's cheap-read rule).
+    Calibrated 2026-08-04: humans 1.0, drawn souls 0.27-0.86, parametric
+    circle 0.124, straight line 0.0. Threshold used here: 0.2.
+    """
+    import math as _m
+    if not pts or len(pts) < 10:
+        return 0.0
+    try:
+        P = [{"x": float(q["x"]), "y": float(q["y"]), "t": float(q["t"])}
+             for q in pts[:3000]]
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+    dts = [max(b["t"] - a["t"], 0.001) for a, b in zip(P, P[1:])]
+    segs = [_m.hypot(b["x"] - a["x"], b["y"] - a["y"])
+            for a, b in zip(P, P[1:])]
+
+    def cv(v):
+        m = sum(v) / len(v)
+        if m <= 0:
+            return 0.0
+        return min(_m.sqrt(sum((x - m) ** 2 for x in v) / len(v)) / m, 2.0)
+
+    turns, prev = 0, 0.0
+    for i in range(2, len(P)):
+        ax, ay = P[i-1]["x"] - P[i-2]["x"], P[i-1]["y"] - P[i-2]["y"]
+        bx, by = P[i]["x"] - P[i-1]["x"], P[i]["y"] - P[i-1]["y"]
+        cross = ax * by - ay * bx
+        if i > 2 and (cross > 0) != (prev > 0):
+            turns += 1
+        prev = cross
+    flip = turns / max(len(P) - 2, 1)
+    return round(min(1.0, 0.45 * cv(dts) + 0.35 * cv(segs) + 0.9 * flip), 3)
 
 
 async def signed_by_trusted_node(request: Request, raw: bytes) -> str | None:
@@ -969,6 +1011,17 @@ async def post_signal(signal: Signal, request: Request) -> dict:
         record["trusted"] = True
         record["signed_by"] = node_id
         record["status"] = "triaged"
+
+    # Sign-to-send, the human fast lane. A pad signature with living entropy
+    # promotes an anonymous message the same way a node signature does — but
+    # NEVER over the hard block, same ordering rule as trust above. The
+    # operator's part of moderation shrinks to the unsigned slow queue.
+    if signal.signature and record["status"] == "new":
+        alive = hand_entropy(signal.signature)
+        record["hand_entropy"] = alive
+        if alive >= 0.2:
+            record["hand_signed"] = True
+            record["status"] = "triaged"
 
     data = load_inbox()
     data.setdefault("signals", []).append(record)
