@@ -139,6 +139,51 @@ def test_a_quiet_board_needs_nothing(fleet, monkeypatch):
     assert council.board_state()["needs_attention"] == "nothing"
 
 
+def test_a_proposal_carries_its_age_in_days(fleet):
+    """Six agents proposed "merge the branches" on 2026-08-04 because a
+    three-day-old entry rendered exactly like this morning's. age_days is the
+    "already surfaced, human is aware" signal."""
+    from datetime import datetime, timedelta, timezone
+    old = datetime.now(timezone.utc) - timedelta(days=3, hours=1)
+    fresh = datetime.now(timezone.utc) - timedelta(minutes=10)
+    stamp = "%Y-%m-%dT%H:%M:%SZ"
+    write_proposals(fleet, [
+        {"ts": old.strftime(stamp), "agent": "a", "outcome": "proposed",
+         "text": "merge the branches"},
+        {"ts": fresh.strftime(stamp), "agent": "b", "outcome": "proposed",
+         "text": "merge the branches again"},
+    ])
+    ages = [p["age_days"] for p in council.already_asked()]
+    assert ages == [3, 0]
+
+
+def test_a_proposal_with_a_broken_ts_still_appears_without_an_age(fleet):
+    write_proposals(fleet, [
+        {"ts": "not-a-date", "agent": "a", "outcome": "proposed", "text": "x"}])
+    (p,) = council.already_asked()
+    assert p["gist"] == "x"
+    assert "age_days" not in p
+
+
+def test_an_unmerged_branch_carries_its_age_in_days(tmp_path, monkeypatch):
+    """self-improve/cycle-2026-08-01... rendered the same as today's branches;
+    the ref file's mtime is the no-subprocess way to say how long it has sat."""
+    import os
+    # open_branches reads FLEET.parent/.git, so the repo root is tmp_path here.
+    monkeypatch.setattr(council, "FLEET", tmp_path / "fleet")
+    heads = tmp_path / ".git" / "refs" / "heads"
+    (heads / "self-improve").mkdir(parents=True)
+    (heads / "main").write_text("a" * 40 + "\n")
+    ref = heads / "self-improve" / "cycle-2026-08-01T03-00-00"
+    ref.write_text("b" * 40 + "\n")
+    import time as _time
+    three_days_ago = _time.time() - 3 * 86400 - 3600
+    os.utime(ref, (three_days_ago, three_days_ago))
+    (branch,) = council.open_branches()
+    assert branch["branch"] == "self-improve/cycle-2026-08-01T03-00-00"
+    assert branch["age_days"] == 3
+
+
 def test_the_board_hands_both_memories_to_the_agent(fleet):
     """If these two keys are missing the council is blind again."""
     write_proposals(fleet, [{"ts": "2026-08-03T00:00:00Z", "agent": "a",
