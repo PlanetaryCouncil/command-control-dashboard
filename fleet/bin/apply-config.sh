@@ -17,7 +17,7 @@ PATH_LINE="/Users/$USER/.local/bin:/opt/homebrew/bin:/usr/local/opt/node@22/bin:
 [[ -f "$CFG" ]] || { echo "no config.json at $CFG"; exit 1; }
 python3 -c "import json,sys; json.load(open('$CFG'))" || { echo "config.json is not valid JSON"; exit 1; }
 
-read -r HB_EVERY HB_AGENTS HB_LAPS WD_EVERY SI_H SI_M CO_EVERY CO_AGENTS CO_ROUNDS E2_H E2_M RO_EVERY RO_AGENTS PL_EVERY <<<"$(python3 - "$CFG" <<'PY'
+read -r HB_EVERY HB_AGENTS HB_LAPS WD_EVERY SI_H SI_M CO_EVERY CO_AGENTS CO_ROUNDS E2_H E2_M RO_EVERY RO_AGENTS PL_EVERY BM_EVERY <<<"$(python3 - "$CFG" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1]))
 hb = c["heartbeat"]
@@ -30,7 +30,8 @@ print(hb["every_seconds"], ",".join(hb["agents"]), hb.get("laps", 1),
       c.get("e2e", {}).get("at_hour", 5), c.get("e2e", {}).get("at_minute", 30),
       c.get("rota", {}).get("every_seconds", 3600),
       ",".join(c.get("rota", {}).get("agents", ["claude", "hermes", "openclaw"])),
-      c.get("pipeline", {}).get("every_seconds", 7200))
+      c.get("pipeline", {}).get("every_seconds", 7200),
+      c.get("board_medic", {}).get("every_seconds", 300))
 PY
 )"
 
@@ -99,6 +100,12 @@ write_plist re.genesis.pipeline \
   "    <key>StartInterval</key><integer>$PL_EVERY</integer>" \
   "$PY" "$FLEET/bin/pipeline.py" run
 
+# The board's own pulse check. Cheap curl, so a five-minute cadence costs
+# nothing; a wedged server costs the whole front door.
+write_plist re.genesis.board-medic \
+  "    <key>StartInterval</key><integer>$BM_EVERY</integer>" \
+  /bin/bash "$FLEET/bin/board-medic.sh"
+
 write_plist re.genesis.e2e \
   "    <key>StartCalendarInterval</key>
     <dict><key>Hour</key><integer>$E2_H</integer><key>Minute</key><integer>$E2_M</integer></dict>" \
@@ -125,5 +132,6 @@ echo "  watchdogs    every ${WD_EVERY}s"
 echo "  council      every ${CO_EVERY}s  ($CO_AGENTS, $CO_ROUNDS rounds)"
 echo "  rota         every ${RO_EVERY}s  ($RO_AGENTS — one per firing)"
 echo "  pipeline     every ${PL_EVERY}s  (build claude → verify hermes → human merges)"
+echo "  board-medic  every ${BM_EVERY}s  (probe :8787, kickstart if silent)"
 echo "  e2e          daily at $(printf '%02d:%02d' "$E2_H" "$E2_M")"
 echo "  self-improve daily at $(printf '%02d:%02d' "$SI_H" "$SI_M")"

@@ -1,7 +1,7 @@
 {
   "_comment": "Fleet schedule. Edit, then run: bash bin/apply-config.sh",
   "heartbeat": {
-    "_what": "One relay check for every agent. Hand an agent a random number, it must reply with that number plus one, then pass it on \u2014 a correct reply is only possible if the previous value arrived.",
+    "_what": "One relay check for every agent. Hand an agent a random number, it must reply with that number plus one, then pass it on — a correct reply is only possible if the previous value arrived.",
     "every_seconds": 86400,
     "agents": [
       "claude",
@@ -9,9 +9,9 @@
       "openclaw"
     ],
     "laps": 1,
-    "_cost_note": "Once a day, not every 30 minutes. Measured 2026-08-02: one full relay costs ~960s of wall clock. At 1800s it occupied over half of all wall-clock time on a four-core machine, and the fleet's own load average reached 20 \u2014 five times the cores. The relay answers one question (can the agents pass a message), the answer changes rarely, and re-asking it hourly was the single largest consumer of a machine that has none to spare.",
+    "_cost_note": "Once a day, not every 30 minutes. Measured 2026-08-02: one full relay costs ~960s of wall clock. At 1800s it occupied over half of all wall-clock time on a four-core machine, and the fleet's own load average reached 20 — five times the cores. The relay answers one question (can the agents pass a message), the answer changes rarely, and re-asking it hourly was the single largest consumer of a machine that has none to spare.",
     "max_load": 6.0,
-    "_load_note": "Skip the run when the 1-minute load average is above this. The check costs 2.4 microseconds against the 960 seconds it guards \u2014 the cheapest thing on the board protecting the most expensive. Agents timing out under load is not a comms failure, and recording it as one is how three councils ended up diagnosing the wrong thing."
+    "_load_note": "Skip the run when the 1-minute load average is above this. The check costs 2.4 microseconds against the 960 seconds it guards — the cheapest thing on the board protecting the most expensive. Agents timing out under load is not a comms failure, and recording it as one is how three councils ended up diagnosing the wrong thing."
   },
   "watchdogs": {
     "_what": "Run each monitored project's own test suite.",
@@ -27,7 +27,7 @@
     "every_seconds": 7200
   },
   "council": {
-    "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied \u2014 a human reads and decides.",
+    "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied — a human reads and decides.",
     "every_seconds": 10800,
     "agents": [
       "claude",
@@ -36,9 +36,9 @@
       "ollama"
     ],
     "rounds": 2,
-    "_cost_note": "Each turn is one agent for ~20-100s, one at a time. Four agents x two rounds is roughly 8 turns \u2014 double what it was. Every 3 hours still keeps the machine alone between sessions. ollama is the expensive one: dolphin-llama3 holds several GB resident while it thinks, on a box with 8. If the load gate starts deferring everything, drop ollama first and rounds second.",
+    "_cost_note": "Each turn is one agent for ~20-100s, one at a time. Four agents x two rounds is roughly 8 turns — double what it was. Every 3 hours still keeps the machine alone between sessions. ollama is the expensive one: dolphin-llama3 holds several GB resident while it thinks, on a box with 8. If the load gate starts deferring everything, drop ollama first and rounds second.",
     "_vendor_note": "claude=anthropic, hermes=openai, openclaw=openai, ollama=local. openclaw shares a vendor with hermes, so it adds a voice but not an independent one; ollama is the only genuinely different training here and the only one that keeps working with the wifi off. Two of four agreeing across vendors is a much stronger claim than two agreeing within one.",
-    "_ollama_note": "Removed 2026-08-03 after measurement (dolphin-llama3 8B: 300s timeout, load 166 \u2014 an 8B model sharing 8GB with a running fleet cannot generate fast enough to take a turn). Re-added 2026-08-04 on a much smaller model: llama3.2:1b (1.3GB resident) measured 160 tokens in 17.2s at 10.4 tok/s on this box \u2014 a 220-token council turn fits comfortably inside the timeout. Model name lives in chat.OLLAMA_MODEL, one place. It is the only vendor-independent voice and the only one that works with the wifi off; served by launchd job re.genesis.ollama."
+    "_ollama_note": "Removed 2026-08-03 after measurement (dolphin-llama3 8B: 300s timeout, load 166 — an 8B model sharing 8GB with a running fleet cannot generate fast enough to take a turn). Re-added 2026-08-04 on a much smaller model: llama3.2:1b (1.3GB resident) measured 160 tokens in 17.2s at 10.4 tok/s on this box — a 220-token council turn fits comfortably inside the timeout. Model name lives in chat.OLLAMA_MODEL, one place. It is the only vendor-independent voice and the only one that works with the wifi off; served by launchd job re.genesis.ollama."
   },
   "e2e": {
     "_what": "End-to-end check against live infrastructure, with canaries proving each path was actually traversed. Includes real agent turns.",
@@ -47,13 +47,17 @@
     "_cost_note": "Two agent turns per run. Daily is enough to catch drift; hourly would spend turns to learn nothing new. The --quick variant runs on every merge via githooks/post-merge and costs nothing."
   },
   "rota": {
-    "_what": "One agent at a time, in rotation, reads the board and answers three questions: what would improve this machine, what would help Marsita the Ultra, what would help the planet. Proposes only \u2014 never applies.",
+    "_what": "One agent at a time, in rotation, reads the board and answers three questions: what would improve this machine, what would help Marsita the Ultra, what would help the planet. Proposes only — never applies.",
     "every_seconds": 3600,
     "agents": [
       "claude",
       "hermes",
       "openclaw"
     ],
-    "_cost_note": "Hourly, one agent per firing \u2014 not all three. A turn is 20-170s and one core, so the hourly cost is a few percent of one core, against the relay's 960s. Three agents means each one's turn comes round every three hours, and the load gate defers a turn rather than taking it on a saturated machine: a turn spent timing out is recorded as the agent having nothing to say, which is the failure this fleet already made twice."
+    "_cost_note": "Hourly, one agent per firing — not all three. A turn is 20-170s and one core, so the hourly cost is a few percent of one core, against the relay's 960s. Three agents means each one's turn comes round every three hours, and the load gate defers a turn rather than taking it on a saturated machine: a turn spent timing out is recorded as the agent having nothing to say, which is the failure this fleet already made twice."
+  },
+  "board_medic": {
+    "_what": "Probes the board on :8787 every five minutes; two silent probes trigger a fleet-server kickstart, a failed revival raises needs_you. The heartbeat medic, applied to the board itself.",
+    "every_seconds": 300
   }
 }
