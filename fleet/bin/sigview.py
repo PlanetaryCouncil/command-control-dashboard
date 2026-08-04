@@ -82,16 +82,6 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     </p>
   </header>
 
-  <div class="grid" id="grid"><div class="empty">reading traces…</div></div>
-
-  <section>
-    <p class="eyebrow">evolution · the hand learning to write</p>
-    <p class="lede">A seed moves as the agent works. Each row is one agent at
-      four ages — quarter, half, three-quarters, now. The mark is
-      <b>not fixed at birth</b>; this is the proof.</p>
-    <div id="evolution"></div>
-  </section>
-
   <section>
     <p class="eyebrow">the pad · sign it</p>
     <p class="lede">Hold the pointer down and move for a few seconds —
@@ -117,6 +107,22 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     <p class="eyebrow">collected · every hand that signed</p>
     <div class="grid" id="collected"><div class="empty">nobody has signed yet</div></div>
   </section>
+
+
+  <section>
+    <p class="eyebrow">agents · signed by their work</p>
+    <div class="grid" id="grid"><div class="empty">reading traces…</div></div>
+  </section>
+
+  <section>
+    <p class="eyebrow">evolution · the hand learning to write</p>
+    <p class="lede">A seed moves as the agent works. Each row is one agent at
+      four ages — quarter, half, three-quarters, now. The mark is
+      <b>not fixed at birth</b>; this is the proof.</p>
+    <div id="evolution"></div>
+  </section>
+
+
 
   <footer>
     Seeds are SHA-256 over each agent's path and move as it works — a mark is
@@ -256,13 +262,23 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
               t: performance.now() - t0 }};
   }}
   function padLine(a, b) {{
+    // The WOW is the ink answering the hand in real time: dash and it
+    // thins to a whisper, linger and it swells and glows. Same physics
+    // the wall uses, felt live under the touchpad.
     const r = pad.getBoundingClientRect();
     if (pad.width !== r.width) {{ pad.width = r.width; pad.height = r.height; }}
-    pctx.strokeStyle = "#7dffb0"; pctx.lineWidth = 1.4; pctx.lineCap = "round";
-    pctx.beginPath();
-    pctx.moveTo(a.x * r.width, a.y * r.height);
-    pctx.lineTo(b.x * r.width, b.y * r.height);
-    pctx.stroke();
+    const dt = Math.max(b.t - a.t, 1e-3);
+    const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
+    const w = Math.max(0.6, 3.4 - v * 0.95);
+    pctx.lineCap = "round";
+    for (const layer of [[w * 3.2, "rgba(125,255,176,0.10)"],
+                         [w, "rgba(190,255,215,0.95)"]]) {{
+      pctx.lineWidth = layer[0]; pctx.strokeStyle = layer[1];
+      pctx.beginPath();
+      pctx.moveTo(a.x * r.width, a.y * r.height);
+      pctx.lineTo(b.x * r.width, b.y * r.height);
+      pctx.stroke();
+    }}
   }}
   pad.addEventListener("pointerdown", e => {{
     pad.setPointerCapture(e.pointerId);
