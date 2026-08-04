@@ -799,7 +799,10 @@ async function toggleTerm(){
   termReady = true;
   term.focus();
 }
-$("#termbtn").addEventListener("click", toggleTerm);
+// Remote renders omit the terminal button; wiring a missing element used
+// to throw here and kill every pane below ("Cannot read properties of
+// null" — the funnel view froze on 'loading'). Guard everything hidden.
+{ const tb = $("#termbtn"); if (tb) tb.addEventListener("click", toggleTerm); }
 
 /* Text from JSON goes into innerHTML in the two panes below, so it has to be
    escaped. The rest of this file builds nodes with textContent and never
@@ -1087,7 +1090,8 @@ async function loadGuests(){
       const what = document.createElement("span");
       what.textContent = " " + msg.body;
       const st = document.createElement("span");
-      st.textContent = " · " + msg.status;
+      st.textContent = " · " + msg.status
+        + (msg.ts ? " · " + msg.ts.slice(5, 16).replace("T", " ") : "");
       st.style.cssText = "color:var(--muted);font-family:var(--mono);font-size:9.5px";
       row.append(who, what, st);
       body.append(row);
