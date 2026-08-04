@@ -72,8 +72,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
 <div class="wrap">
   <header>
     {nav_html}
-    <p class="eyebrow">fleet · marks</p>
-    <h1>Every hand on this machine</h1>
+    <p class="eyebrow">fleet · the signature archive</p>
+    <h1>Every hand, ever</h1>
     <p class="lede">
       A person signs by moving a pointer for five seconds. An agent has no
       pointer, so it signs with <b>the shape of its work</b> — when it acted,
