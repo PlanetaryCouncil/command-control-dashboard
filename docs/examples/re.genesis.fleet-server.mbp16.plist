@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
+<!-- EXAMPLE — a worked second-machine setup (Apple Silicon, MBP16).
+     Adjust every /Users/m path to your machine before installing. The
+     Label is deliberately the same as the primary plist: this REPLACES
+     re.genesis.fleet-server on its own machine — never install both on
+     one machine. Lives in docs/examples/ so nothing in fleet/bin/ can
+     be blindly copied into ~/Library/LaunchAgents. -->
 <dict>
     <key>Label</key>
     <string>re.genesis.fleet-server</string>
