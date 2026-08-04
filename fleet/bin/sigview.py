@@ -85,6 +85,14 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   <div class="grid" id="grid"><div class="empty">reading traces…</div></div>
 
   <section>
+    <p class="eyebrow">evolution · the hand learning to write</p>
+    <p class="lede">A seed moves as the agent works. Each row is one agent at
+      four ages — quarter, half, three-quarters, now. The mark is
+      <b>not fixed at birth</b>; this is the proof.</p>
+    <div id="evolution"></div>
+  </section>
+
+  <section>
     <p class="eyebrow">the pad · sign it</p>
     <p class="lede">Hold the pointer down and move for a few seconds —
       <b>your hand is the entropy</b>. The same projector that draws the
@@ -180,12 +188,36 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     window.addEventListener("resize", redraw);
   }}
 
+  // ------------------------------------------------ evolution rows
+  const evo = document.getElementById("evolution");
+  for (const a of (data && data.evolution) || []) {{
+    const row = document.createElement("div");
+    row.className = "grid";
+    row.style.marginBottom = "1px";
+    for (const st of a.stages) {{
+      const card = document.createElement("div");
+      card.className = "card";
+      const cv = document.createElement("canvas");
+      cv.setAttribute("role", "img");
+      cv.setAttribute("aria-label", a.agent + " at " + st.events + " events");
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.innerHTML = "<span>" + a.agent + "</span><span>at <b>"
+        + st.events + "</b> events</span>";
+      card.append(cv, meta);
+      row.append(card);
+      requestAnimationFrame(() => drawSignature(cv, st.seed, st.points, 0));
+    }}
+    evo.append(row);
+  }}
+
   // ------------------------------------------------ the collected hands
   const wall = document.getElementById("collected");
-  const collected = (data && data.collected) || [];
+  const collected = ((data && data.collected) || []).slice()
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
   if (collected.length) {{
     wall.innerHTML = "";
-    for (const c of collected.slice().reverse()) {{
+    for (const c of collected) {{
       const card = document.createElement("div");
       card.className = "card";
       const cv = document.createElement("canvas");
@@ -196,8 +228,10 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       name.textContent = c.name || "anonymous";
       const meta = document.createElement("div");
       meta.className = "meta";
-      meta.innerHTML = "<span>" + (c.kind || "human") + "</span><span>"
+      meta.innerHTML = "<span>" + (c.kind || "human")
+        + (c.pinned ? " · first hand" : "") + "</span><span>"
         + String(c.ts || "").slice(5, 16).replace("T", " ") + "</span>";
+      if (c.pinned) cv.style.borderColor = "var(--amber)";
       card.append(cv, name, meta);
       wall.append(card);
       requestAnimationFrame(() => drawSignature(cv, c.seed, c.points, 0));
