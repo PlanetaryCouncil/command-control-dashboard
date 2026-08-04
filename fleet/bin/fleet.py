@@ -688,6 +688,16 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/art":
+                # How to submit. A gallery with no visible door only ever
+                # hangs the operator's own work.
+                f = FLEET.parent / "docs" / "SUBMIT-ART.md"
+                try:
+                    self._send(f.read_bytes(), "text/plain; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
             if path == "/hi":
                 # The front porch: say hello without learning the house.
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
