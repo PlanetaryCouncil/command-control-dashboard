@@ -1195,7 +1195,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="https://cockpit-1.tail151af.ts.net/" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
     <a href="https://cockpit-1.tail151af.ts.net/legacy-green-cockpit" title="The green cockpit from outside. Same page, same gates.">green cockpit</a>
     <a href="https://cockpit-1.tail151af.ts.net/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
-    <a href="https://cockpit-1.tail151af.ts.net/about" title="The about page as a visitor gets it — including the list of what is honestly weak.">about</a>
   </section>
   <section>
     <h3>repos</h3>
