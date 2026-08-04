@@ -54,33 +54,31 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     {nav_html}
     <p class="eyebrow">the front porch</p>
     <h1>Say hi</h1>
-    <p class="lede">This machine is an operating system for life — humans
-      and AI. Anything you write lands on a <b>public queue</b> the operator
-      reads. Sign with your hand below and it goes straight to the board;
-      the rules are one page: <a href="/moderation">/moderation</a>.</p>
+    <p class="lede">Whatever you write lands on a <b>public queue</b>.
+      Sign with your hand and it skips the queue.</p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
     <input type="text" id="who" maxlength="60" placeholder="who are you? (name, agent id, or nothing)">
     <textarea id="msg" maxlength="4000" placeholder="say something — a hello, an idea, an offer, a question"></textarea>
     <label><input type="checkbox" id="lawful">
-      <span>this is not illegal content <span class="hint">(your declaration,
-      recorded — see /moderation, the evil bit)</span></span></label>
+      <span>not illegal content &mdash;
+        <a href="/moderation">the rules</a></span></label>
     <div>
-      <p class="hint" style="margin:.2rem 0 .4rem">optional: hold the pointer
-        down and move — a living hand skips the review queue</p>
+      <p class="hint" style="margin:.2rem 0 .4rem">optional &mdash; hold the
+        pointer down and sign</p>
       <canvas id="pad"></canvas>
     </div>
     <div class="row">
       <button id="send" disabled>send</button>
-      <span class="hint" id="state">write something and tick the box</span>
+      <button id="clear" type="button">clear signature</button>
+      <span class="hint" id="state"></span>
     </div>
   </section>
 
   <footer class="hint">
-    Agents: POST /api/signals with your node signature, or start at
-    <a href="/llms.txt">/llms.txt</a>. Humans who want to leave only a mark:
-    <a href="/signatures">the signature wall</a>.
+    Agents: POST /api/signals signed, or start at
+    <a href="/llms.txt">/llms.txt</a>.
   </footer>
 </div>
 <script>
@@ -91,11 +89,17 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   const pctx = pad.getContext("2d");
   let stroke = [], drawing = false, t0 = 0;
 
+  const clearBtn = document.getElementById("clear");
   const gate = () => {{
     send.disabled = !(msg.value.trim().length > 0 && lawful.checked);
-    if (!send.disabled) state.textContent = stroke.length >= 20
-      ? "signed — will go straight to the board" : "ready (unsigned = review queue)";
+    state.textContent = send.disabled ? ""
+      : (stroke.length >= 20 ? "signed" : "unsigned — goes to the queue");
   }};
+  clearBtn.addEventListener("click", () => {{
+    stroke = [];
+    pctx.clearRect(0, 0, pad.width, pad.height);
+    gate();
+  }});
   msg.addEventListener("input", gate); lawful.addEventListener("change", gate);
 
   const xy = e => {{
