@@ -38,3 +38,12 @@
 {"ts": "2026-08-03T20:13:27.276692+00:00", "kind": "horizon.set", "scale": "1y", "goal": "Operating supercomputer of dreams and engineering singularity."}
 {"ts": "2026-08-03T20:17:28.025509+00:00", "kind": "signal.received", "signal": "sig-2606ddf1", "signal_kind": "ask", "trusted": true}
 {"ts": "2026-08-03T21:20:23.918709+00:00", "kind": "signal.received", "signal": "sig-07ff5f9e", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-04T16:07:54.543731+00:00", "kind": "pair.redeemed", "node": "mac-two", "by": "[redacted-ipv6]"}
+{"ts": "2026-08-04T16:08:19.291169+00:00", "kind": "signal.received", "signal": "sig-dbc94884", "signal_kind": "signal", "trusted": true}
+{"ts": "2026-08-04T16:26:37.812883+00:00", "kind": "signal.received", "signal": "sig-875c1fd4", "signal_kind": "signal", "trusted": true}
+{"ts": "2026-08-04T17:25:26.344628+00:00", "kind": "signal.received", "signal": "sig-e5f8fba5", "signal_kind": "signal", "trusted": true}
+{"ts": "2026-08-04T17:39:48.437471+00:00", "kind": "signal.received", "signal": "sig-6a75ae19", "signal_kind": "signal", "trusted": true}
+{"ts": "2026-08-04T20:16:59.201125+00:00", "kind": "signal.received", "signal": "sig-a8bbd246", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-04T20:18:44.699193+00:00", "kind": "signal.received", "signal": "sig-a475c1c8", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-04T20:18:56.650409+00:00", "kind": "signal.received", "signal": "sig-3ca09acf", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-04T20:21:00.294059+00:00", "kind": "signal.received", "signal": "sig-d4b5b8fe", "signal_kind": "ask", "trusted": false}
