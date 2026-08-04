@@ -95,6 +95,7 @@ def already_asked(limit: int = 6) -> list:
     path = FLEET / "rota" / "proposals.jsonl"
     if not path.exists():
         return []
+    now = datetime.now(timezone.utc)
     out = []
     for line in path.read_text(errors="replace").splitlines():
         try:
@@ -104,10 +105,18 @@ def already_asked(limit: int = 6) -> list:
         text = (p.get("text") or "").lstrip("█").strip()
         first = next((s.strip() for s in text.splitlines()
                       if s.strip() and not s.strip().startswith("#")), "")
-        out.append({"ts": p.get("ts", "")[:16],
-                    "by": p.get("agent", "?"),
-                    "outcome": p.get("outcome", "?"),
-                    "gist": first[:150]})
+        row = {"ts": p.get("ts", "")[:16],
+               "by": p.get("agent", "?"),
+               "outcome": p.get("outcome", "?"),
+               "gist": first[:150]}
+        # Age is the staleness signal the raw ts never was: six agents re-filed
+        # "merge the branches" on 2026-08-04 because nothing on the board said
+        # the human had already seen it. age_days 0 means "surfaced today,
+        # Marsita is aware" — a reason to say NOTHING TO ADD, not to restate.
+        t = _when(p.get("ts"))
+        if t:
+            row["age_days"] = max(0, (now - t).days)
+        out.append(row)
     return out[-limit:]
 
 
@@ -149,7 +158,18 @@ def open_branches() -> list:
             continue
         tip = read(f"self-improve/{p.name}")
         if tip and tip != main:
-            out.append({"branch": f"self-improve/{p.name}", "tip": tip[:10]})
+            row = {"branch": f"self-improve/{p.name}", "tip": tip[:10]}
+            # The ref file's mtime is when the branch last moved — no git
+            # subprocess, so the under-a-second contract on board_state()
+            # holds. A branch at age_days 3 has been on every board since
+            # 2026-08-01; the human knows. Without this field it renders
+            # exactly like a branch cut this morning.
+            try:
+                row["age_days"] = int(
+                    max(0, time.time() - p.stat().st_mtime) // 86400)
+            except OSError:
+                pass
+            out.append(row)
     return out[:5]
 
 
