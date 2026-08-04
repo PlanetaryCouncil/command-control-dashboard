@@ -1,0 +1,25 @@
+{
+  "note": "Which node ids can push writes via /api/sync. This file holds no secrets by design \u2014 it is a public list of WHO, never a credential. Each node's actual secret lives only in that node's NODE_SECRETS environment variable, set once at pairing time and never written here.",
+  "nodes": [
+    {
+      "node_id": "local",
+      "device": "primary dev machine",
+      "paired_at": "2026-07-21T00:00:00Z"
+    },
+    {
+      "node_id": "codex",
+      "device": "[redacted-device]",
+      "paired_at": "2026-08-03T15:00:00Z"
+    },
+    {
+      "node_id": "codex-remote",
+      "device": "second machine",
+      "paired_at": "2026-08-03T17:00:00Z"
+    },
+    {
+      "node_id": "friendly-agent",
+      "device": "paired by code from [redacted-ipv4]",
+      "paired_at": "2026-08-03T19:32:34.759288+00:00"
+    }
+  ]
+}

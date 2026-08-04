@@ -1,0 +1,69 @@
+{
+  "mode": "live",
+  "puzzle": {
+    "clues": [
+      [
+        "north and south are not the same colour as each other's opposite (that is, north is not amber or south is not red)",
+        "north is amber"
+      ],
+      [
+        "west is blue"
+      ]
+    ],
+    "solution": {
+      "north": "amber",
+      "south": "green",
+      "east": "red",
+      "west": "blue"
+    },
+    "checked": {
+      "total_clues": 3,
+      "min_ambiguity_required": 4,
+      "solutions_with_all_clues": 1,
+      "min_solutions_without_any_one_player": 4
+    }
+  },
+  "clues": {
+    "claude": [
+      "north and south are not the same colour as each other's opposite (that is, north is not amber or south is not red)",
+      "north is amber"
+    ],
+    "hermes": [
+      "west is blue"
+    ]
+  },
+  "round1": {
+    "claude": "My clue: north is amber, and additionally north-is-not-amber-or-south-is-not-red (so south is not red).",
+    "hermes": "West is blue."
+  },
+  "results": [
+    {
+      "agent": "claude",
+      "answer": {
+        "north": "amber",
+        "south": "green",
+        "east": "red",
+        "west": "blue"
+      },
+      "correct": true,
+      "forfeit": false,
+      "raw": "ANSWER: north=amber, south=green, east=red, west=blue"
+    },
+    {
+      "agent": "hermes",
+      "answer": {
+        "north": "amber",
+        "south": "green",
+        "east": "red",
+        "west": "blue"
+      },
+      "correct": true,
+      "forfeit": false,
+      "raw": "ANSWER: north=amber, south=green, east=red, west=blue"
+    }
+  ],
+  "correct": 2,
+  "players": 2,
+  "played": 2,
+  "clean_sweep": true
+}

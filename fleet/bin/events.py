@@ -1,0 +1,81 @@
+#!/usr/bin/env python3
+"""Append-only event log for the fleet.
+
+  events.py <agent> <level> <message>     record one event
+  events.py --tail [n]                    print the last n events
+
+Append-only JSONL so the live view can stream it and you can still read it
+after the fact when something went wrong at 3am. Levels: info, ok, warn, error,
+needs_you. `needs_you` is what raises the banner in the live view — reserve it
+for things that are genuinely blocked on a human.
+"""
+
+import json
+import os
+import re
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+FLEET = Path(__file__).resolve().parent.parent
+LOG = FLEET / "events.jsonl"
+MAX_BYTES = 4_000_000          # ~20k events; rotate rather than grow forever
+
+LEVELS = {"info", "ok", "warn", "error", "needs_you"}
+
+
+def emit(agent, level, message, **extra):
+    if level not in LEVELS:
+        level = "info"
+    # Terminal furniture is contagious: on 2026-08-04 openclaw opened a rota
+    # proposal with an 80-block bar it had learned from reading this stream,
+    # and the truncated preview became pure decoration — "██████████…", zero
+    # information (claude spotted both in council). Block-glyph runs carry no
+    # meaning in a log line, so collapse them at the door.
+    message = re.sub(r"[█▉▊▋▌▍▎▏▐▓▒░]{3,}", "▍", str(message))
+    rec = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "agent": str(agent)[:60],
+        "level": level,
+        "msg": str(message)[:400],
+    }
+    rec.update(extra)
+    try:
+        if LOG.exists() and LOG.stat().st_size > MAX_BYTES:
+            LOG.rename(LOG.with_suffix(".jsonl.1"))
+        # Line-buffered append; concurrent workers each write one whole line.
+        with LOG.open("a") as fh:
+            fh.write(json.dumps(rec) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+    except OSError:
+        pass
+    return rec
+
+
+def tail(n=200):
+    try:
+        lines = LOG.read_text(errors="replace").splitlines()
+    except OSError:
+        return []
+    out = []
+    for line in lines[-n:]:
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            pass
+    return out
+
+
+if __name__ == "__main__":
+    a = sys.argv[1:]
+    if not a:
+        print(__doc__.strip())
+    elif a[0] == "--tail":
+        for e in tail(int(a[1]) if len(a) > 1 else 40):
+            print(f"{e['ts']} [{e['level']:>9}] {e['agent']}: {e['msg']}")
+    elif len(a) >= 3:
+        emit(a[0], a[1], " ".join(a[2:]))
+    else:
+        print("usage: events.py <agent> <level> <message>", file=sys.stderr)
+        sys.exit(2)

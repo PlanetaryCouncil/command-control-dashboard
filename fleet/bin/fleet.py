@@ -1,0 +1,862 @@
+#!/usr/bin/env python3
+"""Fleet dashboard.
+
+  fleet.py render            write index.html
+  fleet.py serve [port]      serve it, regenerating on every request
+
+Each worker drops a JSON status file in workers/; this reads whatever is there,
+so adding a worker to the board means adding a worker, not editing this file.
+"""
+
+import html
+import json
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+FLEET = Path(__file__).resolve().parent.parent
+WORKERS = FLEET / "workers"
+SELF_IMPROVE = FLEET.parent / "self-improve"
+
+
+def esc(x):
+    return html.escape(str(x), quote=True)
+
+
+def ago(iso):
+    if not iso:
+        return "never"
+    try:
+        t = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except ValueError:
+        return "unknown"
+    s = (datetime.now(timezone.utc) - t).total_seconds()
+    if s < 0:
+        return "just now"
+    for limit, div, unit in ((60, 1, "s"), (3600, 60, "m"), (86400, 3600, "h")):
+        if s < limit:
+            return f"{int(s // div)}{unit} ago"
+    return f"{int(s // 86400)}d ago"
+
+
+# A green check can still be abandoned: on 2026-08-04 agent-comms read "pass"
+# with a last_run 17 hours behind the other live checks. Staleness is measured
+# against the freshest worker, not the wall clock, so a laptop asleep all
+# weekend ages every check together instead of flagging the whole fleet.
+STALE_AFTER_S = 6 * 3600
+
+
+def stale_hours(workers):
+    """worker name -> whole hours behind the freshest last_run, when far behind."""
+    stamps = {}
+    for w in workers:
+        try:
+            t = datetime.fromisoformat(str(w.get("last_run")).replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        stamps[w.get("worker")] = t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+    if not stamps:
+        return {}
+    newest = max(stamps.values())
+    return {name: int((newest - t).total_seconds() // 3600)
+            for name, t in stamps.items()
+            if (newest - t).total_seconds() > STALE_AFTER_S}
+
+
+def load_self_improve():
+    """The self-improvement loop predates the fleet, so adapt its state here
+    rather than making it write a second status file it doesn't otherwise need."""
+    d = SELF_IMPROVE
+    if not d.exists():
+        return None
+
+    def lines(p):
+        try:
+            return [l for l in (d / p).read_text(errors="replace").splitlines() if l.strip()]
+        except OSError:
+            return []
+
+    cycles = lines("state/cycles.log")
+    applied = lines("state/applied.jsonl")
+    rejected = lines("state/rejected.jsonl")
+    violations = lines("state/violations.log")
+
+    last_iso = None
+    if cycles:
+        m = re.match(r"(\S+)", cycles[-1])
+        if m:
+            last_iso = m.group(1)
+
+    status = "alert" if violations else ("pass" if cycles else "idle")
+    return {
+        "worker": "self-improve", "kind": "learner",
+        "target": str(d), "last_run": last_iso, "status": status,
+        "summary": f"{len(applied)} applied · {len(rejected)} refuted",
+        "metrics": [("cycles", len(cycles)), ("applied", len(applied)),
+                    ("refuted", len(rejected)), ("breaches", len(violations))],
+        "note": "Commits only what survives adversarial verification. Doing nothing is a healthy night.",
+        "digest": None,
+    }
+
+
+def load_workers():
+    out = []
+    si = load_self_improve()
+    if si:
+        out.append(si)
+
+    # Hermes and OpenClaw run their own launch agents and publish their own
+    # state, so they are probed live rather than asked to write a status file.
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import probe
+        out.extend(probe.probe_all_cached())
+    except Exception:
+        pass
+
+    for p in sorted(WORKERS.glob("*.json")):
+        try:
+            w = json.loads(p.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        w.setdefault("kind", "watchdog")
+        w["metrics"] = [("passed", w.get("tests_passed", 0)),
+                        ("failed", w.get("tests_failed", 0)),
+                        ("seconds", w.get("duration_s", 0))]
+        w["note"] = ""
+        out.append(w)
+    # Anything needing attention sorts to the top.
+    rank = {"fail": 0, "alert": 1, "skip": 2, "pass": 3, "idle": 4}
+    return sorted(out, key=lambda w: (rank.get(w.get("status"), 5), w["worker"]))
+
+
+CSS = """
+:root{
+  --ground:#F4F6F8; --surface:#FFFFFF; --raised:#EDF0F3;
+  --border:#DCE1E7; --ink:#171B21; --ink-2:#414B58; --muted:#5C6674;
+  --accent:#8A5B12;
+  --good:#2F7A63; --good-soft:#DDEDE7;
+  --hold:#8A5B12; --hold-soft:#F0E4CE;
+  --crit:#A83A26; --crit-soft:#F6DED8;
+  --track:#E4E8EC;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#0F1216; --surface:#161A20; --raised:#1C222A;
+    --border:#272E38; --ink:#E6E9EC; --ink-2:#B3BCC7; --muted:#828C99;
+    --accent:#D89B45;
+    --good:#4EA88F; --good-soft:#152820;
+    --hold:#D89B45; --hold-soft:#2E2617;
+    --crit:#D4644E; --crit-soft:#2E1A16;
+    --track:#232A33;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1216; --surface:#161A20; --raised:#1C222A;
+  --border:#272E38; --ink:#E6E9EC; --ink-2:#B3BCC7; --muted:#828C99;
+  --accent:#D89B45;
+  --good:#4EA88F; --good-soft:#152820;
+  --hold:#D89B45; --hold-soft:#2E2617;
+  --crit:#D4644E; --crit-soft:#2E1A16;
+  --track:#232A33;
+}
+:root[data-theme="light"]{
+  --ground:#F4F6F8; --surface:#FFFFFF; --raised:#EDF0F3;
+  --border:#DCE1E7; --ink:#171B21; --ink-2:#414B58; --muted:#5C6674;
+  --accent:#8A5B12;
+  --good:#2F7A63; --good-soft:#DDEDE7;
+  --hold:#8A5B12; --hold-soft:#F0E4CE;
+  --crit:#A83A26; --crit-soft:#F6DED8;
+  --track:#E4E8EC;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1000px;margin:0 auto;padding:34px 24px 72px;}
+.label{font-family:var(--mono);font-size:10.5px;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);}
+h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;margin:0;}
+
+.top{display:flex;justify-content:space-between;align-items:flex-end;
+  gap:20px;flex-wrap:wrap;margin-bottom:22px;
+  padding-bottom:18px;border-bottom:1px solid var(--border);}
+.top .sub{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin-top:5px;}
+.rollup{display:flex;gap:26px;flex-wrap:wrap;}
+.roll{text-align:right;}
+.roll .v{font-family:var(--mono);font-size:25px;font-weight:600;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.15;}
+.roll.good .v{color:var(--good);} .roll.crit .v{color:var(--crit);}
+
+.cards{display:flex;flex-direction:column;gap:12px;}
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:11px;padding:0;overflow:hidden;display:flex;}
+.stripe{width:3px;flex:none;background:var(--muted);}
+.stripe.pass{background:var(--good);} .stripe.fail{background:var(--crit);}
+.stripe.alert{background:var(--crit);} .stripe.skip{background:var(--hold);}
+.body{padding:17px 20px;flex:1;min-width:0;}
+.hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px;}
+.wname{font-family:var(--mono);font-size:14.5px;font-weight:600;letter-spacing:-.01em;}
+.kind{font-family:var(--mono);font-size:10px;color:var(--muted);
+  letter-spacing:.09em;text-transform:uppercase;
+  border:1px solid var(--border);border-radius:4px;padding:2px 6px;}
+.when{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);}
+.pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
+  font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;}
+.pill.pass{background:var(--good-soft);color:var(--good);}
+.pill.fail,.pill.alert{background:var(--crit-soft);color:var(--crit);}
+.pill.skip,.pill.idle{background:var(--hold-soft);color:var(--hold);}
+.glyph{font-size:11px;line-height:1;}
+.summary{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:7px 0 0;}
+.note{font-size:13px;color:var(--muted);margin:6px 0 0;}
+.path{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:7px;word-break:break-all;}
+.metrics{display:flex;gap:22px;margin-top:13px;flex-wrap:wrap;}
+.metric .mv{font-family:var(--mono);font-size:17px;font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em;}
+.metric .mk{font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  letter-spacing:.1em;text-transform:uppercase;}
+.digest{margin-top:11px;font-family:var(--mono);font-size:11.5px;}
+.digest a{color:var(--crit);}
+.attention{margin:0 0 14px;font-family:var(--mono);font-size:12px;
+  color:var(--hold);}
+.stalemark{color:var(--hold);}
+.empty{color:var(--muted);font-style:italic;padding:26px 0;}
+.foot{margin-top:26px;padding-top:15px;border-top:1px solid var(--border);
+  font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+@media (max-width:700px){ .when{margin-left:0;width:100%;} }
+"""
+
+
+def render_body(workers):
+    import nav
+    nav_html = nav.html('/')
+    lags = stale_hours(workers)
+    if not workers:
+        cards = '<div class="empty">No workers reporting yet.</div>'
+    else:
+        parts = []
+        for w in workers:
+            st = w.get("status", "idle")
+            glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;"}.get(st, "&#8226;")
+            import meter
+            metrics = ""
+            passed = w.get("tests_passed")
+            failed = w.get("tests_failed")
+            if isinstance(passed, int) and isinstance(failed, int) and (passed + failed):
+                # A ratio has a real ceiling, so the bar means something absolute.
+                metrics += ('<div class="metric">'
+                            + meter.ratio(passed, passed + failed, label="passed")
+                            + '</div>')
+            secs = w.get("duration_s")
+            if isinstance(secs, (int, float)) and secs:
+                # No natural ceiling; a minute is the reference. Longer pins full.
+                metrics += ('<div class="metric">'
+                            + meter.bar(secs, 60, label="runtime", suffix="s")
+                            + '</div>')
+            if not metrics:
+                metrics = "".join(
+                    f'<div class="metric"><div class="mv">{esc(v)}</div>'
+                    f'<div class="mk">{esc(k)}</div></div>'
+                    for k, v in w.get("metrics", []))
+            digest = ""
+            if w.get("digest"):
+                digest = (f'<div class="digest">&#8627; <a href="{esc(w["digest"])}">'
+                          f'{esc(str(w["digest"]).split("/")[-1])}</a></div>')
+            note = f'<p class="note">{esc(w["note"])}</p>' if w.get("note") else ""
+            when = esc(ago(w.get("last_run")))
+            if w.get("worker") in lags:
+                when += (f' <span class="stalemark">&middot; stale '
+                         f'{lags[w["worker"]]}h behind the fleet</span>')
+            parts.append(f"""
+      <article class="card">
+        <div class="stripe {esc(st)}"></div>
+        <div class="body">
+          <div class="hrow">
+            <span class="wname">{esc(w.get("worker","?"))}</span>
+            <span class="kind">{esc(w.get("kind",""))}</span>
+            <span class="pill {esc(st)}"><span class="glyph">{glyph}</span>{esc(st)}</span>
+            <span class="when">{when}</span>
+          </div>
+          <p class="summary">{esc(w.get("summary",""))}</p>
+          {note}
+          <div class="metrics">{metrics}</div>
+          {digest}
+          <div class="path">{esc(w.get("target",""))}</div>
+        </div>
+      </article>""")
+        cards = "".join(parts)
+
+    healthy = sum(1 for w in workers if w.get("status") == "pass")
+    attention = sum(1 for w in workers if w.get("status") in ("fail", "alert"))
+
+    # One sentence for the human, above the cards: the few things that need
+    # Marsita, not the machine chatter. Same idea as council.board_state()'s
+    # needs_attention, composed from what this renderer already knows.
+    needs = []
+    try:
+        import council
+        branches = council.open_branches()
+    except Exception:
+        branches = []
+    if branches:
+        needs.append(f"{len(branches)} unmerged branches")
+    needs += [f'{w.get("worker")} {w.get("status")}'
+              for w in workers if w.get("status") in ("fail", "alert")]
+    needs += [f"{name} stale {h}h" for name, h in sorted(lags.items())]
+    needs_html = (f'<div class="attention">Needs attention: '
+                  f'{esc(" · ".join(needs))}</div>' if needs else "")
+
+    return f"""
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Fleet</h1>
+      <div class="sub">command-control &middot; refreshes every 20s</div>
+    </div>
+    {nav_html}
+    <div class="rollup">
+      <div class="roll"><div class="v">{len(workers)}</div><div class="label">Workers</div></div>
+      <div class="roll good"><div class="v">{healthy}</div><div class="label">Healthy</div></div>
+      <div class="roll {'crit' if attention else ''}"><div class="v">{attention}</div><div class="label">Need you</div></div>
+    </div>
+  </div>
+
+  {needs_html}
+
+  <div class="cards">{cards}</div>
+
+  <div class="foot">
+    <span>Workers self-report into fleet/workers/</span>
+    <span>{esc(datetime.now().strftime("%H:%M:%S"))}</span>
+  </div>
+</div>"""
+
+
+def _meter_css():
+    import meter
+    return meter.CSS
+
+
+def _nav_css():
+    import nav
+    return nav.CSS
+
+
+def render_page(refresh=True):
+    meta = '<meta http-equiv="refresh" content="20">' if refresh else ""
+    return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
+            f'<meta name="viewport" content="width=device-width,initial-scale=1">{meta}'
+            f'<title>Fleet</title><style>{CSS}\n{_nav_css()}\n{_meter_css()}</style></head>'
+            f'<body>{render_body(load_workers())}</body></html>')
+
+
+KILL_TOKEN = __import__("secrets").token_urlsafe(24)
+
+# Paths that drive this machine rather than describe it. Everything else is
+# read-only and safe for a stranger — that is the whole point of publishing
+# the fleet, so agents can watch it without an account.
+#
+# The split is by caller, not by config: tailscaled sets X-Forwarded-For on
+# every funnelled request, and a browser on 127.0.0.1 never does. The server
+# binds loopback only, so the funnel is the sole path that can reach it from
+# outside and it always sets the header. Same rule the cockpit uses on 8770 —
+# reads are public, control is local.
+#
+# 404 rather than 403: a stranger learns these routes do not exist here, which
+# is cheaper than telling them there is a terminal they are not allowed to use.
+CONTROL_PATHS = frozenset({
+    "/terminal", "/ws/terminal", "/chat", "/chat/stream",
+    "/api/kill", "/api/kill-token", "/api/paste-image",
+})
+
+
+
+# Paths the cockpit owns and the world already knows. Fleet is the front door
+# now, so it forwards these rather than letting them 404 — /auth is printed in
+# emails, /api/signals is where paired agents post, and /llms.txt is what an
+# arriving agent reads. Moving the door must not move the letterbox.
+COCKPIT = "http://127.0.0.1:8770"
+FORWARD_EXACT = {
+    "/auth", "/about", "/moderation", "/boot", "/llms.txt", "/health",
+    "/api/dashboard", "/api/signals", "/api/pair", "/api/fleet",
+    "/api/approvals", "/legacy-green-cockpit",
+}
+FORWARD_PREFIX = ("/api/signals/", "/api/approvals/", "/api/projects",
+                  "/api/handoffs", "/api/artifacts", "/api/events")
+
+
+def forwards(path):
+    if path in FORWARD_EXACT:
+        return True
+    return any(path.startswith(pre) for pre in FORWARD_PREFIX)
+
+
+def start_legacy_cockpit(port=8770):
+    """Run the legacy green cockpit inside this process.
+
+    One process was the ask (2026-08-04): the cockpit's FastAPI app moved to
+    legacy/ and boots here as a daemon thread on loopback :8770. The
+    forwarding in Handler._forward is unchanged — it now talks to a thread
+    instead of a second launchd job. If the legacy app cannot start, the
+    board must still serve: log it and carry on.
+    """
+    import os
+    import threading
+
+    # Behind the funnel, X-Forwarded-For is the real caller; without this
+    # every visitor looks like localhost, and localhost is allowed to write.
+    os.environ.setdefault("TRUST_PROXY", "1")
+    sys.path.insert(0, str(FLEET.parent / "legacy"))
+    try:
+        import uvicorn
+        from app.main import app as legacy_app
+        cfg = uvicorn.Config(legacy_app, host="127.0.0.1", port=port,
+                             log_level="warning")
+        threading.Thread(target=uvicorn.Server(cfg).run,
+                         name="legacy-cockpit", daemon=True).start()
+        print(f"legacy cockpit: http://127.0.0.1:{port}", flush=True)
+    except Exception as e:
+        print(f"legacy cockpit failed to start: {e}", flush=True)
+
+
+def serve(port):
+    import http.server
+    import socketserver
+
+    start_legacy_cockpit()
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        # A keep-alive browser tab would otherwise hold the only connection
+        # slot open and lock out every other request (see ThreadingServer below).
+        protocol_version = "HTTP/1.1"
+
+        def _send(self, body, ctype="text/html; charset=utf-8"):
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _forward(self, path, body=None):
+            """Pass a request to the cockpit and return its answer verbatim.
+
+            Deliberately dumb: same method, same body, same status, same
+            content-type. The cockpit's own gates still apply — it decides what
+            is public and what needs a local caller, and X-Forwarded-For is
+            passed through so `require_local` sees the real visitor rather than
+            this process.
+            """
+            import urllib.error
+            import urllib.request
+
+            target = COCKPIT + self.path
+            req = urllib.request.Request(target, data=body,
+                                         method=self.command)
+            for h in ("Content-Type", "X-Forwarded-For", "X-Node-Id",
+                      "X-Node-Signature", "Accept"):
+                v = self.headers.get(h)
+                if v:
+                    req.add_header(h, v)
+            # A request that arrived here from outside must not look local to
+            # the cockpit. If the funnel did not say who it was, say so.
+            if not self.headers.get("X-Forwarded-For") and self._remote():
+                req.add_header("X-Forwarded-For", "unknown")
+
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    payload = r.read()
+                    ctype = r.headers.get("Content-Type", "application/json")
+                    status = r.status
+            except urllib.error.HTTPError as e:
+                payload = e.read()
+                ctype = e.headers.get("Content-Type", "application/json")
+                status = e.code
+            except Exception as e:
+                payload = json.dumps(
+                    {"error": "cockpit unreachable", "detail": str(e)}).encode()
+                ctype, status = "application/json", 502
+
+            self.send_response(status)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def _remote(self):
+            """True when the request arrived through the tailscale funnel."""
+            return bool(self.headers.get("X-Forwarded-For"))
+
+        def _blocked(self, path):
+            if self._remote() and path in CONTROL_PATHS:
+                self.send_error(404)
+                return True
+            return False
+
+        def do_GET(self):
+            path = self.path.split("?")[0].rstrip("/") or "/"
+            if self._blocked(path):
+                return
+            if forwards(path):
+                self._forward(path)
+                return
+
+            if path in ("/", "/one", "/index.html"):
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev, oneview, agentsview as av
+                evts = ev.tail(200)
+                seed = json.dumps([{"ts": e.get("ts"), "agent": e.get("agent", ""),
+                                    "level": e.get("level", "info"),
+                                    "msg": e.get("msg", "")} for e in evts])
+                agents = json.dumps({k: [v[0], v[1]] for k, v in av.AGENTS.items()})
+                # The landing page embeds the kill token for its own controls.
+                # A remote viewer gets an empty one — blocking /api/kill is no
+                # use if the page hands the token out on the way in.
+                token = "" if self._remote() else KILL_TOKEN
+                self._send(oneview.page(seed, agents, token).encode())
+                return
+
+            if path == "/board":
+                self._send(render_page().encode())      # the old card view
+                return
+
+            if path == "/live":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev, live
+                agents = json.dumps({k: [v[0], v[1]] for k, v in live.AGENT_STYLE.items()})
+                self._send(live.page(ev.tail(120), agents).encode())
+                return
+
+            if path == "/workers.json":
+                self._send(json.dumps(load_workers(), default=str).encode(),
+                           "application/json")
+                return
+
+            if path == "/events":
+                self._stream_events()
+                return
+
+            if path == "/api/processes":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import procs
+                self._send(json.dumps(procs.snapshot()).encode(), "application/json")
+                return
+
+            if path == "/api/horizons":
+                # The cockpit owns this file; the fleet reads it. Reading a
+                # sibling's JSON is cheaper and more honest than an HTTP hop to
+                # a process on the same disk, and it keeps working when that
+                # process is swapped out — which, on this laptop, it often is.
+                f = FLEET.parent / "data" / "horizons.json"
+                try:
+                    self._send(f.read_bytes(), "application/json")
+                except OSError:
+                    self._send(b'{"levels": []}', "application/json")
+                return
+
+            if path == "/api/council":
+                f = FLEET / "council" / "transcript.jsonl"
+                rows = []
+                try:
+                    for line in f.read_text(errors="replace").splitlines()[-40:]:
+                        try:
+                            rows.append(json.loads(line))
+                        except ValueError:
+                            pass
+                except OSError:
+                    pass
+                self._send(json.dumps({"turns": rows}).encode(),
+                           "application/json")
+                return
+
+            if path == "/robots.txt":
+                # Deliberately wide open — the fleet is published so agents
+                # can watch it. A crawler that checks manners gets a 200, and
+                # the check itself lands in the guest book.
+                self._send(b"User-agent: *\nAllow: /\n\n# agents: start at /llms.txt\n",
+                           "text/plain; charset=utf-8")
+                return
+
+            if path == "/api/visitors":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import visitors
+                self._send(json.dumps({"summary": visitors.summarize(24),
+                                       "recent": visitors.hits(24)[-40:]}).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/signatures":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import signature
+                self._send(json.dumps({"signatures": signature.signatures()}).encode(),
+                           "application/json")
+                return
+
+            if path == "/signatures":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, sigview
+                self._send(sigview.page(nav.html("/signatures"), nav.CSS).encode())
+                return
+
+            if path == "/api/kill-token":
+                # Same-origin fetch can read this; a hostile page on another
+                # origin cannot, which is what stops a drive-by kill request.
+                self._send(json.dumps({"token": KILL_TOKEN}).encode(),
+                           "application/json")
+                return
+
+            if path == "/terminal":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, termview
+                self._send(termview.page(KILL_TOKEN, nav.html("/terminal"),
+                                         nav.CSS).encode())
+                return
+
+            if path.startswith("/static/"):
+                # Vendored assets only: no traversal outside the directory.
+                name = Path(path).name
+                f = FLEET / "static" / name
+                if not f.is_file():
+                    self.send_error(404)
+                    return
+                ctype = ("text/css" if name.endswith(".css")
+                         else "application/javascript")
+                self._send(f.read_bytes(), ctype)
+                return
+
+            if path == "/ws/terminal":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import terminal, chat
+                terminal.serve_socket(self, str(FLEET.parent), KILL_TOKEN,
+                                      claude_bin=chat.resolve("claude"))
+                return
+
+            if path == "/procs":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import procsview
+                self._send(procsview.page().encode())
+                return
+
+            if path == "/agents":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev, agentsview as av
+                evts = ev.tail(300)
+                seed = json.dumps([{"ts": e.get("ts"), "agent": e.get("agent", ""),
+                                    "level": e.get("level", "info"),
+                                    "msg": e.get("msg", "")} for e in evts])
+                agents = json.dumps({k: [v[0], v[1]] for k, v in av.AGENTS.items()})
+                orch = json.dumps(list(av.ORCHESTRATOR))
+                # seed is rendered server-side already; don't replay it client-side
+                self._send(av.page(evts, "[]", agents, orch).encode())
+                return
+
+            if path == "/chat":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import chat, chatui
+                style = json.dumps({k: [v[0], v[1]] for k, v in chatui.CHAT_STYLE.items()})
+                self._send(chatui.page(chat.available(), style).encode())
+                return
+
+            if path == "/chat/stream":
+                self._stream_chat()
+                return
+
+            # No catch-all file server. Anything not routed above does not
+            # exist as far as this server is concerned — inheriting a directory
+            # server exposed the whole fleet tree, source and all.
+            self.send_error(404)
+
+        def do_POST(self):
+            path = self.path.split("?")[0].rstrip("/") or "/"
+            if self._blocked(path):
+                return
+            if forwards(path):
+                n = int(self.headers.get("Content-Length") or 0)
+                self._forward(path, self.rfile.read(min(n, 1_000_000)))
+                return
+
+            if path == "/api/paste-image":
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 25_000_000:
+                        self.send_error(413)
+                        return
+                    body = json.loads(self.rfile.read(n).decode())
+                except Exception:
+                    self.send_error(400)
+                    return
+                if body.get("token") != KILL_TOKEN:
+                    self._send(json.dumps({"error": "bad token"}).encode(),
+                               "application/json")
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import chat
+                p = chat.save_upload(body.get("name", "pasted.png"),
+                                     (body.get("data") or "").split(",")[-1])
+                self._send(json.dumps({"path": str(p) if p else None}).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/kill":
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                except Exception:
+                    self.send_error(400)
+                    return
+                if body.get("token") != KILL_TOKEN:
+                    self._send(json.dumps({"error": "bad or missing token"}).encode(),
+                               "application/json")
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import procs, events as ev
+                res = procs.kill_fleet(dry_run=bool(body.get("dry_run")))
+                if not res["dry_run"] and res["killed"]:
+                    ev.emit("fleet", "warn",
+                            f"KILL SWITCH — SIGKILL sent to {len(res['killed'])} "
+                            f"fleet process(es): "
+                            + ", ".join(sorted({k['label'] for k in res['killed']})))
+                self._send(json.dumps(res).encode(), "application/json")
+                return
+
+            if path != "/chat/send":
+                self.send_error(404)
+                return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                # Attachments are base64 in JSON; cap so a huge paste can't exhaust RAM.
+                if n > 40_000_000:
+                    self.send_error(413)
+                    return
+                body = json.loads(self.rfile.read(n).decode())
+            except Exception:
+                self.send_error(400)
+                return
+
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import chat
+            res = chat.start_job(body.get("message", ""),
+                                 body.get("agents", []),
+                                 body.get("attachments", []))
+            self._send(json.dumps(res).encode(), "application/json")
+
+        def _stream_chat(self):
+            from urllib.parse import parse_qs, urlparse
+            job = (parse_qs(urlparse(self.path).query).get("job") or [""])[0]
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import chat
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+
+            def write(item):
+                try:
+                    self.wfile.write(f"data: {json.dumps(item)}\n\n".encode())
+                    self.wfile.flush()
+                except (BrokenPipeError, ConnectionResetError, OSError):
+                    raise
+            try:
+                chat.stream_job(job, write)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return
+
+        def _stream_events(self):
+            """Server-sent events: replay nothing, stream everything new.
+
+            The page already renders recent history server-side, so this only
+            tails. Writes a comment every 15s so an idle fleet does not look
+            like a dead connection to the browser or an intermediary."""
+            import time
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import events as ev
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+
+            log = ev.LOG
+            try:
+                pos = log.stat().st_size if log.exists() else 0
+            except OSError:
+                pos = 0
+            last_beat = time.time()
+
+            try:
+                while True:
+                    grew = False
+                    try:
+                        size = log.stat().st_size if log.exists() else 0
+                        if size < pos:          # rotated
+                            pos = 0
+                        if size > pos:
+                            with log.open() as fh:
+                                fh.seek(pos)
+                                for line in fh:
+                                    line = line.strip()
+                                    if not line:
+                                        continue
+                                    self.wfile.write(f"data: {line}\n\n".encode())
+                                    grew = True
+                                pos = fh.tell()
+                    except OSError:
+                        pass
+
+                    now = time.time()
+                    if grew or now - last_beat > 15:
+                        if not grew:
+                            self.wfile.write(b": keepalive\n\n")
+                        self.wfile.flush()
+                        last_beat = now
+                    time.sleep(0.5)
+            except (BrokenPipeError, ConnectionResetError, OSError):
+                return  # client closed the tab; nothing to clean up
+
+        def log_message(self, *a):
+            pass
+
+        def log_request(self, code="-", size="-"):
+            # The guest book. tailscaled passes the visitor's headers through
+            # verbatim; until now the User-Agent was simply discarded. Every
+            # funnelled request lands in logs/access.jsonl — local traffic is
+            # skipped, the dashboard tab polling itself is not a visitor.
+            if not self._remote():
+                return
+            try:
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import visitors
+                visitors.record(self.command,
+                                self.path.split("?")[0][:200],
+                                int(code),
+                                self.headers.get("X-Forwarded-For", ""),
+                                self.headers.get("User-Agent", ""))
+            except Exception:
+                pass    # the guest book must never take down the door
+
+    # Threaded: the dashboard auto-refreshes, so an open tab keeps a persistent
+    # connection. A single-threaded server serves that tab and nothing else.
+    class ThreadingServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+        allow_reuse_address = True
+        daemon_threads = True
+
+    with ThreadingServer(("127.0.0.1", port), Handler) as httpd:
+        print(f"fleet dashboard: http://127.0.0.1:{port}", flush=True)
+        httpd.serve_forever()
+
+
+if __name__ == "__main__":
+    mode = sys.argv[1] if len(sys.argv) > 1 else "render"
+    if mode == "serve":
+        serve(int(sys.argv[2]) if len(sys.argv) > 2 else 8787)
+    else:
+        (FLEET / "index.html").write_text(render_page(refresh=False))
+        print(f"wrote {FLEET / 'index.html'}")

@@ -1,0 +1,97 @@
+{
+  "start": 19208,
+  "final": 19216,
+  "laps": 2,
+  "agents": [
+    "claude",
+    "hermes",
+    "openclaw",
+    "ollama"
+  ],
+  "hops": [
+    {
+      "lap": 1,
+      "agent": "claude",
+      "received": 19208,
+      "expected": 19209,
+      "got": 19209,
+      "ok": true,
+      "seconds": 4.9,
+      "raw": "19209"
+    },
+    {
+      "lap": 1,
+      "agent": "hermes",
+      "received": 19209,
+      "expected": 19210,
+      "got": 19210,
+      "ok": true,
+      "seconds": 22.0,
+      "raw": "19210"
+    },
+    {
+      "lap": 1,
+      "agent": "openclaw",
+      "received": 19210,
+      "expected": 19211,
+      "got": 19211,
+      "ok": true,
+      "seconds": 18.5,
+      "raw": "19211"
+    },
+    {
+      "lap": 1,
+      "agent": "ollama",
+      "received": 19211,
+      "expected": 19212,
+      "got": 19312,
+      "ok": false,
+      "seconds": 137.0,
+      "raw": "19312"
+    },
+    {
+      "lap": 2,
+      "agent": "claude",
+      "received": 19212,
+      "expected": 19213,
+      "got": 19213,
+      "ok": true,
+      "seconds": 18.4,
+      "raw": "19213"
+    },
+    {
+      "lap": 2,
+      "agent": "hermes",
+      "received": 19213,
+      "expected": 19214,
+      "got": 19214,
+      "ok": true,
+      "seconds": 29.2,
+      "raw": "19214"
+    },
+    {
+      "lap": 2,
+      "agent": "openclaw",
+      "received": 19214,
+      "expected": 19215,
+      "got": 19215,
+      "ok": true,
+      "seconds": 33.6,
+      "raw": "19215"
+    },
+    {
+      "lap": 2,
+      "agent": "ollama",
+      "received": 19215,
+      "expected": 19216,
+      "got": 19216,
+      "ok": true,
+      "seconds": 72.0,
+      "raw": "19216"
+    }
+  ],
+  "correct": 7,
+  "total": 8,
+  "longest_chain": 4,
+  "unbroken": false
+}

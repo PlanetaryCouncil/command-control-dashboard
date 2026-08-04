@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>re.genesis.comms-heartbeat</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/python3</string>
+        <string>/Users/YOU/projects/command-control-dashboard/fleet/bin/comms-heartbeat.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/YOU/projects/command-control-dashboard/fleet</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/YOU/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Hourly at :30, deliberately offset from the watchdog sweep so two
+         jobs don't compete for CPU on a machine with 8GB and no GPU. -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOU/projects/command-control-dashboard/fleet/logs/comms-heartbeat.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOU/projects/command-control-dashboard/fleet/logs/comms-heartbeat.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>
