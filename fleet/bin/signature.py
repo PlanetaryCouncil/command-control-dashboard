@@ -88,7 +88,7 @@ def effort(event):
     return LEVEL_WEIGHT.get(str(event.get("level", "")).lower(), 0.5)
 
 
-def path_for(events):
+def path_for(events, max_points=MAX_POINTS):
     """The agent's trace as (x, y, t), in the same shape the pad produces.
 
     x runs 0..1 across the agent's whole recorded life, so a worker's mark is
@@ -103,9 +103,9 @@ def path_for(events):
         return []
 
     events = sorted(events, key=lambda e: parse_ts(e["ts"]))
-    if len(events) > MAX_POINTS:                # keep the ends, thin the middle
-        step = len(events) / MAX_POINTS
-        events = [events[int(i * step)] for i in range(MAX_POINTS)]
+    if len(events) > max_points:                # keep the ends, thin the middle
+        step = len(events) / max_points
+        events = [events[int(i * step)] for i in range(max_points)]
 
     t0 = parse_ts(events[0]["ts"])
     span = max((parse_ts(events[-1]["ts"]) - t0).total_seconds(), 1.0)
@@ -161,6 +161,38 @@ def signatures(path=EVENTS, min_events=8):
             "last_seen": last.astimezone(timezone.utc).isoformat().replace("+00:00", "Z"),
         })
     out.sort(key=lambda s: -s["events"])
+    return out
+
+
+def evolution(path=EVENTS, min_events=8, stages=4):
+    """The same hand at four ages: quarter, half, three-quarters, now.
+
+    A seed moves as the agent works — that is the design — but a moving seed
+    can only be *seen* against its earlier selves. Each stage is the mark the
+    agent would have signed with at that point in its life; drawn in a row
+    they are the hand learning to write. Marsita, 2026-08-04: "showcase how
+    the signatures of agents were evolving."
+    """
+    by_agent = {}
+    for e in load_events(path):
+        by_agent.setdefault(e.get("agent", "?"), []).append(e)
+
+    out = []
+    for agent, events in by_agent.items():
+        if len(events) < min_events * 2:
+            continue                 # too little life to have earlier selves
+        events = sorted(events, key=lambda e: parse_ts(e["ts"]))
+        row = []
+        for i in range(1, stages + 1):
+            cut = max(min_events, round(len(events) * i / stages))
+            pts = path_for(events[:cut], max_points=120)
+            seed = seed_for(pts)
+            if seed:
+                row.append({"events": cut, "seed": seed, "points": pts,
+                            "at": events[cut - 1]["ts"][:10]})
+        if len(row) == stages:
+            out.append({"agent": agent, "stages": row})
+    out.sort(key=lambda s: -s["stages"][-1]["events"])
     return out
 
 
