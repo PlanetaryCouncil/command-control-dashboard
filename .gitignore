@@ -37,3 +37,5 @@ fleet/data/indexnow-key.txt
 # vendored assets stay out — but the gallery ships with the house
 !fleet/static/artwork.png
 !fleet/static/artwork-full.jpg
+fleet/data/signatures-collected.jsonl
+fleet/data/homies-real.txt
