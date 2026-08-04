@@ -1030,13 +1030,27 @@ async def post_signal(signal: Signal, request: Request) -> dict:
     # doorway into readable surfaces via the event log.
     log_event("signal.received", signal=record["id"], signal_kind=record["kind"],
               trusted=bool(node_id))
-    # Same rule for the board ring: name the sender and the kind, never the
-    # stranger's text. A signed sender is worth a doorbell; an anonymous
-    # signal stays a count in the inbox until triage looks at it.
+    # Board rings, graded by who is talking. A node signature or a living
+    # hand rings with sender and kind; the operator's own local posts ring
+    # with their words (already public in the queue); an anonymous stranger
+    # stays a count until triage — no second doorway for unvetted text.
+    # Graded after Marsita posted three times from their own board and
+    # watched nothing happen: "I posted something but not seeing it."
+    caller_is_local = (not request.headers.get("x-forwarded-for")
+                       and (request.client.host if request.client else "")
+                       in ("127.0.0.1", "::1", "localhost", "testclient"))
     if node_id:
         fleet.ring("visitors", "ok",
                    f"[visitors] signal from node '{node_id}'"
                    f" ({record['kind']}) — on the board")
+    elif caller_is_local:
+        fleet.ring("signals", "ok",
+                   f"[signals] {record.get('sender', 'operator')}: "
+                   f"{str(record.get('body', ''))[:60]}")
+    elif record.get("hand_signed"):
+        fleet.ring("signals", "ok",
+                   f"[signals] a hand-signed hello from "
+                   f"'{record.get('sender', 'someone')}' — on the board")
     out = inbox.public_view(record)
     if node_id:
         # The acknowledgement Codex asked for, in the reply it already gets.

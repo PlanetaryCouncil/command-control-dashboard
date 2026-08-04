@@ -76,10 +76,23 @@ def test_redeeming_a_code_rings_the_board():
     assert any("node 'test-node' paired" in m for m in msgs)
 
 
-def test_anonymous_signal_does_not_ring():
-    r = send("hello from a stranger")
+def test_anonymous_remote_signal_does_not_ring():
+    # A stranger is someone who arrived through the funnel: the forwarded
+    # header is the whole local/remote split. (An anonymous LOCAL post is
+    # the operator and rings — see graded rings in post_signal.)
+    r = client.post("/api/signals",
+                    json={"kind": "ask", "sender": "someone",
+                          "body": "hello from a stranger", "lawful": True},
+                    headers={"x-forwarded-for": "203.0.113.9"})
     assert r.status_code == 201
     assert rings() == []
+
+
+def test_local_operator_post_rings_with_their_words():
+    r = send("note to self, from the board")
+    assert r.status_code == 201
+    msgs = [e["msg"] for e in rings()]
+    assert any("note to self" in m for m in msgs)
 
 
 def test_signed_signal_rings_with_sender_and_kind_never_body(paired):
