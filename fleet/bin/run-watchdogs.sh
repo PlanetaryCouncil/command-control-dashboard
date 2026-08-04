@@ -6,6 +6,12 @@ FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIST="$FLEET/projects.txt"
 [[ -f "$LIST" ]] || { echo "no projects.txt"; exit 1; }
 
+# Repair before observing: a flatlined comms heartbeat gets a restart, not a
+# report. This runs before the lock check below on purpose — an alive-but-stuck
+# heartbeat can be the very process holding the plus-one lock, and a sweep that
+# defers to a corpse would never reach the repair.
+bash "$FLEET/bin/revive-heartbeat.sh" || true
+
 # Defer to an agent already in flight. This is the largest job on the board —
 # 167 tests, ~309s of a saturated four-core machine — and it was the only
 # scheduled job not honouring the lock that comms-heartbeat.py, council.py and
