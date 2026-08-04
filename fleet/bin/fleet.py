@@ -517,7 +517,15 @@ def serve(port):
                 self._forward(path)
                 return
 
-            if path in ("/", "/one", "/index.html"):
+            if path == "/":
+                # The flip, 2026-08-04: a human arrives at goals and
+                # projects; the agent machinery is one click in at /fleet.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import homeview
+                self._send(homeview.page(remote=self._remote()).encode())
+                return
+
+            if path in ("/fleet", "/one", "/index.html"):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev, oneview, agentsview as av
                 evts = ev.tail(200)

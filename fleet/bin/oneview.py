@@ -1171,7 +1171,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <span class="sp">
     {'' if remote else '<button id="convenebtn" title="Summon the council now instead of waiting for the schedule">&#128483; convene</button>'}
     {'' if remote else '<button id="termbtn" aria-pressed="false">&#9646; terminal</button>'}
-    {nav.html("/", remote=remote)}
+    {nav.html("/fleet", remote=remote)}
     <span id="clock"></span>
   </span>
 </div>
