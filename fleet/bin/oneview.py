@@ -1011,11 +1011,34 @@ dragGrip($("#gripR"), "R");
 dragGripV($("#gripV"));
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
+// The gallery slot. This board is a home dashboard and the home makes art —
+// one curated piece, changed by hand (fleet/bin/art.py set), never by poll
+// pressure. Same slow cadence as goals: art does not need a 6s heartbeat.
+async function loadArt(){
+  const pane = $("#art");
+  const e = s => String(s ?? "").replace(/[&<>"']/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  try {
+    const d = await (await fetch("api/artwork",{cache:"no-store"})).json();
+    if (!d.image){ pane.style.display = "none"; return; }
+    pane.querySelector(".body").innerHTML =
+      `<a href="${e(d.url || d.image)}" target="_blank" rel="noopener">` +
+      `<img src="${e(d.image)}" alt="${e(d.title || "artwork")}" ` +
+      `style="width:100%;border-radius:8px;display:block"></a>` +
+      `<div style="margin-top:6px;font-family:var(--mono);font-size:11.5px">` +
+      `${e(d.title || "")}${d.artist ? " — " + e(d.artist) : ""}</div>` +
+      (d.note ? `<div style="font-size:11px;color:var(--muted)">${e(d.note)}</div>` : "");
+    pane.dataset.state = "ready";
+  } catch (err) { paneFailed(pane); }
+}
+
 // Slower cadence on purpose: a horizon is a quarter's intent and a council
 // turn takes minutes. Polling these at 6s would be pure heat on a box that
 // spent today swapping.
 loadHorizons();
 setInterval(loadHorizons, 300000);
+loadArt();
+setInterval(loadArt, 300000);
 """
 
 
@@ -1060,6 +1083,12 @@ def page(seed_json: str, agents_json: str, token: str) -> str:
 
     <section class="pane" id="goals" style="flex:0 0 var(--hGoals,180px)" data-state="loading">
       <h2>goals &mdash; the chain <span class="n"></span></h2>
+      <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+
+    <section class="pane" id="art" style="flex:0 0 var(--hArt,240px)" data-state="loading">
+      <h2>current artwork <span class="n"></span></h2>
       <div class="body"></div>
       <div class="load"><i></i><span class="msg"></span></div>
     </section>
