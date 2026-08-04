@@ -1,0 +1,56 @@
+{
+  "updated_at": "2026-08-03T20:13:27.272612+00:00",
+  "note": "One thread, widest to narrowest. If a level is blank, the chain is broken there and the dashboard says so.",
+  "levels": [
+    {
+      "scale": "10y",
+      "goal": "A public, agent-legible operating system for a life spent benefiting others \u2014 copyable by anyone who wants it.",
+      "why": "The systems worth building are the ones other people can run too.",
+      "review": "2027-01-01"
+    },
+    {
+      "scale": "1y",
+      "goal": "Operating supercomputer of dreams and engineering singularity.",
+      "why": "Everything downstream derives from one accumulating point. The machine is the instrument, not the product.",
+      "review": "2027-07-21"
+    },
+    {
+      "scale": "quarter",
+      "goal": "Cockpit and public site shipped, published, and actually steering the work.",
+      "why": "A dashboard nobody opens is a document.",
+      "review": "2026-09-30"
+    },
+    {
+      "scale": "month",
+      "goal": "Dashboard public with real links; Discord cockpit live; Hermes hosted somewhere that stays awake.",
+      "why": "Unblocks everything downstream.",
+      "review": "2026-08-21"
+    },
+    {
+      "scale": "week",
+      "goal": "Ship the transparent dashboard: horizons, settings, agent uplink, ASCII scope.",
+      "why": "This is the map everything else gets steered from.",
+      "review": "2026-07-27"
+    },
+    {
+      "scale": "day",
+      "goal": "Stand up the agent fleet and merge it into the cockpit.",
+      "why": "One cockpit steering everything, not two screens.",
+      "review": ""
+    },
+    {
+      "scale": "hour",
+      "goal": "Align the fleet to the horizon chain so every agent serves a stated goal.",
+      "why": "Work that does not ladder up to a goal is motion, not progress.",
+      "review": ""
+    },
+    {
+      "scale": "now",
+      "goal": "Agent fleet: five agents self-reporting, proven able to pass messages.",
+      "why": "Agents that cannot talk cannot cooperate; proven beats assumed.",
+      "project": "command-control-dashboard",
+      "started_at": "2026-07-29T03:42:39.195260+00:00",
+      "review": ""
+    }
+  ]
+}

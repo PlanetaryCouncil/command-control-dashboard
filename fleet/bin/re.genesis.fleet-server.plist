@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>re.genesis.fleet-server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- The project venv, not system python: the legacy cockpit now runs
+             in-process and needs uvicorn + fastapi. -->
+        <string>/Users/phil/projects/command-control-dashboard/.venv/bin/python3</string>
+        <string>/Users/phil/projects/command-control-dashboard/fleet/bin/fleet.py</string>
+        <string>serve</string>
+        <string>8787</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet</string>
+
+    <!-- launchd's default PATH misses ~/.local/bin and the node prefix, so
+         chat subprocesses (claude, hermes, openclaw) would fail with ENOENT. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/phil/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    </dict>
+
+    <!-- Always on: start at login, restart if it ever exits. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/server.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/server.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

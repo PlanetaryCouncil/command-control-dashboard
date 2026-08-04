@@ -1,0 +1,40 @@
+{"ts": "2026-07-24T01:48:15.435833+00:00", "kind": "file.received", "name": "20260724T014815-verify-paste.png", "file_kind": "images", "bytes": 8}
+{"ts": "2026-07-29T03:42:39.200840+00:00", "kind": "horizon.set", "scale": "now", "goal": "Agent fleet: five agents self-reporting, proven able to pass messages."}
+{"ts": "2026-07-29T03:42:39.242257+00:00", "kind": "horizon.set", "scale": "hour", "goal": "Align the fleet to the horizon chain so every agent serves a stated goal."}
+{"ts": "2026-07-29T03:42:54.658378+00:00", "kind": "horizon.set", "scale": "day", "goal": "Stand up the agent fleet and merge it into the cockpit."}
+{"ts": "2026-07-29T04:18:02.369919+00:00", "kind": "signal.received", "signal": "sig-bba69fe7", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:02.378063+00:00", "kind": "signal.received", "signal": "sig-413030a9", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:02.393351+00:00", "kind": "signal.received", "signal": "sig-1455cfeb", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:08.740237+00:00", "kind": "signal.received", "signal": "sig-cb3a6c83", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:08.791699+00:00", "kind": "signal.received", "signal": "sig-eef8b7ef", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:08.893962+00:00", "kind": "signal.received", "signal": "sig-d1a8ae30", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:46.636637+00:00", "kind": "signal.received", "signal": "sig-120882e6", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:46.643468+00:00", "kind": "signal.received", "signal": "sig-741adfad", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:46.656074+00:00", "kind": "signal.received", "signal": "sig-a8bc3808", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.299625+00:00", "kind": "signal.received", "signal": "sig-dc1d0004", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.323418+00:00", "kind": "signal.received", "signal": "sig-15efab15", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.349980+00:00", "kind": "signal.received", "signal": "sig-010bdb74", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.371760+00:00", "kind": "signal.received", "signal": "sig-98eb40a2", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.399430+00:00", "kind": "signal.received", "signal": "sig-fc824e12", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.421660+00:00", "kind": "signal.received", "signal": "sig-9e4cc731", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.453009+00:00", "kind": "signal.received", "signal": "sig-b6514938", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.476380+00:00", "kind": "signal.received", "signal": "sig-d7b542fa", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.504096+00:00", "kind": "signal.received", "signal": "sig-70371736", "signal_kind": "signal"}
+{"ts": "2026-07-29T04:18:53.532284+00:00", "kind": "signal.received", "signal": "sig-3f70225b", "signal_kind": "signal"}
+{"ts": "2026-07-29T15:14:07.084609+00:00", "kind": "handoff.recorded", "by": "claude-code", "changed": "Filled every link that actually exists (added a local repo-path field to life.json + the radar detail view, set for the 3 projects with real repos on disk). Decided the planetary-council boundary and "}
+{"ts": "2026-08-01T23:37:01.090495+00:00", "kind": "handoff.recorded", "by": "claude", "changed": "Approval gate built (approve/revoke/check, standing-until-revoked, scope mandatory and exact-match). Name corrected to Marsita the Ultra; agent-facing text now says the operator. Browser automation pr"}
+{"ts": "2026-08-03T14:50:12.292940+00:00", "kind": "signal.received", "signal": "sig-f02fdf2c", "signal_kind": "ask"}
+{"ts": "2026-08-03T15:04:28.012524+00:00", "kind": "signal.received", "signal": "sig-54531441", "signal_kind": "ask"}
+{"ts": "2026-08-03T16:31:10.802554+00:00", "kind": "signal.received", "signal": "sig-3d7d5cec", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T16:31:10.808561+00:00", "kind": "signal.received", "signal": "sig-ed5eabf2", "signal_kind": "ask", "trusted": false}
+{"ts": "2026-08-03T16:53:15.266217+00:00", "kind": "signal.received", "signal": "sig-3edd9055", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T16:53:15.469687+00:00", "kind": "signal.received", "signal": "sig-d8b21989", "signal_kind": "ask", "trusted": false}
+{"ts": "2026-08-03T17:04:07.141577+00:00", "kind": "signal.received", "signal": "sig-a943afc3", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T17:12:18.915065+00:00", "kind": "signal.received", "signal": "sig-3ca8b583", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T17:21:19.957529+00:00", "kind": "signal.received", "signal": "sig-cbdf8fa4", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T19:32:34.761771+00:00", "kind": "pair.redeemed", "node": "friendly-agent", "by": "45.128.33.135"}
+{"ts": "2026-08-03T19:32:34.903140+00:00", "kind": "pair.refused", "reason": "already redeemed at 2026-08-03T19:32:34.757610+00:00 from 45.128.33.135", "by": "45.128.33.135"}
+{"ts": "2026-08-03T19:32:48.363834+00:00", "kind": "signal.received", "signal": "sig-3636ab54", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T20:13:27.276692+00:00", "kind": "horizon.set", "scale": "1y", "goal": "Operating supercomputer of dreams and engineering singularity."}
+{"ts": "2026-08-03T20:17:28.025509+00:00", "kind": "signal.received", "signal": "sig-2606ddf1", "signal_kind": "ask", "trusted": true}
+{"ts": "2026-08-03T21:20:23.918709+00:00", "kind": "signal.received", "signal": "sig-07ff5f9e", "signal_kind": "signal", "trusted": false}

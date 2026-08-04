@@ -1,0 +1,35 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.json.tmp
+.env
+fleet/logs/
+fleet/index.html
+fleet/workers/
+fleet/events.jsonl
+fleet/uploads/
+fleet/digests/
+self-improve/logs/
+self-improve/state/observations.json
+self-improve/dashboard.html
+fleet/proposals/
+# `fleet/static/*`, not `fleet/static/` — git will not descend into an excluded
+# directory, so a negation inside one never fires.
+fleet/static/*
+# ...except our own. The rule above exists for vendored xterm builds, which are
+# large and replaceable. signature.js is source: it is the projector, and it has
+# to stay byte-identical to the copy the entropy pad runs or a human's mark and
+# an agent's stop being comparable.
+!fleet/static/signature.js
+fleet/council/
+
+# NOT hidden for secrecy — the rules live in app/triage.py and are public. This
+# optional file is where a specific abusive string or URL goes once someone has
+# actually sent one, and committing those would republish them.
+data/triage_patterns.json
+
+# Minted credentials and live pairing invites. Never committed.
+data/node_secrets.json
+data/pairing.json
+fleet/data/indexnow-key.txt

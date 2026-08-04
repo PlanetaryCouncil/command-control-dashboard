@@ -1,0 +1,14 @@
+{"node_id": "local", "seq": 1, "hlc": [1785296559200, 0, "local"], "resource": "horizon", "target_id": "now", "field": "goal", "value": "Agent fleet: five agents self-reporting, proven able to pass messages."}
+{"node_id": "local", "seq": 2, "hlc": [1785296559200, 1, "local"], "resource": "horizon", "target_id": "now", "field": "why", "value": "Agents that cannot talk cannot cooperate; proven beats assumed."}
+{"node_id": "local", "seq": 3, "hlc": [1785296559200, 2, "local"], "resource": "horizon", "target_id": "now", "field": "project", "value": "command-control-dashboard"}
+{"node_id": "local", "seq": 4, "hlc": [1785296559200, 3, "local"], "resource": "horizon", "target_id": "now", "field": "review", "value": ""}
+{"node_id": "local", "seq": 5, "hlc": [1785296559200, 4, "local"], "resource": "horizon", "target_id": "now", "field": "started_at", "value": "2026-07-29T03:42:39.195260+00:00"}
+{"node_id": "local", "seq": 6, "hlc": [1785296559241, 0, "local"], "resource": "horizon", "target_id": "hour", "field": "goal", "value": "Align the fleet to the horizon chain so every agent serves a stated goal."}
+{"node_id": "local", "seq": 7, "hlc": [1785296559241, 1, "local"], "resource": "horizon", "target_id": "hour", "field": "why", "value": "Work that does not ladder up to a goal is motion, not progress."}
+{"node_id": "local", "seq": 8, "hlc": [1785296559241, 2, "local"], "resource": "horizon", "target_id": "hour", "field": "review", "value": ""}
+{"node_id": "local", "seq": 9, "hlc": [1785296574658, 0, "local"], "resource": "horizon", "target_id": "day", "field": "goal", "value": "Stand up the agent fleet and merge it into the cockpit."}
+{"node_id": "local", "seq": 10, "hlc": [1785296574658, 1, "local"], "resource": "horizon", "target_id": "day", "field": "why", "value": "One cockpit steering everything, not two screens."}
+{"node_id": "local", "seq": 11, "hlc": [1785296574658, 2, "local"], "resource": "horizon", "target_id": "day", "field": "review", "value": ""}
+{"node_id": "local", "seq": 12, "hlc": [1785788007276, 0, "local"], "resource": "horizon", "target_id": "1y", "field": "goal", "value": "Operating supercomputer of dreams and engineering singularity."}
+{"node_id": "local", "seq": 13, "hlc": [1785788007276, 1, "local"], "resource": "horizon", "target_id": "1y", "field": "why", "value": "Everything downstream derives from one accumulating point. The machine is the instrument, not the product."}
+{"node_id": "local", "seq": 14, "hlc": [1785788007276, 2, "local"], "resource": "horizon", "target_id": "1y", "field": "review", "value": "2027-07-21"}

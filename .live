@@ -1,0 +1,10 @@
+# Where this repo is reachable from the public internet.
+# Read by ~/.claude/pushed.sh, which asks each one whether it answers.
+#
+# One host, one port, no port number to type. Tailscale Funnel only permits
+# 443, 8443 and 10000, so :8443 was never going to look standard — the green
+# cockpit lives at a path on 443 instead, which it could do all along once
+# fleet started forwarding the cockpit's routes.
+
+https://cockpit-1.tail151af.ts.net/
+https://cockpit-1.tail151af.ts.net/legacy-green-cockpit

@@ -1,0 +1,8 @@
+# Projects the watchdog fleet monitors. One absolute path per line.
+# Add a project here and it appears on the dashboard on the next run —
+# no code change needed.
+#
+# Not yet listed, and why:
+#   ~/projects/basexHQ                   only DOCTRINE.md; no code or tests to run
+
+/Users/phil/projects/command-control-dashboard

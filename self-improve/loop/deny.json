@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(~/.claude/sessions/**)",
+      "Read(~/.claude/history.jsonl)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(**/.env)",
+      "Read(**/credentials*)",
+
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude/settings.local.json)",
+      "Edit(~/.claude/backups/**)",
+      "Edit(~/.claude/projects/**)",
+      "Edit(~/.claude/sessions/**)",
+      "Edit(~/.zshrc)",
+      "Edit(~/.zprofile)",
+      "Edit(~/Library/LaunchAgents/**)",
+
+      "Bash(rm -rf *)",
+      "Bash(sudo *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(git push *)",
+      "Bash(ssh *)",
+      "Bash(launchctl *)",
+      "Bash(crontab *)",
+      "Bash(npm publish *)",
+
+      "WebFetch",
+      "WebSearch"
+    ]
+  }
+}

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Wiring check after every merge into a working tree.
+#
+# --quick only: no agent turns, so it costs about ten seconds and no money. It
+# catches the failure that unit tests cannot — parts that pass in isolation
+# while nothing reaches the other end. The full run, including real agents,
+# happens daily on a schedule.
+REPO="$(git rev-parse --show-toplevel)"
+[[ -f "$REPO/fleet/bin/e2e.py" ]] || exit 0
+echo "→ post-merge: end-to-end wiring check"
+if ! python3 "$REPO/fleet/bin/e2e.py" --quick --port 8898; then
+  echo "  ✗ the merge left the pipeline broken — see above"
+  exit 1     # advisory: the merge already happened, this is the alarm
+fi

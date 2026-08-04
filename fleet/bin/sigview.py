@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""Every worker's hand, drawn by the same function that draws yours.
+
+The page is deliberately just a wall of marks. There is a table view of this
+data one click away (`/api/signatures`) and it tells you nothing — the whole
+claim of the thing is that an agent's working rhythm has a *shape*, and a shape
+has to be looked at. Numbers next to each mark, not instead of it.
+
+Clicking a mark re-folds it from the same seed. That is the honest demo of what
+the seed does: the path is fixed, the folding is chosen, and a different fold of
+the same work is still that agent's work.
+"""
+
+CSS = """
+:root{
+  --ground:#05090b; --surface:#080f11; --rule:#143026; --rule-hot:#1d4735;
+  --phosphor:#7dffb0; --phosphor-d:#4bbd7d; --amber:#ffc46b; --body:#cfe9da;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:radial-gradient(120% 80% at 50% 0%,#0b1614 0%,var(--ground) 60%),var(--ground);
+  color:var(--body);font-family:var(--mono);font-size:.86rem;line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
+  background:repeating-linear-gradient(to bottom,
+    rgba(125,255,176,.03) 0px,rgba(125,255,176,.03) 1px,
+    transparent 1px,transparent 3px);
+  mix-blend-mode:overlay;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:2.5rem 1.5rem 5rem;
+  display:flex;flex-direction:column;gap:2rem}
+.eyebrow{font-size:.72rem;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--phosphor-d);display:flex;align-items:center;gap:.75rem;margin:0}
+.eyebrow::after{content:"";flex:1;height:1px;
+  background:linear-gradient(to right,var(--rule-hot),transparent)}
+h1{margin:.4rem 0 0;font-size:clamp(1.5rem,4vw,2.2rem);font-weight:600;
+  line-height:1.1;color:var(--phosphor);text-shadow:0 0 18px rgba(125,255,176,.3);
+  text-wrap:balance}
+.lede{margin:.9rem 0 0;max-width:64ch}
+.lede b{color:var(--phosphor);font-weight:600}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.card{background:var(--surface);padding:1rem;display:flex;flex-direction:column;gap:.7rem}
+.card canvas{display:block;width:100%;aspect-ratio:1/1;background:#03060a;
+  border:1px solid var(--rule);cursor:pointer;transition:border-color 140ms ease}
+.card canvas:hover{border-color:var(--rule-hot)}
+.card canvas:focus-visible{outline:2px solid var(--phosphor);outline-offset:2px}
+.name{color:var(--phosphor);letter-spacing:.04em;word-break:break-all}
+.meta{display:flex;justify-content:space-between;gap:.5rem;font-size:.72rem;
+  color:var(--phosphor-d);letter-spacing:.1em;text-transform:uppercase}
+.meta b{color:var(--amber);font-weight:400;font-variant-numeric:tabular-nums}
+.seed{font-size:.68rem;color:var(--rule-hot);word-break:break-all;line-height:1.4}
+.empty{padding:3rem 1rem;text-align:center;color:var(--phosphor-d);
+  letter-spacing:.2em;text-transform:uppercase;font-size:.72rem}
+footer{font-size:.72rem;color:var(--phosphor-d);border-top:1px solid var(--rule);
+  padding-top:1rem}
+"""
+
+
+def page(nav_html: str = "", nav_css: str = "") -> str:
+    return f"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Signatures — fleet</title>
+<style>{nav_css}{CSS}</style>
+</head><body>
+<div class="wrap">
+  <header>
+    {nav_html}
+    <p class="eyebrow">fleet · marks</p>
+    <h1>Every hand on this machine</h1>
+    <p class="lede">
+      A person signs by moving a pointer for five seconds. An agent has no
+      pointer, so it signs with <b>the shape of its work</b> — when it acted,
+      how hard, and the gaps in between. Same three numbers, same projector,
+      so the marks are comparable. Click any one to re-fold it from its seed.
+    </p>
+  </header>
+
+  <div class="grid" id="grid"><div class="empty">reading traces…</div></div>
+
+  <footer>
+    Seeds are SHA-256 over each agent's path and move as it works — a mark is
+    not fixed at birth, it is the accumulated shape of everything the worker
+    has done. Agents with fewer than eight events are not drawn: too few
+    strokes to be a signature.
+  </footer>
+</div>
+
+<script src="/static/signature.js"></script>
+<script>
+(async () => {{
+  const grid = document.getElementById("grid");
+  let data;
+  try {{
+    data = await (await fetch("/api/signatures")).json();
+  }} catch (e) {{
+    grid.innerHTML = '<div class="empty">could not read /api/signatures</div>';
+    return;
+  }}
+  const sigs = (data && data.signatures) || [];
+  if (!sigs.length) {{
+    grid.innerHTML = '<div class="empty">no agent has enough history yet</div>';
+    return;
+  }}
+
+  grid.innerHTML = "";
+  const variants = new Map();
+
+  for (const s of sigs) {{
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const cv = document.createElement("canvas");
+    cv.tabIndex = 0;
+    cv.setAttribute("role", "img");
+    cv.setAttribute("aria-label", s.agent + " signature");
+    cv.title = "click to re-fold from the same seed";
+
+    const name = document.createElement("div");
+    name.className = "name";
+    name.textContent = s.agent;
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.innerHTML = "<span>events <b>" + s.events + "</b></span>" +
+                     "<span>" + s.last_seen.slice(5, 16).replace("T", " ") + "</span>";
+
+    const seed = document.createElement("div");
+    seed.className = "seed";
+    seed.textContent = s.seed.slice(0, 32);
+
+    card.append(cv, name, meta, seed);
+    grid.append(card);
+
+    const redraw = () => {{
+      const v = variants.get(s.agent) || 0;
+      drawSignature(cv, s.seed, s.points, v);
+    }};
+    const bump = () => {{
+      variants.set(s.agent, (variants.get(s.agent) || 0) + 1);
+      redraw();
+    }};
+    cv.addEventListener("click", bump);
+    cv.addEventListener("keydown", e => {{
+      if (e.key === "Enter" || e.key === " ") {{ e.preventDefault(); bump(); }}
+    }});
+    requestAnimationFrame(redraw);
+    window.addEventListener("resize", redraw);
+  }}
+}})();
+</script>
+</body></html>"""

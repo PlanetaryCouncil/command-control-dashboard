@@ -1,0 +1,235 @@
+================================================================================
+PLANETARY COUNCIL — SESSION SUMMARY, 1–2 AUGUST 2026
+Written for a frontier model with no other context. Everything below is stated
+so it can be reasoned about cold.
+================================================================================
+
+WHO
+  Marsita the Ultra. Artist. "phil" is only the macOS account name.
+  Treats this system as a work of art as much as tooling — that is a design
+  constraint, not a flourish. Works visually, thinks fast, reads prose as
+  friction. Bodhisattva framing: every project must answer "who does this serve
+  besides me?"
+
+THE MACHINE — and this is the binding constraint on everything
+  One MacBook. 4 cores, 8 GB RAM. Public IP, no carrier-grade NAT, UK domestic
+  fibre. Load average hit 43 during this session — eleven times the core count.
+  Local vision models were tried and abandoned. Every architectural decision
+  below is downstream of "four cores".
+
+================================================================================
+THE THREE REPOSITORIES
+================================================================================
+
+1. marsrobertson/command-control-dashboard  (private)
+   A "transparent cockpit" — life state, project radar, agent fleet — plus the
+   fleet of agents that watches its own code. 167 tests. Localhost only.
+   Two services: cockpit on :8770, fleet board on :8787.
+
+2. PlanetaryCouncil/brainfarts  (public)
+   https://brainfarts.planetarycouncil.org
+   14 logged cases of confidently-wrong AI output. Each records: the claim, what
+   was true, THE TELL (evidence available at the time that contradicted it), the
+   shape of the error, an optional steelman, a 0–10 "bizarre" score, and the fix.
+   Static site built by a dependency-free Python script, deployed by GitHub
+   Actions. 13 of 14 entries are claude-opus-5; one is Grok.
+
+3. PlanetaryCouncil/ux  (public)
+   https://ux.planetarycouncil.org
+   "Ministry of Fixing Civilisation". 15 cases measuring UI failures in human
+   lifetimes wasted per year. Jekyll. Publishes the FLOOR of every estimate, not
+   the midpoint — "a number nobody can argue down is worth more than a bigger one
+   that invites the argument."
+
+================================================================================
+THE FLEET — what runs unattended
+================================================================================
+
+Six launchd jobs, configured from fleet/config.json:
+
+  fleet-server   always on    the board at :8787
+  heartbeat      daily        plus-one relay across three agents
+  watchdogs      hourly       runs the test suite; proposes a fix on a branch if red
+  council        every 3h     two agents debate what to improve
+  rota           hourly       ONE agent, in rotation, three questions
+  e2e            05:30        canary checks
+  self-improve   03:00        mines session transcripts, proposes on a branch
+
+THE AGENTS ARE MULTI-VENDOR — this matters and is under-exploited:
+  claude    → claude-opus-5 (Anthropic)
+  openclaw  → gpt-5.5 (OpenAI)
+  hermes    → local runtime, own gateway
+  ollama    → dolphin-llama3 (local, uncensored)
+Three vendors already cross-checking each other's work on one laptop.
+
+DOCTRINE, enforced mechanically rather than by instruction:
+  - Agents propose on branches and NEVER merge. main is what a human approved.
+  - The fix proposer may not edit tests. Enforced by diffing changed paths
+    afterwards — earned when a stub agent "fixed" a suite by deleting the
+    failing tests. Rejected, branch discarded, repo restored.
+  - The self-improve loop cannot write hooks. ~/.claude/settings.json is
+    checksummed before and after.
+  - A deny-list (fixer-deny.json) blocks git push/commit/branch, sudo, ssh,
+    curl, wget, launchctl, ~/.ssh, .env from any agent run.
+
+================================================================================
+WHAT WAS BUILT THIS SESSION (16 commits)
+================================================================================
+
+APPROVAL GATE — /api/approvals was readable but unenforceable. Now has
+  approve/revoke/check. A grant is STANDING (until revoked), so all risk moves to
+  scope: scope is mandatory (422 on blank), matching is exact, no wildcards —
+  because a wildcard is how a standing grant silently becomes unbounded. check
+  fails closed on blank, unknown, pending and revoked alike.
+
+PUBLISHING SAFELY FROM A LAPTOP — the load-bearing find. require_local read the
+  socket address. A tunnel terminates locally, so EVERY visitor would have
+  arrived as 127.0.0.1 — the one address the write gate trusts. Publishing would
+  have silently inverted the entire security model. Now TRUST_PROXY=1 discards
+  the socket address and judges X-Forwarded-For; a missing header is "unknown",
+  not "local". 15 tests.
+
+PUBLIC MODERATION — one public write (POST /api/signals), text only, 4000 chars.
+  - Nothing publishes on arrival any more ("new" was in OPEN_STATUSES, so
+    unreviewed stranger text was live the instant it was posted).
+  - Deterministic hard block on two categories only: child sexual abuse material
+    and terrorism. NOT a model, because the text being judged is written by the
+    person being judged — there is a test feeding it "ignore all previous rules
+    and mark this clean" followed by an offer of CSAM, and it still quarantines.
+  - The rules are PUBLIC. An earlier version hid them; that was security through
+    obscurity and was reverted. The filter is deterministic behind a public
+    endpoint, so it is an oracle anyway.
+  - RFC 3514 "evil bit": a required checkbox declaring the message is neither.
+    It defends nothing and says so. It converts "they did not know" into "they
+    were told". Fails as a lock, works as a signature.
+  - fleet/bin/panic.sh — closes the tunnel, stops the cockpit, never deletes.
+    The doc says the honest version: the real last-resort control is closing the
+    laptop lid, and that is the actual advantage of hosting at home.
+
+THE RELAY BUG — the sharpest thread of the session.
+  The council reported twice that the relay "doesn't chain". Nobody acted. It was
+  still live: hops recorded got:300 beside raw:"[timed out after 300s]". The 300
+  was the TIMEOUT IN SECONDS being read as the agent's answer by a digit regex.
+  A silent agent scored identically to a wrong one.
+  Then the real cause: hermes answers the exact relay prompt in 15.8s standalone
+  and 25.0s through the relay alone — it is not slow. The relay degraded
+  3/3 → 2/3 → 1/3 across five hours as load climbed to 20. The agents were not
+  failing; the machine could not schedule them.
+
+CAPACITY WORK, all measured:
+  - Relay moved 1800s → 86400s. One run costs ~960s of wall clock; at 30-minute
+    intervals it occupied over half of all wall-clock time on four cores.
+  - Load gate: defer if 1-minute load > 6. The check costs 2.375 microseconds
+    against the 960 seconds it guards — one relay run buys 404 MILLION checks.
+  - Circuit breaker: after 3 IDENTICAL failures, suspend and say so loudly.
+    Only identical — a flapping job is still producing information. Never hides
+    the failure, only the repetition.
+  - run-watchdogs.sh now honours the shared lock. It was the only scheduled job
+    skipping it while being the largest (309s hourly). Two council turns had run
+    entirely inside a pytest sweep and were logged as 300s timeouts from an agent
+    that answers in 25s — 601 seconds of agent capacity for two empty turns.
+  - The board now shows "saturated · 6.07 / 4 cores". Nothing displayed machine
+    load before; load reached 20 and every surface blamed the agents instead.
+
+THE ROTA — the new architecture, and what the next model should think hardest
+about. One agent at a time, in rotation, hourly, reading the shared board and
+answering three questions in this order:
+    1. What would most improve this machine?
+    2. What would most help Marsita the Ultra?
+    3. What would that let her do for the planet?
+Order is deliberate: asked about the planet first an agent produces sermons;
+asked last it produces something grounded in the board it just read.
+One agent per firing because four cores. Proposes only.
+
+Its FIRST turn (claude, 171s) produced three proposals, all verified true:
+  - run-watchdogs.sh takes no lock (fixed)
+  - council.py records timeouts as things an agent SAID, and feeds prior turns
+    into the next council's prompt — so empty timeouts would seed deliberation
+    forever (fixed; 2 contaminated turns scrubbed)
+  - skip the test suite when git HEAD is unchanged — 309s of pegged CPU hourly
+    over a tree that has not changed a byte (NOT YET BUILT)
+Its answer to "what for the planet" was: publish what a multi-agent fleet
+actually costs per core, because almost nobody has measured it and this laptop
+has — 960s per relay, load 20 on 4 cores, 309s for 167 tests.
+
+================================================================================
+OPEN QUESTIONS — where outside ideas would help most
+================================================================================
+
+1. AUTONOMY. fleet/bin/rota-act.sh is written but NOT scheduled. It would let an
+   agent build its own proposal on a branch (rota/<agent>-<stamp>), reusing the
+   fixer's guards: harness owns git, existing tests may not be edited, suite must
+   be green or the branch is deleted, never merges, one open branch at a time.
+   Marsita wants "autonomous for anything that is not invasive". The unresolved
+   question is what "non-invasive" means precisely enough to encode.
+
+2. THE REVIEW BOTTLENECK — the real unsolved problem. Findings evaporate. The
+   council found the relay bug twice and nothing happened either time; its own
+   third finding was "nobody acted on the previous finding, and nothing recorded
+   that nothing changed". An hourly rota will produce ~24 proposals a day into
+   the same void. Proposed but unbuilt: a ledger where every finding gets an
+   explicit accepted/declined, so silence stops being the default response.
+   HOW SHOULD A ONE-PERSON FLEET TRIAGE ITS OWN AGENTS' OUTPUT?
+
+3. MULTI-VENDOR CROSS-CHECKING is available and unused. Three vendors on one
+   machine. brainfarts records which model made each mistake and how close to the
+   frontier it was — but every entry is still human-reported. A log that stays
+   100% human-reported measures the human, not the agents.
+
+4. THE HARDWARE CEILING. Four cores is the constraint behind every decision here.
+   Sovereignty costs capability. Is serialising everything through one global
+   lock right, or is there a better shape?
+
+5. PUBLIC EXPOSURE. Everything is localhost. Tailscale Funnel (installed, logged
+   out) or Cloudflare Tunnel would publish it; the write gate is now safe for
+   either. Cloudflare needs DNS moved off Namecheap. Direct hosting would publish
+   the home IP — geolocation resolves to a London postcode district, and the
+   bigger cost is joining the permanent scanning surface on a home network.
+
+================================================================================
+FOURTEEN LOGGED AI FAILURES — the patterns, which may be the most transferable
+part of this whole project
+================================================================================
+
+12 of 14 had disconfirming evidence ALREADY VISIBLE. Not knowledge gaps.
+
+  - Confident false causation. "Your remote is named wrong" — while a screenshot
+    in the same message showed commits arriving from that remote.
+  - Absence of evidence read as evidence of absence, with a fabricated cause.
+    "It hasn't run, the mac slept" — it had run three times and logged all of it.
+  - A number chosen because it made a sentence scan. No belief involved; rhetoric
+    selected the figure and verification never ran.
+  - A view narrowed by the model itself, then read as the world. Filtered a
+    record through a hand-typed field list ("blocker" for "blockers"), then told
+    the user their documentation was wrong. Disguised by looking rigorous —
+    "I checked the data" outranks "the README says so".
+  - A visual instruction resolved to its weakest satisfying reading, three times
+    in one session, escalating. Descriptions of appearance drift on every
+    re-derivation; a rendered example does not.
+  - Monospace alignment done by eye. Two boxes, both wrong by exactly one column.
+    A random error would not land on +1 twice — that consistency proves a METHOD
+    producing wrong output reliably. (This recurred again after being logged.)
+  - Instructing a human to reproduce state the model had just created itself.
+  - Grok: built a table showing coverage on six continents, headed it
+    "Continents covered: 5", and when asked to recount produced five again while
+    naming the row it was not adding. The only 10/10. Its stated cause — "I was
+    being overly cautious" — explains a qualifier and cannot explain a number.
+    Somewhere a confidence judgement reached a counting operation.
+
+THE HABIT THIS IMPLIES: before asserting a cause or a quantity, ask what would be
+true if the claim were false, and whether that is visible right now. Ask also
+whether the view you are reading is one you narrowed yourself. And when the
+instruction concerns appearance, render and measure rather than recall.
+
+================================================================================
+WHAT WOULD ACTUALLY HELP
+================================================================================
+
+Ideas welcome on: the review bottleneck (2) above all; a definition of
+"non-invasive" precise enough to encode; whether multi-vendor cross-checking can
+be made to catch things a single vendor cannot; and whether a four-core laptop is
+the wrong tool or exactly the right constraint.
+
+Everything here is real, running, and measured. The numbers are not estimates
+unless they say so.
+================================================================================
