@@ -54,8 +54,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     {nav_html}
     <p class="eyebrow">the front porch</p>
     <h1>Say hi</h1>
-    <p class="lede">Whatever you write lands on a <b>public queue</b>.
-      Sign with your hand and it skips the queue.</p>
+    <p class="lede">Write something, sign it with your hand, send.
+      It lands on a <b>public board</b>.</p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
@@ -65,8 +65,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       <span>not illegal content &mdash;
         <a href="/moderation">the rules</a></span></label>
     <div>
-      <p class="hint" style="margin:.2rem 0 .4rem">optional &mdash; hold the
-        pointer down and sign</p>
+      <p class="hint" style="margin:.2rem 0 .4rem">hold the pointer down
+        and sign</p>
       <canvas id="pad"></canvas>
     </div>
     <div class="row">
@@ -91,9 +91,13 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
 
   const clearBtn = document.getElementById("clear");
   const gate = () => {{
-    send.disabled = !(msg.value.trim().length > 0 && lawful.checked);
-    state.textContent = send.disabled ? ""
-      : (stroke.length >= 20 ? "signed" : "unsigned — goes to the queue");
+    // Required, not optional: an optional signature makes every sender
+    // weigh pros and cons at the door. Everyone signs; nobody decides.
+    const written = msg.value.trim().length > 0;
+    const signed = stroke.length >= 20;
+    send.disabled = !(written && lawful.checked && signed);
+    state.textContent = !written ? "" : !lawful.checked ? "tick the box"
+      : !signed ? "sign to send" : "";
   }};
   clearBtn.addEventListener("click", () => {{
     stroke = [];
@@ -143,7 +147,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
         body: JSON.stringify({{
           kind: "ask", sender: who.value.trim() || "someone at the porch",
           body: msg.value.trim(), lawful: true,
-          signature: stroke.length >= 20 ? stroke.slice(0, 3000) : null }})
+          signature: stroke.slice(0, 3000) }})
       }});
       const out = await r.json();
       if (!r.ok) {{ state.textContent = "refused (" + r.status + ")"; return; }}
