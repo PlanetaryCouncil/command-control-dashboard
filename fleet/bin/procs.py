@@ -101,6 +101,10 @@ def snapshot():
         item = {"pid": r["pid"], "label": label, "elapsed": r["elapsed"],
                 "cpu": r["cpu"], "mem": r["mem"],
                 "cmd": r["cmd"][:160],
+                # Untruncated, for matching: a 160-char display cap once ate
+                # "--name e2e-victim" off the end and made the scoped kill
+                # blind to its own canary.
+                "cmd_full": r["cmd"],
                 "is_self": r["pid"] in keep}
         (fleet if kind == "fleet" else external).append(item)
     fleet.sort(key=lambda x: -x["cpu"])
@@ -142,12 +146,21 @@ def machine() -> dict:
             "gate": float(os.environ.get("MAX_LOAD", "6"))}
 
 
-def kill_fleet(dry_run=False):
-    """SIGKILL every fleet-spawned process except this server and its parent."""
+def kill_fleet(dry_run=False, only=None):
+    """SIGKILL every fleet-spawned process except this server and its parent.
+
+    `only` narrows the blast to processes whose command line contains that
+    marker. The blanket kill is the panic button and stays; the narrow form
+    exists so the e2e check can prove the switch on a sacrificial canary
+    instead of shooting the live heartbeat twice a day (council, 2026-08-04:
+    "the e2e run tests the kill switch by firing it live").
+    """
     keep = _protected()
     killed, failed = [], []
     for p in snapshot()["fleet"]:
         if p["is_self"] or p["pid"] in keep:
+            continue
+        if only and only not in p.get("cmd_full", p.get("cmd", "")):
             continue
         if dry_run:
             killed.append(p)

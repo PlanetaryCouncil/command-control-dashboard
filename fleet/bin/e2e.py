@@ -146,7 +146,7 @@ def check_kill_switch(port):
         token = json.loads(get(port, "/api/kill-token"))["token"]
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/kill", method="POST",
-            data=json.dumps({"token": token}).encode(),
+            data=json.dumps({"token": token, "only": "e2e-victim"}).encode(),
             headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=30) as r:
             killed = json.loads(r.read())["killed"]

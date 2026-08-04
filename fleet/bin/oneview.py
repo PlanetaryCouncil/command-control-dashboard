@@ -408,16 +408,17 @@ function tagOf(e){
   if (m.includes("[relay]") || m.includes("[plus-one]") || /\bhops\b/.test(m))
     return "relay";
   if (m.includes("[council]")) return "council";
-  if (m.includes("pytest") || m.includes("passed") || m.includes("watchdog")) return "tests";
+  if (m.includes("[rota]") || m.includes("[pipeline]")) return "rota";
+  if (m.includes("[e2e]") || m.includes("pytest") || m.includes("passed") || m.includes("watchdog")) return "tests";
   return "other";
 }
 /* Additive: each tag is an independent toggle, any combination is valid
    including none. Deselecting everything is a legitimate state that shows
    nothing, so it gets an explicit banner rather than an empty box that looks
    broken. */
-const TAGS = ["relay", "council", "tests", "attention", "other"];
-const TAG_ICON = {relay: "\u{1F517}", council: "\u{1F5E3}", tests: "\u{1F9EA}",
-                  attention: "\u{1F6A8}", other: "\u{1F4CE}"};
+const TAGS = ["relay", "council", "rota", "tests", "attention", "other"];
+const TAG_ICON = {relay: "\u{1F517}", council: "\u{1F5E3}", rota: "\u{1F528}",
+                  tests: "\u{1F9EA}", attention: "\u{1F6A8}", other: "\u{1F4CE}"};
 const shown = new Set(TAGS);
 
 /* Three distinct empty states, because "blank panel" is not an answer.
@@ -1047,7 +1048,7 @@ setInterval(loadArt, 300000);
 """
 
 
-def page(seed_json: str, agents_json: str, token: str) -> str:
+def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import nav
     js = (JS.replace("__AGENTS__", agents_json)
             .replace("__SEED__", seed_json)
@@ -1066,8 +1067,8 @@ def page(seed_json: str, agents_json: str, token: str) -> str:
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
-    <button id="termbtn" aria-pressed="false">&#9646; terminal</button>
-    {nav.html("/")}
+    {'' if remote else '<button id="termbtn" aria-pressed="false">&#9646; terminal</button>'}
+    {nav.html("/", remote=remote)}
     <span id="clock"></span>
   </span>
 </div>
@@ -1107,6 +1108,7 @@ def page(seed_json: str, agents_json: str, token: str) -> str:
         <span class="filters" id="filters">
           <button data-f="relay" aria-pressed="true">&#128279; relay</button>
           <button data-f="council" aria-pressed="true">&#128483; council</button>
+          <button data-f="rota" aria-pressed="true">&#128296; rota</button>
           <button data-f="tests" aria-pressed="true">&#129514; tests</button>
           <button data-f="attention" aria-pressed="true">&#128680; needs you</button>
           <button data-f="other" aria-pressed="true">&#128206; other</button>
@@ -1159,8 +1161,8 @@ def page(seed_json: str, agents_json: str, token: str) -> str:
     <a href="/procs" title="Live process list and the kill switch, on its own page. Same data as the right-hand pane here.">processes</a>
     <a href="/live" title="A stripped-down streaming window, meant to float always-on-top on a second screen.">live</a>
     <a href="/signatures" title="Every agent's mark, drawn from the shape of its real work — when it acted, how hard, and the gaps between.">signatures</a>
-    <a href="/chat" title="Ask one question and fan it out to any subset of agents at once. Their answers arrive side by side.">chat</a>
-    <a href="/terminal" title="A real Claude session in the browser, with image paste a terminal cannot do. Local only — 404 from the internet.">terminal</a>
+    {'' if remote else '<a href="/chat" title="Ask one question and fan it out to any subset of agents at once. Their answers arrive side by side.">chat</a>'}
+    {'' if remote else '<a href="/terminal" title="A real Claude session in the browser, with image paste a terminal cannot do. Local only — 404 from the internet.">terminal</a>'}
   </section>
   <section>
     <h3>cockpit</h3>

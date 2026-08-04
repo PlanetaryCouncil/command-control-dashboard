@@ -56,10 +56,19 @@ SPECULATION = """<script type="speculationrules">
 </script>"""
 
 
-def html(current: str = "") -> str:
+# Doors that answer 404 through the funnel (CONTROL_PATHS in fleet.py). A
+# remote render must not advertise them: Marsita clicked /chat from the
+# public URL on 2026-08-04 and met the guard — "how on earth we left a dead
+# URL?" The guard is right; the signpost was wrong.
+CONTROL = {"/chat", "/terminal"}
+
+
+def html(current: str = "", remote: bool = False) -> str:
     """Nav markup. `current` is the path of the page rendering it."""
     out = []
     for href, label in PAGES:
+        if remote and href in CONTROL:
+            continue
         if href == current:
             out.append(f'<a href="{href}" aria-current="page">{label}</a>')
         else:
