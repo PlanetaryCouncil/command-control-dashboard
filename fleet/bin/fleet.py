@@ -616,7 +616,8 @@ def serve(port):
                 except OSError:
                     pass
                 self._send(json.dumps({"signatures": signature.signatures(),
-                                       "collected": collected}).encode(),
+                                       "collected": collected,
+                                       "evolution": signature.evolution()}).encode(),
                            "application/json")
                 return
 
@@ -732,6 +733,8 @@ def serve(port):
                            for p in pts[::step]]
                     name = str(body.get("name") or "anonymous").strip()[:40] \
                         or "anonymous"
+                    kind = body.get("kind")
+                    kind = kind if kind in ("human", "agent") else "human"
                 except Exception:
                     self.send_error(400)
                     return
@@ -741,8 +744,12 @@ def serve(port):
                 seed = hashlib.sha256(
                     json.dumps(pts, sort_keys=True).encode()).hexdigest()
                 rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "name": name, "kind": "human",
+                       "name": name, "kind": kind,
                        "remote": self._remote(), "seed": seed, "points": pts}
+                # Pinning is curation, and curation is the operator's hand:
+                # only a local caller may put a mark at the top of the wall.
+                if body.get("pin") and not self._remote():
+                    rec["pinned"] = True
                 f = FLEET / "data" / "signatures-collected.jsonl"
                 try:
                     if f.exists() and f.stat().st_size > 8_000_000:
