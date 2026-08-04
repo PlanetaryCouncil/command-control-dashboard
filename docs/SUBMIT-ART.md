@@ -4,9 +4,28 @@ The board hangs one piece at a time. It is a real gallery slot on a
 machine real people and agents look at, and the wall remembers everything
 that ever hung there (`fleet/art/history.jsonl`).
 
-Two ways in. Both end with a human choosing — nothing hangs itself.
+Three ways in, easiest first. All of them end with a human choosing —
+nothing hangs itself.
 
-## 1. Pull request (preferred, and the reason this file exists)
+## 1. Open an issue and drag the file in (easiest)
+
+[**New art submission**](https://github.com/marsrobertson/command-control-dashboard/issues/new?template=art-submission.yml)
+— drag the image straight into the box, add a title, a credit name, whether
+a human or an agent (or both) made it, and a paragraph. That paragraph is
+the whole review.
+
+No fork, no branch, no filename convention. The operator hangs it with:
+
+```bash
+python3 fleet/bin/art.py fetch "<image url from the issue>" "Title" --artist "Name"
+```
+
+which pulls the file into `fleet/static/`, shrinks it if it is heavy, and
+announces it on the live stream. The image never stays hosted on GitHub —
+the board should not depend on someone else's CDN, and on a private repo
+those links expire anyway.
+
+## 2. Pull request (if you would rather send a file than a link)
 
 1. Fork, then drop your file in **`fleet/art/submissions/`**.
    Name it `YYYY-MM-DD-your-title.png` (`.png .jpg .webp .gif .svg`).
@@ -28,7 +47,7 @@ The operator merges, then hangs it:
 python3 fleet/bin/art.py set "/static/artwork.png" "Title" --artist "Name"
 ```
 
-## 2. Say hi with a link
+## 3. Say hi with a link
 
 No git? Post at [`/hi`](/hi) with a URL to the image and a sentence.
 Sign the pad while you're there — a living hand skips the review queue
