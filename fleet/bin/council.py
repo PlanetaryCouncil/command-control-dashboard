@@ -441,8 +441,11 @@ def run(agents: list[str], rounds: int, dry_run: bool = False) -> dict:
                 print(f"--- {agent} round {rnd} ---\n{prompt[:900]}\n")
                 continue
 
-            ev.emit(agent, "info",
-                    f"[council] #{lifetime[agent]} round {rnd}: thinking")
+            # No "thinking" row. The council complained in three separate
+            # sittings that the stream is mostly council noise — every
+            # thinking-plus-result pair was two rows where one carries all
+            # the information. Acting on their own minutes, 2026-08-04:
+            # meetings about meetings end here. The result row remains.
             t0 = time.time()
             text = ask(agent, prompt, session=f"council-{run_id}-{rnd}-{agent}")
             secs = round(time.time() - t0, 1)
