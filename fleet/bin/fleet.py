@@ -626,6 +626,15 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/hi":
+                # The front porch: say hello without learning the house.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, hiview
+                self._send(hiview.page(nav.html("/hi",
+                                                remote=self._remote()),
+                                       nav.CSS).encode())
+                return
+
             if path == "/signatures":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import nav, sigview
