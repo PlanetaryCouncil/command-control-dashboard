@@ -127,17 +127,23 @@
     const ctx = canvas.getContext("2d");
     const rect = fitCanvas(canvas, ctx);
     const W = rect.width, H = rect.height;
-    ctx.fillStyle = "#03060a";
-    ctx.fillRect(0, 0, W, H);
+    // No plate. Callers that want one set a CSS background; drawing it
+    // here meant every inline mark carried a black rectangle into a row
+    // that already has its own colour.
+    ctx.clearRect(0, 0, W, H);
 
     const xs = points.map(p => p.x), ys = points.map(p => p.y);
     const minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
     const minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    const span = Math.max(maxX - minX, maxY - minY, 1e-6);
-    const pad = 0.12;
-    const S = Math.min(W, H) * (1 - pad * 2);
-    const px = p => ((p.x - (minX + maxX) / 2) / span) * S + W / 2;
-    const py = p => ((p.y - (minY + maxY) / 2) / span) * S + H / 2;
+    // Uniform scale on the LONGER axis of the box, so a wide signature
+    // uses a wide frame instead of being squeezed into a square: the
+    // proportions of a hand are part of the hand.
+    const spanX = Math.max(maxX - minX, 1e-6);
+    const spanY = Math.max(maxY - minY, 1e-6);
+    const pad = 0.08;
+    const S = Math.min(W * (1 - pad * 2) / spanX, H * (1 - pad * 2) / spanY);
+    const px = p => (p.x - (minX + maxX) / 2) * S + W / 2;
+    const py = p => (p.y - (minY + maxY) / 2) * S + H / 2;
 
     // Smooth, weighted, deep — real pen aesthetics. Quadratic curves
     // through midpoints kill the polyline corners; width follows speed and
