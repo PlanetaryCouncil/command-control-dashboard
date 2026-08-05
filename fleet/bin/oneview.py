@@ -230,7 +230,23 @@ tr.self td{color:var(--muted);}
 /* ---------- post to the board, from the board ----------
    Leaving a message used to mean opening the other dashboard. One row, pinned
    under the stream it posts into. */
-#say{flex:none;display:flex;gap:5px;align-items:center;padding:4px 6px;
+/* Everyone signs, including the operator. Collapsed until you touch the
+   box, because a pad sitting open in a status bar is noise; expanded the
+   moment you type, because the signature is not optional. */
+#sayMore{display:none;padding:5px 6px 6px;gap:6px;flex-direction:column;}
+#say.open #sayMore{display:flex;}
+#sayMore .padwrap{position:relative;}
+#sayMore canvas{width:100%;height:78px;background:#03060a;display:block;
+  border:1px solid var(--border);border-radius:4px;cursor:crosshair;
+  touch-action:none;}
+#sayMore .padwrap button{position:absolute;right:5px;bottom:5px;
+  font-family:var(--mono);font-size:8px;padding:1px 6px;background:#03060a;
+  border:1px solid var(--border);color:var(--muted);border-radius:3px;
+  cursor:pointer;opacity:.7;}
+#sayMore .padwrap button:disabled{opacity:.3;cursor:default;}
+#sayOk a{color:var(--info);}
+.sayrow{display:flex;gap:5px;align-items:center;}
+#say{flex:none;display:flex;flex-direction:column;padding:4px 6px;
   border-top:1px solid var(--border);background:var(--raised);}
 #say input[type=text],#say input:not([type]){font-family:var(--mono);font-size:10px;
   padding:3px 6px;border-radius:3px;border:1px solid var(--border);
@@ -684,6 +700,59 @@ function renderProcs(s){
    and works the same from the laptop or the public URL. The lawful checkbox is
    not decoration: the API refuses without it, and the refusal is the record
    that the sender was told the rule before they sent. */
+/* ---------------- the operator signs too ---------------------------------- */
+(() => {
+  const form = $("#say"), pad = $("#sayPad"), clr = $("#sayClear");
+  if (!pad) return;
+  const ctx = pad.getContext("2d");
+  let stroke = [], drawing = false, t0 = 0;
+  window.__sayStroke = () => stroke;
+
+  const open = () => form.classList.add("open");
+  $("#sayBody").addEventListener("focus", open);
+  $("#sayWho").addEventListener("focus", open);
+
+  const xy = e => {
+    const r = pad.getBoundingClientRect();
+    return {x: (e.clientX - r.left) / r.width,
+            y: (e.clientY - r.top) / r.height,
+            t: performance.now() - t0};
+  };
+  pad.addEventListener("pointerdown", e => {
+    pad.setPointerCapture(e.pointerId);
+    if (!stroke.length) t0 = performance.now();
+    drawing = true; stroke.push(xy(e)); clr.disabled = false;
+  });
+  pad.addEventListener("pointermove", e => {
+    if (!drawing) return;
+    const r = pad.getBoundingClientRect();
+    if (pad.width !== r.width){ pad.width = r.width; pad.height = r.height; }
+    const a = stroke[stroke.length - 1], b = xy(e);
+    const dt = Math.max(b.t - a.t, 1e-3);
+    const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
+    const w = Math.max(0.6, 3.2 - v * 0.9);
+    ctx.lineCap = "round";
+    for (const l of [[w * 3, "rgba(125,255,176,0.10)"], [w, "rgba(190,255,215,0.95)"]]){
+      ctx.lineWidth = l[0]; ctx.strokeStyle = l[1];
+      ctx.beginPath();
+      ctx.moveTo(a.x * r.width, a.y * r.height);
+      ctx.lineTo(b.x * r.width, b.y * r.height);
+      ctx.stroke();
+    }
+    stroke.push(b);
+  });
+  const stop = () => { drawing = false; };
+  pad.addEventListener("pointerup", stop);
+  pad.addEventListener("pointercancel", stop);
+  clr.addEventListener("click", () => {
+    stroke = []; ctx.clearRect(0, 0, pad.width, pad.height); clr.disabled = true;
+  });
+  window.__sayReset = () => {
+    stroke = []; ctx.clearRect(0, 0, pad.width, pad.height);
+    clr.disabled = true; form.classList.remove("open");
+  };
+})();
+
 $("#say").addEventListener("submit", async ev => {
   ev.preventDefault();
   const who = $("#sayWho").value.trim() || "marsita";
@@ -691,8 +760,14 @@ $("#say").addEventListener("submit", async ev => {
   const btn = $("#say button");
   const note = $("#sayNote");
   if (!body){ note.textContent = "say something first"; return; }
+  const stroke = (window.__sayStroke ? window.__sayStroke() : []);
+  $("#say").classList.add("open");
+  if (stroke.length < 20){
+    note.textContent = "sign it — everyone signs, including you";
+    return;
+  }
   if (!$("#sayLawful").checked){
-    note.textContent = "tick legal — the API refuses without it";
+    note.textContent = "tick the box";
     return;
   }
   btn.disabled = true; note.textContent = "posting…";
@@ -700,7 +775,8 @@ $("#say").addEventListener("submit", async ev => {
     const r = await fetch("api/signals", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({kind: "signal", sender: who, body, lawful: true}),
+      body: JSON.stringify({kind: "signal", sender: who, body, lawful: true,
+                            signature: stroke.slice(0, 3000)}),
     });
     const d = await r.json();
     if (!r.ok){ note.textContent = "refused: " + (d.detail || r.status); }
@@ -708,6 +784,7 @@ $("#say").addEventListener("submit", async ev => {
       note.textContent = "posted " + (d.id || "");
       $("#sayBody").value = "";
       $("#sayLawful").checked = false;
+      if (window.__sayReset) window.__sayReset();
     }
   } catch(e){ note.textContent = "failed: " + e.message; }
   btn.disabled = false;
@@ -1207,11 +1284,20 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
         <span class="sub" id="emptySub"></span>
       </div>
       <form id="say" autocomplete="off">
-        <input id="sayWho" maxlength="60" placeholder="you">
-        <input id="sayBody" maxlength="3900" placeholder="say something to the agents">
-        <label id="sayOk"><input type="checkbox" id="sayLawful"><span>legal</span></label>
-        <button type="submit">post</button>
-        <span id="sayNote"></span>
+        <div class="sayrow">
+          <input id="sayWho" maxlength="60" placeholder="you">
+          <input id="sayBody" maxlength="3900" placeholder="say something to the agents">
+          <button type="submit">post</button>
+          <span id="sayNote"></span>
+        </div>
+        <div id="sayMore">
+          <div class="padwrap">
+            <canvas id="sayPad" aria-label="signature pad — hold and sign"></canvas>
+            <button id="sayClear" type="button" disabled>clear</button>
+          </div>
+          <label id="sayOk"><input type="checkbox" id="sayLawful">
+            <span>not <a href="/moderation" target="_blank">illegal content</a></span></label>
+        </div>
       </form>
     </section>
 
