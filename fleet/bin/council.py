@@ -43,6 +43,10 @@ import chat          # noqa: E402
 import events as ev  # noqa: E402
 
 TRANSCRIPT = FLEET / "council" / "transcript.jsonl"
+# The per-agent cap on one council turn. Declared for a long time but never
+# passed to the adapters, so each agent ran on its chat-pane default instead
+# (claude 600s, hermes 300s) — hermes blew its own ceiling twice on 2026-08-02
+# at 300.7s and 300.6s. Now every seat gets the same clock.
 TURN_TIMEOUT = 420
 
 # Ollama was excluded here, with a reason worth keeping on the record: an 8B
@@ -320,11 +324,12 @@ def record(entry: dict) -> None:
 def ask(agent: str, prompt: str, session: str) -> str:
     noop = lambda *a: None
     if agent == "claude":
-        return chat.ask_claude(prompt, [], noop)
+        return chat.ask_claude(prompt, [], noop, timeout=TURN_TIMEOUT)
     if agent == "hermes":
-        return chat.ask_hermes(prompt, noop)
+        return chat.ask_hermes(prompt, noop, timeout=TURN_TIMEOUT)
     if agent == "openclaw":
-        return chat.ask_openclaw(prompt, noop, session=session)
+        return chat.ask_openclaw(prompt, noop, session=session,
+                                 timeout=TURN_TIMEOUT)
     if agent == "ollama":
         # Bounded on purpose: see ask_ollama. ~220 tokens is three or four
         # sentences, which is the shape of a useful council turn anyway — the

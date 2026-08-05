@@ -27,6 +27,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import chat          # noqa: E402
 import events as ev  # noqa: E402
 
+# The per-agent cap on one relay hop. Declared here since the start but never
+# handed to the adapters, so a hop actually ran on each agent's chat default —
+# which is how hermes spent 300.4s failing a plus-one on 2026-08-02. The task
+# is one number; 150s is already generous.
 TURN_TIMEOUT = 150
 
 
@@ -35,11 +39,12 @@ def ask(agent: str, prompt: str, session: str) -> str:
     if agent == "ollama":
         return chat.ask_ollama(chat.OLLAMA_MODEL, prompt, [], noop)
     if agent == "claude":
-        return chat.ask_claude(prompt, [], noop)
+        return chat.ask_claude(prompt, [], noop, timeout=TURN_TIMEOUT)
     if agent == "hermes":
-        return chat.ask_hermes(prompt, noop)
+        return chat.ask_hermes(prompt, noop, timeout=TURN_TIMEOUT)
     if agent == "openclaw":
-        return chat.ask_openclaw(prompt, noop, session=session)
+        return chat.ask_openclaw(prompt, noop, session=session,
+                                 timeout=TURN_TIMEOUT)
     return f"[unknown agent {agent}]"
 
 
@@ -81,7 +86,11 @@ def outcome_of(raw: str, got: int | None, ok: bool) -> str:
         return "ok"
     stripped = raw.strip()
     if stripped.lower().startswith("[timed out"):
-        return "timeout"
+        # Two faults hid under one word: an agent mid-answer when the clock
+        # ran out is alive but slow; one that wrote nothing dropped the
+        # baton. run_cmd keeps the killed process's partial stdout, and its
+        # presence is the difference.
+        return "slow" if "; partial:" in stripped else "timeout"
     if stripped.lower().startswith("[error") or stripped.lower().startswith("[unknown agent"):
         return "error"
     return "silent" if got is None else "wrong"
