@@ -48,3 +48,6 @@
 {"ts": "2026-08-04T20:18:56.650409+00:00", "kind": "signal.received", "signal": "sig-3ca09acf", "signal_kind": "signal", "trusted": false}
 {"ts": "2026-08-04T20:21:00.294059+00:00", "kind": "signal.received", "signal": "sig-d4b5b8fe", "signal_kind": "ask", "trusted": false}
 {"ts": "2026-08-04T20:51:41.734222+00:00", "kind": "signal.received", "signal": "sig-f79bcd80", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T00:01:27.489751+00:00", "kind": "signal.received", "signal": "sig-9001a25e", "signal_kind": "ask", "trusted": false}
+{"ts": "2026-08-05T00:09:20.147621+00:00", "kind": "signal.received", "signal": "sig-3e3ce749", "signal_kind": "ask", "trusted": false}
+{"ts": "2026-08-05T00:41:24.771974+00:00", "kind": "signal.received", "signal": "sig-32664e69", "signal_kind": "ask", "trusted": false}
