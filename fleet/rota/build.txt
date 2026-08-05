@@ -1,0 +1,2 @@
+# Proposals picked for building, one timestamp per line.
+# Fill from rota/triage.md. An empty file means the pipeline builds nothing.
