@@ -48,6 +48,7 @@ BUILD_TIMEOUT = 900
 DIFF_CLIP = 6000
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import chat          # noqa: E402
 import events as ev  # noqa: E402
 
 
@@ -246,6 +247,20 @@ def write_worker() -> None:
     }, indent=2))
 
 
+def _picked() -> set:
+    """Timestamps a human marked for building, one per line in rota/build.txt.
+
+    Absent or empty file means "no picks yet" and the pipeline builds
+    nothing new — triage first, then choose. That is the point.
+    """
+    try:
+        return {l.strip()[:19] for l in
+                (FLEET / "rota" / "build.txt").read_text().splitlines()
+                if l.strip() and not l.startswith("#")}
+    except OSError:
+        return set()
+
+
 def cycle() -> None:
     if os.getloadavg()[0] > MAX_LOAD:
         ev.emit("pipeline", "info",
@@ -268,6 +283,10 @@ def cycle() -> None:
     # arrive (Marsita did the arithmetic, 2026-08-05). Now a cycle keeps
     # building until the queue is empty, the load gate says stop, or the
     # budget is spent — whichever comes first.
+    # Only build what triage picked. An unreviewed proposal is a
+    # suggestion, not a work order — the same mistake in miniature that
+    # built a project out of an idea earlier today.
+    picks = _picked()
     built = 0
     while built < MAX_PER_CYCLE:
         if os.getloadavg()[0] > MAX_LOAD:
@@ -276,7 +295,8 @@ def cycle() -> None:
                     f"{os.getloadavg()[0]:.1f} over {MAX_LOAD}")
             break
         seen = by_proposal()
-        todo = [p for p in reversed(proposals()) if p["ts"] not in seen]
+        todo = [p for p in reversed(proposals())
+                if p["ts"] not in seen and (not picks or p["ts"] in picks)]
         if not todo:
             if built:
                 ev.emit("pipeline", "ok",
@@ -290,10 +310,54 @@ def cycle() -> None:
     write_worker()
 
 
+def triage() -> None:
+    """Read every unprocessed proposal and say which deserve building.
+
+    Marsita, 2026-08-05: "27 proposals that's good maybe we can simply
+    review them? decide that needs to be built." Better than draining:
+    most of a backlog is duplicates and stale observations, and building
+    those costs agent-hours to produce branches nobody wants. One agent
+    reads the lot, groups what repeats, and returns a ranked shortlist.
+    The human picks; the pipeline builds only what was picked.
+    """
+    seen = by_proposal()
+    todo = [p for p in proposals() if p["ts"] not in seen]
+    if not todo:
+        print("nothing to triage")
+        return
+    lines = []
+    for p in todo:
+        text = " ".join(str(p.get("text", "")).split())
+        lines.append(f"[{p['ts'][:16]} by {p.get('agent','?')}] {text[:400]}")
+    prompt = (
+        "You are triaging a backlog of improvement proposals written by "
+        "agents about the machine they run on. There are "
+        f"{len(todo)} of them and most of a backlog is duplicates or "
+        "already-fixed observations.\n\nGroup them. Then return AT MOST 8 "
+        "items worth building, each one line:\n"
+        "  RANK | one-line description | why it matters | the proposal "
+        "timestamps it covers\n\nDrop anything already obviously done, "
+        "purely observational, or repeated. Say how many you dropped and "
+        "why in one final line. No preamble.\n\n" + "\n\n".join(lines))
+    print(f"triaging {len(todo)} proposals…", flush=True)
+    noop = lambda *a, **k: None
+    out = chat.ask_claude(prompt, [], noop)
+    stamp = now()
+    (FLEET / "rota" / "triage.md").write_text(
+        f"# Triage {stamp}\n\n{len(todo)} unprocessed proposals reviewed.\n\n"
+        f"{out}\n")
+    ev.emit("pipeline", "needs_you",
+            f"[pipeline] triaged {len(todo)} proposals - shortlist in "
+            f"rota/triage.md, awaiting your picks")
+    print(out[:2000])
+
+
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "status"
     if mode == "run":
         cycle()
+    elif mode == "triage":
+        triage()
     else:
         for ts, r in by_proposal().items():
             print(f"{ts}  {r.get('stage'):<7} {'ok' if r.get('ok') else 'NO':<3}"
