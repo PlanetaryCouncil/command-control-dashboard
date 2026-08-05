@@ -165,6 +165,68 @@ def test_a_proposal_with_a_broken_ts_still_appears_without_an_age(fleet):
     assert "age_days" not in p
 
 
+def test_a_ledger_entry_carries_id_gist_status_and_outcome(fleet):
+    """Four agents asked for this independently: id, full gist, status,
+    outcome — not just "proposed"."""
+    write_proposals(fleet, [
+        {"ts": "2026-08-03T15:55:00Z", "agent": "hermes", "outcome": "proposed",
+         "text": "Add a rota load gate row to the board"},
+    ])
+    (row,) = council.proposal_ledger()
+    assert row["id"] == "2026-08-03T15:55"
+    assert row["gist"] == "Add a rota load gate row to the board"
+    assert row["outcome"] == "proposed"
+    assert row["status"] == "filed"
+
+
+def test_the_ledger_says_what_the_pipeline_did_not_just_proposed(fleet):
+    """Every entry reading "proposed" forever is the memory gap all over —
+    the board must distinguish "awaits your merge" from "rejected"."""
+    write_proposals(fleet, [
+        {"ts": "2026-08-01T10:00:00Z", "agent": "a", "outcome": "proposed",
+         "text": "approved one"},
+        {"ts": "2026-08-02T11:00:00Z", "agent": "b", "outcome": "proposed",
+         "text": "rejected one"},
+    ])
+    (fleet / "rota" / "pipeline.jsonl").write_text("\n".join(json.dumps(r) for r in [
+        {"stage": "build", "proposal_ts": "2026-08-01T10:00:00", "ok": True,
+         "branch": "rota/2026-08-01-approved-one"},
+        {"stage": "verify", "proposal_ts": "2026-08-01T10:00:00", "ok": True,
+         "branch": "rota/2026-08-01-approved-one"},
+        {"stage": "verify", "proposal_ts": "2026-08-02T11:00:00Z", "ok": False},
+    ]) + "\n")
+    a, b = council.proposal_ledger()
+    assert a["status"] == "approved — awaits your merge"
+    assert a["branch"] == "rota/2026-08-01-approved-one"
+    assert b["status"] == "rejected"
+
+
+def test_a_picked_proposal_shares_the_fate_of_its_triage_item(fleet):
+    """build.txt folds proposals into items keyed by the item's first ts;
+    a proposal covered by an item inherits that item's pipeline status."""
+    write_proposals(fleet, [
+        {"ts": "2026-08-01T10:00:00Z", "agent": "a", "outcome": "proposed",
+         "text": "first wording"},
+        {"ts": "2026-08-01T11:00:00Z", "agent": "b", "outcome": "proposed",
+         "text": "same idea, other wording"},
+    ])
+    (fleet / "rota" / "build.txt").write_text(
+        "# 1. one item covering both\n"
+        "2026-08-01T10:00:00\n"
+        "2026-08-01T11:00:00\n")
+    a, b = council.proposal_ledger()
+    assert a["status"] == "picked — awaiting build"
+    assert b["status"] == "picked — awaiting build"
+
+
+def test_the_board_carries_the_proposal_ledger(fleet, monkeypatch):
+    monkeypatch.setattr(council.ev, "tail", lambda n=200: [])
+    write_proposals(fleet, [{"ts": "2026-08-03T00:00:00Z", "agent": "a",
+                             "outcome": "proposed", "text": "something"}])
+    state = council.board_state()
+    assert state["proposals"][0]["status"] == "filed"
+
+
 def test_an_unmerged_branch_carries_its_age_in_days(tmp_path, monkeypatch):
     """self-improve/cycle-2026-08-01... rendered the same as today's branches;
     the ref file's mtime is the no-subprocess way to say how long it has sat."""
