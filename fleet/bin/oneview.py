@@ -447,7 +447,25 @@ const SILENT = /(sweep finished|adjourned after|convened —|\[e2e\] (state )?ca
 let MARKS = {};
 async function loadMarks(){
   try { MARKS = (await (await fetch("api/marks",{cache:"no-store"})).json()).marks || {}; }
-  catch (e) {}
+  catch (e) { return; }
+  paintMissingMarks();
+}
+
+/* The index is fetched asynchronously and a new sender's mark only exists
+   AFTER their message arrives — so the row that most deserves a signature
+   is exactly the one that renders before the mark is known. Backfill:
+   every row tagged as wanting a mark gets one as soon as the index has it. */
+function paintMissingMarks(){
+  if (!window.drawRawSignature) return;
+  document.querySelectorAll('.ev[data-wants-mark]').forEach(row => {
+    const who = row.dataset.wantsMark;
+    if (!MARKS[who] || row.querySelector("canvas.mark")) return;
+    const cv = document.createElement("canvas");
+    cv.className = "mark";
+    cv.title = who + " — their hand";
+    row.append(cv);
+    requestAnimationFrame(() => drawRawSignature(cv, MARKS[who]));
+  });
 }
 function markFor(msg){
   const m = /\[signals\]\s+([^:]{1,40}):/.exec(msg || "");
@@ -608,13 +626,23 @@ function addEvent(e){
     m.textContent = said;
   }
   row.append(t,icon,w,m);
-  const mk = markFor(e.msg);
-  if (mk && window.drawRawSignature){
-    const cv = document.createElement("canvas");
-    cv.className = "mark";
-    cv.title = mk.who + " — their hand";
-    row.append(cv);
-    requestAnimationFrame(() => drawRawSignature(cv, mk.points));
+  // Tag the row with whose mark it wants, then draw if we already have
+  // it. If not, loadMarks() will backfill — and a message from a sender
+  // we have never seen triggers a refresh immediately rather than
+  // waiting out the poll.
+  const sender = (/^\[signals\]\s+([^:]{1,40}):/.exec(e.msg || "") || [])[1];
+  if (sender){
+    const who = sender.trim();
+    row.dataset.wantsMark = who;
+    if (MARKS[who] && window.drawRawSignature){
+      const cv = document.createElement("canvas");
+      cv.className = "mark";
+      cv.title = who + " — their hand";
+      row.append(cv);
+      requestAnimationFrame(() => drawRawSignature(cv, MARKS[who]));
+    } else {
+      setTimeout(loadMarks, 400);
+    }
   }
   const msg = e.msg || "";
 
@@ -1249,6 +1277,7 @@ loadArt();
 setInterval(loadArt, 300000);
 loadMarks();
 setInterval(loadMarks, 120000);
+window.addEventListener("load", () => setTimeout(loadMarks, 300));
 
 // Guests are a stream filter now, not a pane: their messages, marks
 // and arrivals all ring the stream already, so a second surface was the
