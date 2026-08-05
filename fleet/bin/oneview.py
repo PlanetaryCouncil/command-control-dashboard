@@ -257,10 +257,11 @@ tr.self td{color:var(--muted);}
    turned a name into a green smear — the aspect ratio IS the handwriting.
    30px tall, 3:1, and no plate behind it: the ink sits straight on the
    row like the rest of the text. */
-/* Exactly the height of the line it sits on, and no taller — a row with
-   a signature must look like every other row, or the stream develops a
-   lumpy rhythm. Wide, because handwriting is. */
-canvas.mark{height:15px;width:70px;margin-left:10px;
+/* 110x26. Modelled rather than guessed: a correctly captured signature
+   spans roughly 0.8 wide by 0.11 tall, which fills 97x13 of this box —
+   legible. At 70x15 the same stroke drew 8x13 and read as a dot. The row
+   grows by ten pixels; every row grows the same ten, so the rhythm holds. */
+canvas.mark{height:26px;width:110px;margin-left:10px;
   background:transparent;flex:none;opacity:.95;align-self:center;}
 canvas.mark:hover{opacity:1;}
 .m .sender{color:var(--ink);font-weight:700;}

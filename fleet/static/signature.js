@@ -140,7 +140,7 @@
     // proportions of a hand are part of the hand.
     const spanX = Math.max(maxX - minX, 1e-6);
     const spanY = Math.max(maxY - minY, 1e-6);
-    const pad = 0.08;
+    const pad = 0.06;
     const S = Math.min(W * (1 - pad * 2) / spanX, H * (1 - pad * 2) / spanY);
     const px = p => (p.x - (minX + maxX) / 2) * S + W / 2;
     const py = p => (p.y - (minY + maxY) / 2) * S + H / 2;
