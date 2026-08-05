@@ -157,6 +157,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   }});
   msg.addEventListener("input", gate); who.addEventListener("input", gate);
   lawful.addEventListener("change", gate);
+  gate();   // paint the contract on load, not only after the first keystroke
 
   const xy = e => {{
     const r = pad.getBoundingClientRect();
