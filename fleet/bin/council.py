@@ -84,7 +84,8 @@ NOTHING = re.compile(r"\bNOTHING TO ADD\b", re.I)
 # did this in six consecutive sittings before the brief was rewritten
 # (2026-08-05); this catches the relapse rather than trusting the fix.
 ECHO = re.compile(r"^\s*(\*\*)?(workers|recent events|others said|"
-                  r"other's said|points other)", re.I)
+                  r"other's said|points other|the morning loaves|"
+                  r"the watchdog runs hourly but never)", re.I)
 
 
 # --------------------------------------------------------------- shared state
@@ -517,16 +518,12 @@ Things that just happened: {'; '.join(l.lstrip('- ') for l in brief_events.split
 
 Points other agents already made (do not repeat these): {'; '.join(l.lstrip('- ') for l in brief_said.splitlines())}
 
-{own_line}Here is the SHAPE of a good answer, from a completely different
-system — a bakery, not this fleet — so you can see the form without
-borrowing the content: "The morning loaves come out at 6 but the shop
-opens at 7, so they cool on the rack. Move the bake to 5:30." One
-observation, one fix, two sentences.
-
-Now write YOUR answer: one thing, not already said above, that would make
-this fleet work better. Start with the observation, not with a heading.
-Two sentences, under 60 words. If you have nothing new, reply with exactly:
-NOTHING TO ADD"""
+{own_line}Now write your answer. Pick ONE line from the state above —
+a worker, or something that just happened — and say what is wrong with it
+and what would fix it. Quote the number or name you are talking about.
+Two sentences, under 60 words. Do not describe a bakery, a shop, or any
+example; write only about this fleet. If nothing above is worth
+mentioning, reply with exactly: NOTHING TO ADD"""
 
     return f"""You are {agent}, one of several AI agents that run unattended on this
 machine as a fleet. You are taking a turn in a council whose only subject is
