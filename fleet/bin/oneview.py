@@ -762,13 +762,44 @@ function renderProcs(s){
   pad.addEventListener("pointerdown", e => {
     pad.setPointerCapture(e.pointerId);
     if (!stroke.length) t0 = performance.now();
+    fit();
     drawing = true; stroke.push(xy(e)); clr.disabled = false;
     $("#sayMore").classList.add("drawn");
   });
+  // Size the buffer ONCE, on pointerdown. Doing it inside pointermove was
+  // the bug behind "only the last few pixels visible": assigning
+  // canvas.width clears the canvas, so every size check mid-stroke wiped
+  // everything already drawn and left only the segment after it.
+  const fit = () => {
+    const r = pad.getBoundingClientRect();
+    if (pad.width !== Math.round(r.width)){
+      pad.width = Math.round(r.width);
+      pad.height = Math.round(r.height);
+      redraw();
+    }
+  };
+  const redraw = () => {
+    const r = pad.getBoundingClientRect();
+    ctx.lineCap = "round";
+    for (let i = 1; i < stroke.length; i++){
+      const a = stroke[i-1], b = stroke[i];
+      const dt = Math.max(b.t - a.t, 1e-3);
+      const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
+      const w = Math.max(0.6, 3.2 - v * 0.9);
+      for (const l of [[w * 3, "rgba(125,255,176,0.10)"], [w, "rgba(190,255,215,0.95)"]]){
+        ctx.lineWidth = l[0]; ctx.strokeStyle = l[1];
+        ctx.beginPath();
+        ctx.moveTo(a.x * r.width, a.y * r.height);
+        ctx.lineTo(b.x * r.width, b.y * r.height);
+        ctx.stroke();
+      }
+    }
+  };
+  new ResizeObserver(fit).observe(pad);
+
   pad.addEventListener("pointermove", e => {
     if (!drawing) return;
     const r = pad.getBoundingClientRect();
-    if (pad.width !== r.width){ pad.width = r.width; pad.height = r.height; }
     const a = stroke[stroke.length - 1], b = xy(e);
     const dt = Math.max(b.t - a.t, 1e-3);
     const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
@@ -1091,6 +1122,8 @@ try {
     if (saved.l && saved.r) setWidths(saved.l, saved.r);
     if (saved.hGoals) document.documentElement.style
       .setProperty("--hGoals", saved.hGoals + "px");
+    if (saved.hArt) document.documentElement.style
+      .setProperty("--hArt", saved.hArt + "px");
   }
 } catch(e){}
 
@@ -1126,17 +1159,21 @@ function dragGrip(grip, which){
 /* Vertical drag, same contract as the horizontal one: one style write, saved,
    double-click to undo. Height lives on the same layout record so a restored
    layout restores all of it rather than two thirds. */
-function setHeight(h){
+function setHeight(h, varName, key){
   h = Math.max(80, Math.min(h, window.innerHeight - 200));
-  document.documentElement.style.setProperty("--hGoals", h + "px");
+  document.documentElement.style.setProperty(varName, h + "px");
   try {
     const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
-    saved.hGoals = h;
+    saved[key] = h;
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
   } catch(e){}
 }
 
-function dragGripV(grip){
+/* One drag for every horizontal divider. It was written for the single
+   grip above goals and hard-coded to --hGoals, so the artwork pane had no
+   handle at all — the column was resizable everywhere except where the
+   picture is. */
+function dragGripV(grip, varName, key, fallback){
   if (!grip) return;
   grip.addEventListener("pointerdown", down => {
     down.preventDefault();
@@ -1144,9 +1181,9 @@ function dragGripV(grip){
     grip.setPointerCapture(down.pointerId);
     const startY = down.clientY;
     const start = parseInt(getComputedStyle(document.documentElement)
-                           .getPropertyValue("--hGoals")) || 180;
+                           .getPropertyValue(varName)) || fallback;
     // Dragging down grows the pane above, so the pane below shrinks: inverted.
-    const move = m => setHeight(start - (m.clientY - startY));
+    const move = m => setHeight(start - (m.clientY - startY), varName, key);
     const up = () => {
       delete grip.dataset.drag;
       grip.removeEventListener("pointermove", move);
@@ -1155,12 +1192,13 @@ function dragGripV(grip){
     grip.addEventListener("pointermove", move);
     grip.addEventListener("pointerup", up);
   });
-  grip.addEventListener("dblclick", () => setHeight(180));
+  grip.addEventListener("dblclick", () => setHeight(fallback, varName, key));
 }
 
 dragGrip($("#gripL"), "L");
 dragGrip($("#gripR"), "R");
-dragGripV($("#gripV"));
+dragGripV($("#gripV"), "--hGoals", "hGoals", 180);
+dragGripV($("#gripA"), "--hArt", "hArt", 240);
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
 // The gallery slot. This board is a home dashboard and the home makes art —
@@ -1173,13 +1211,15 @@ async function loadArt(){
   try {
     const d = await (await fetch("api/artwork",{cache:"no-store"})).json();
     if (!d.image){ pane.style.display = "none"; return; }
+    // Just the art. The credit was three lines of chrome under a picture
+    // that speaks for itself; it lives in the title attribute and on
+    // /signatures, not stacked beneath the frame.
     pane.querySelector(".body").innerHTML =
-      `<a href="${e(d.url || d.image)}" target="_blank" rel="noopener">` +
+      `<a href="${e(d.url || d.image)}" target="_blank" rel="noopener"` +
+      ` title="${e(d.title || "")}${d.artist ? " — " + e(d.artist) : ""}">` +
       `<img src="${e(d.image)}" alt="${e(d.title || "artwork")}" ` +
-      `style="width:100%;border-radius:8px;display:block"></a>` +
-      `<div style="margin-top:6px;font-family:var(--mono);font-size:11.5px">` +
-      `${e(d.title || "")}${d.artist ? " — " + e(d.artist) : ""}</div>` +
-      (d.note ? `<div style="font-size:11px;color:var(--muted)">${e(d.note)}</div>` : "");
+      `style="width:100%;aspect-ratio:1/1;object-fit:cover;` +
+      `border-radius:6px;display:block"></a>`;
     pane.dataset.state = "ready";
   } catch (err) { paneFailed(pane); }
 }
@@ -1307,6 +1347,8 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
       <div class="body"></div>
       <div class="load"><i></i><span class="msg"></span></div>
     </section>
+
+    <div class="griph" id="gripA"></div>
 
     <section class="pane" id="art" style="flex:0 0 var(--hArt,240px)" data-state="loading">
       <h2>current artwork <span class="n"></span></h2>
