@@ -239,12 +239,23 @@ tr.self td{color:var(--muted);}
 #sayMore canvas{width:100%;height:78px;background:#03060a;display:block;
   border:1px solid var(--border);border-radius:4px;cursor:crosshair;
   touch-action:none;}
-#sayMore .padwrap button{position:absolute;right:5px;bottom:5px;
+/* A blank dark rectangle is not obviously a pad. The hint sits inside it
+   at low opacity like a placeholder and disappears on the first stroke. */
+#sayHint{position:absolute;left:8px;top:50%;transform:translateY(-50%);
+  font-family:var(--mono);font-size:10px;color:var(--muted);opacity:.5;
+  pointer-events:none;letter-spacing:.06em;}
+#sayMore.drawn #sayHint{display:none;}
+#sayMore .padwrap button{position:absolute;left:5px;bottom:5px;
   font-family:var(--mono);font-size:8px;padding:1px 6px;background:#03060a;
   border:1px solid var(--border);color:var(--muted);border-radius:3px;
   cursor:pointer;opacity:.7;}
 #sayMore .padwrap button:disabled{opacity:.3;cursor:default;}
 #sayOk a{color:var(--info);}
+/* The mark rides at the end of the line, 14px tall — enough to recognise
+   a hand, small enough that a stream of them still reads as a stream. */
+canvas.mark{height:14px;width:34px;vertical-align:middle;margin-left:6px;
+  border-radius:2px;background:#03060a;flex:none;opacity:.85;}
+canvas.mark:hover{opacity:1;}
 .sayrow{display:flex;gap:5px;align-items:center;}
 #say{flex:none;display:flex;flex-direction:column;padding:4px 6px;
   border-top:1px solid var(--border);background:var(--raised);}
@@ -418,6 +429,21 @@ function dayPill(){ return document.createComment(""); }
    so they stay on disk and disappear from the display. */
 const SILENT = /(sweep finished|adjourned after|convened —|\[e2e\] (state )?canary )/i;
 
+/* Marks beside messages. A signature is the point of the hand lane, so a
+   guest line without one is missing its evidence — 14px tall, drawn in the
+   same raw ink as the wall, matched by sender name. */
+let MARKS = {};
+async function loadMarks(){
+  try { MARKS = (await (await fetch("api/marks",{cache:"no-store"})).json()).marks || {}; }
+  catch (e) {}
+}
+function markFor(msg){
+  const m = /\[signals\]\s+([^:]{1,40}):/.exec(msg || "");
+  if (!m) return null;
+  const who = m[1].trim();
+  return MARKS[who] ? {who, points: MARKS[who]} : null;
+}
+
 function tagOf(e){
   const m = e.msg || "";
   if (e.level === "needs_you" || e.level === "error") return "attention";
@@ -559,6 +585,14 @@ function addEvent(e){
   const m = document.createElement("span"); m.className="m";
   m.textContent = clean(e.msg);
   row.append(t,icon,w,m);
+  const mk = markFor(e.msg);
+  if (mk && window.drawRawSignature){
+    const cv = document.createElement("canvas");
+    cv.className = "mark";
+    cv.title = mk.who + " — their hand";
+    row.append(cv);
+    requestAnimationFrame(() => drawRawSignature(cv, mk.points));
+  }
   const msg = e.msg || "";
 
   if (STARTS.test(msg)) {
@@ -722,6 +756,7 @@ function renderProcs(s){
     pad.setPointerCapture(e.pointerId);
     if (!stroke.length) t0 = performance.now();
     drawing = true; stroke.push(xy(e)); clr.disabled = false;
+    $("#sayMore").classList.add("drawn");
   });
   pad.addEventListener("pointermove", e => {
     if (!drawing) return;
@@ -746,10 +781,12 @@ function renderProcs(s){
   pad.addEventListener("pointercancel", stop);
   clr.addEventListener("click", () => {
     stroke = []; ctx.clearRect(0, 0, pad.width, pad.height); clr.disabled = true;
+    $("#sayMore").classList.remove("drawn");
   });
   window.__sayReset = () => {
     stroke = []; ctx.clearRect(0, 0, pad.width, pad.height);
     clr.disabled = true; form.classList.remove("open");
+    $("#sayMore").classList.remove("drawn");
   };
 })();
 
@@ -1138,6 +1175,8 @@ loadHorizons();
 setInterval(loadHorizons, 300000);
 loadArt();
 setInterval(loadArt, 300000);
+loadMarks();
+setInterval(loadMarks, 120000);
 
 // Guests are a stream filter now, not a pane: their messages, marks
 // and arrivals all ring the stream already, so a second surface was the
@@ -1293,6 +1332,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
         <div id="sayMore">
           <div class="padwrap">
             <canvas id="sayPad" aria-label="signature pad — hold and sign"></canvas>
+            <span id="sayHint">sign here &mdash; hold and draw</span>
             <button id="sayClear" type="button" disabled>clear</button>
           </div>
           <label id="sayOk"><input type="checkbox" id="sayLawful">
