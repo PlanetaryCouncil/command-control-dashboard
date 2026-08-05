@@ -202,6 +202,24 @@ commit nothing and say why in one line starting with SKIP:."""
 
 def verify(built: dict) -> dict:
     wt, branch = Path(built["worktree"]), built["branch"]
+
+    # Test the tree you will actually get. hermes rejected a branch on
+    # 2026-08-04 for exactly this — "can mark a branch ready to merge from
+    # cached branch-tip test results without testing the branch integrated
+    # with current main" — and the pipeline itself kept doing it: a branch
+    # cut at 09:00 was verified against a main that had moved by the time
+    # anyone merged. So merge main in first. A conflict is a rejection with
+    # a real reason, not a surprise at merge time.
+    code, out = run(["git", "merge", "--no-edit", "main"], cwd=wt)
+    if code != 0:
+        run(["git", "merge", "--abort"], cwd=wt)
+        ev.emit("pipeline", "warn",
+                f"[pipeline] {branch}: conflicts with current main — rejected")
+        run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+        return record(stage="verify", proposal_ts=built["proposal_ts"],
+                      branch=branch, ok=False, tests="not run",
+                      review=f"REJECT conflicts with main: {out[-200:]}")
+
     code, out = run([str(REPO / ".venv" / "bin" / "pytest"), "-q"],
                     cwd=wt, timeout=600)
     tests_ok = code == 0
@@ -213,7 +231,9 @@ def verify(built: dict) -> dict:
     noop = lambda *a, **k: None
     review = chat.ask_hermes(
         "You are the verify stage of a pipeline. Another agent implemented a "
-        "proposal on a branch. Tests: "
+        "proposal on a branch, which has been merged with current main "
+        "before testing — so these results reflect the tree that would "
+        "actually ship. Tests: "
         f"{'PASS' if tests_ok else 'FAIL'} ({tests_line}). Review this diff "
         "for correctness and scope creep. First line of your answer must be "
         f"exactly APPROVE or REJECT, then one sentence why.\n\n{diff}", noop)
