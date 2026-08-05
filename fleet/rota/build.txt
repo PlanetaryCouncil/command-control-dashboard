@@ -1,2 +1,31 @@
-# Proposals picked for building, one timestamp per line.
-# Fill from rota/triage.md. An empty file means the pipeline builds nothing.
+# Picked for building, in council merit order.
+# Written 2026-08-05 from rota/triage.md + priorities.jsonl.
+# The pipeline builds ONLY what is listed here.
+
+# 1. Proposal ledger on the board: id, full gist, status, outcome (not just "proposed")
+2026-08-03T04:41
+2026-08-03T16:59
+2026-08-04T08:46
+2026-08-04T18:07
+
+# 4. Deferred-turn rescheduler: retry dropped rota/relay turns instead of losing them
+2026-08-03T20:09
+
+# 2. Merge/reject queue + merge-debt line for stale self-improve branches
+2026-08-03T21:12
+2026-08-04T00:38
+2026-08-04T06:44
+2026-08-04T16:02
+2026-08-04T19:08
+
+# 5. Per-agent turn cap on relay/council + split "no answer" from "too slow" (and demote ollama)
+2026-08-02T21:33
+2026-08-04T04:43
+2026-08-05T00:33
+
+# 6. Board event hygiene: strip leading █ lines before truncation, show needs_you detail, add convening_id, surface rota-gate state
+2026-08-03T07:48
+2026-08-03T15:55
+2026-08-04T03:41
+2026-08-04T05:44
+2026-08-04T09:47
