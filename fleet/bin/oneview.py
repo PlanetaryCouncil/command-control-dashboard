@@ -253,13 +253,13 @@ tr.self td{color:var(--muted);}
 #sayOk a{color:var(--info);}
 /* The mark rides at the end of the line, 14px tall — enough to recognise
    a hand, small enough that a stream of them still reads as a stream. */
-/* The mark fills the row it belongs to — a signature squeezed to 14px is
-   a smudge, and the whole point is that you can tell one hand from
-   another at a glance. */
-canvas.mark{height:100%;min-height:22px;width:56px;margin-left:8px;
-  border-radius:2px;background:#03060a;flex:none;opacity:.9;align-self:stretch;}
+/* A signature is wide, not square. Stretching one into a 56px-tall box
+   turned a name into a green smear — the aspect ratio IS the handwriting.
+   30px tall, 3:1, and no plate behind it: the ink sits straight on the
+   row like the rest of the text. */
+canvas.mark{height:30px;width:90px;margin-left:10px;
+  background:transparent;flex:none;opacity:.9;align-self:center;}
 canvas.mark:hover{opacity:1;}
-.ev:has(canvas.mark){align-items:stretch;}
 .m .sender{color:var(--ink);font-weight:700;}
 .sayrow{display:flex;gap:5px;align-items:center;}
 #say{flex:none;display:flex;flex-direction:column;padding:4px 6px;
