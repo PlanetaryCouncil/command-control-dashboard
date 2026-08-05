@@ -1,8 +1,11 @@
 # Straight Handoff
 
-*Updated 2026-08-01. **The code is the source of truth** — where this and the
+*Updated 2026-08-05. **The code is the source of truth** — where this and the
 repo disagree, the repo is right.* Read `README.md` first for what the system
 is; this file is only what the code cannot say.
+
+This document went four days stale once (six jobs listed while twelve ran).
+If you change what runs, change this in the same commit or delete the line.
 
 ---
 
@@ -12,26 +15,50 @@ is; this file is only what the code cannot say.
 |---|---|---|
 | `~/projects/command-control-dashboard` | `marsrobertson/command-control-dashboard` | the cockpit, the fleet, the self-improve loop |
 | `~/projects/11c` | `PlanetaryCouncil/11c-of-consent` | consent framework, BaseX doctrine, PlanetaryCouncil vision |
-| `~/projects/ai-brain-farts` | `PlanetaryCouncil/brainfarts` | 9 logged cases of confidently-wrong AI output |
+| `~/projects/ai-brain-farts` | `PlanetaryCouncil/brainfarts` | logged cases of confidently-wrong AI output |
+| `~/projects/poems` | `PlanetaryCouncil/poems` | the closing two-liners, live at poems.planetarycouncil.org |
+| `~/projects/seeing` | — | image dissector, a service on :8791 |
+| `~/projects/freezer` | — | ideas parked, with the state needed to resume |
 
-All private, all pushed, nothing uncommitted. The remote is called
-**`GitHub_priv`**, not `origin`.
+The dashboard remote is **`GitHub_priv`**, not `origin`; the
+PlanetaryCouncil repos use `origin`. Run `bash ~/.claude/pushed.sh <repo>`
+for a receipt rather than trusting a push's own output.
+
+**Private state deliberately outside the repo** (`~/.config/fleet/`):
+`homies.txt` (home IP prefixes — a location fingerprint), and
+`signatures-collected.jsonl` (raw pointer paths). Overridden by
+`$FLEET_HOMIES` and `$FLEET_SIGNATURES`, both set in the fleet-server
+plist.
 
 ---
 
 ## What runs
 
-Six launchd jobs, all configured from `fleet/config.json` — edit it, then
+Twelve launchd jobs, most configured from `fleet/config.json` — edit it, then
 `bash fleet/bin/apply-config.sh`. Only changed jobs reload.
 
 ```
-  fleet-server    always on     the dashboard at :8787
-  heartbeat       every 30m     relay check, all three agents
-  watchdogs       hourly        runs the test suite, proposes a fix if red
-  council         every 3h      two agents propose workflow improvements
-  e2e             daily 05:30   canary checks against live infrastructure
+  fleet-server    always on     the board at :8787 — and the legacy cockpit
+                                boots INSIDE it as a thread on :8770
+  ollama          always on     local model, kept for the offline case only
+  dissector       always on     ~/projects/seeing on :8791, a registered tool
+  board-medic     every 5m      probes :8787, load-gated, 30m cooldown
+  watchdogs       hourly        project test suites
+  rota            hourly        one agent proposes, in rotation
+  pipeline        hourly        builds ONLY what a human picked (see below)
+  council         every 3h      claude, hermes, openclaw
+  heartbeat       daily         relay check
   self-improve    daily 03:00   mines transcripts, proposes on a branch
+  local-voice     daily 06:15   one question to the local model, so the
+                                offline fallback is known-good
+  e2e             daily 05:30   canary checks; its kill test now shoots a
+                                sacrificial canary, not the live fleet
 ```
+
+**Reload code with `bash fleet/bin/reload.sh`, never a bare kickstart.** It
+compiles with the server's own interpreter and boots the new code on a
+scratch port before touching the live one. A 3.14-only f-string once black-
+ed out the board because those two checks did not exist.
 
 Plus a `githooks/post-merge` hook running `e2e --quick` on every merge.
 
@@ -43,9 +70,16 @@ is checked mechanically; the self-improve loop cannot write hooks.
 
 ## The dashboard
 
-`http://127.0.0.1:8787` — one page. Nav is two items: **dashboard**, **chat**.
-`/terminal`, `/board`, `/agents`, `/live`, `/procs` still resolve but are not
-in the nav.
+`http://127.0.0.1:8787` — the board. Public through Tailscale Funnel at
+**https://[redacted-host]/**. Nav: fleet, intro, send a message,
+chat. `/signatures`, `/art`, `/orbit`, `/board`, `/agents`, `/live`, `/procs`
+resolve but are not all in the nav.
+
+**Reads are public; control is local.** `CONTROL_PATHS` in `fleet.py`
+(`/terminal`, `/chat`, `/api/kill`, …) answer **404** — not 403 — to any
+caller carrying `X-Forwarded-For`, which tailscaled sets on every funnelled
+request. Verified both directions; 52 probes for `/terminal` in one day all
+got "no such thing".
 
 Three columns, **draggable dividers, widths persisted in localStorage**,
 double-click a divider to reset. Terminal is a drawer, closed by default, and
@@ -93,14 +127,36 @@ adjourn, or whether the stop condition needs teeth.
    clock the scope is the only bound a grant has. `check` fails closed on blank,
    unknown, pending and revoked alike. **Nothing has been granted yet** — both
    `apr-001` and `apr-002` are still pending, deliberately.
-2. **Should OpenClaw join the council?** It is in the heartbeat but never
-   deliberates.
-3. **Public exposure.** Everything is localhost. The airlock, the rate limiter
-   and the signals queue exist for strangers who cannot yet reach them.
+2. ~~**Should OpenClaw join the council?**~~ **Answered 2026-08-05: yes.**
+   Three vendors deliberate now — claude, hermes, openclaw. Cross-vendor is
+   the point: the agent that verifies a build is never the one that wrote it.
+3. ~~**Public exposure.**~~ **Answered 2026-08-05: it is public.** Funnelled,
+   read-only, with the guest book, the porch and the signature wall built for
+   exactly the strangers who can now reach it. The repo went public the same
+   day after a full secret sweep and a squashed history.
+4. **Still open — where does the fleet run when this laptop sleeps?** The
+   dappnode (16GB, 192.168.1.0) is the candidate. See the freezer.
 
 ---
 
 ## Browser automation — where it actually stands
+
+**Updated 2026-08-05: `fleet/bin/browser.py` is now the fleet's own driver**
+(CDP over stdlib, ~230 lines, readable in one sitting). `browser.py check` /
+`open` / `text` / `shot` / `tabs`. On any of 16 `HUMAN_CHECK` markers it
+screenshots, raises `needs_you` on the board, fires a desktop notification
+and **stops** — the tab is already open in front of Marsita. It does not
+solve checks and will not be made to; see the `lines-i-hold` memory.
+
+**The profile question is still open and it is Marsita's call.** Chrome ≥136
+refuses `--remote-debugging-port` on the default profile, so driving their
+*real* logged-in browser means either copying the profile directory or
+logging into a fresh one by hand. Also: a debugging port lets any local
+process drive that browser. Stated plainly, deferred deliberately, not
+forgotten. Marsita also asked for a **hybrid** — CDP for sight, native
+pointer events for hands, since a debugging port is detectable.
+
+Below is the older hermes path, still true, kept because it works:
 
 **Hermes is the runner.** It was already built and nobody had connected it.
 `~/.hermes/config.yaml` has `engine: cdp`, `cdp_url: http://127.0.0.1:9222`,
@@ -141,18 +197,116 @@ talking to a machine. Swiping is Marsita's call. Messaging should not be built.
 
 ---
 
+## The pipeline — how a proposal becomes a merge
+
+`fleet/bin/pipeline.py`, hourly. Four steps, and the ordering matters:
+
+```
+  triage   writes rota/triage.md and rings needs_you — a HUMAN picks
+  pick     _picked_items() reads only what was picked
+  build    one agent per item, in its own git worktree
+  verify   a DIFFERENT vendor merges main FIRST, then tests
+  revise   exactly one round, then it stops
+```
+
+**Only a human picks.** This exists because on 2026-08-05 triage cut 27
+proposals to 8 and the builder then built 20 branches — it was consuming
+proposals rather than picked items. `_picked_items()` parses `# N. title`
+headings and owns the timestamps under each. If that function is ever
+loosened, the fleet starts working on things nobody chose.
+
+**`verify` runs `git merge --no-edit main` before the tests**, and a conflict
+is a rejection. Verifying a branch against stale main proves nothing.
+
+Guards: `MAX_LOAD = 6.0`, `MAX_PER_CYCLE = 12`, `flock` so cycles cannot
+overlap. **Every fleet job needs a load gate.** `board-medic.sh` was the one
+without and it kickstarted a starved server in a loop — load 189, twenty
+minutes of blackout, logged as a brainfart. It now has a gate at 8.0, a 120s
+grace, a 30-minute cooldown and 3×20s probes before it acts.
+
+---
+
+## Signatures — the entropy project
+
+Marsita: *"I want to collect entropy as signature. And see how humans /
+agents sign their work. This is an artistic project in itself."*
+
+Anyone writing to the board signs. Not optional — an optional field is a
+decision tax on every user, and half-signed data is not a collection.
+
+- **Capture** — pointer path in the compose box and on `/hi`, the porch.
+- **Score** — `hand_entropy()` in `legacy/app/main.py`: timing CV, stride CV,
+  direction flips. A real hand is irregular; a script is not. High entropy is
+  a **fast lane**, low entropy is **moderation purgatory** — never a hard
+  reject, because the cost of refusing a real person is worse than a queue.
+- **Override** — `/api/signals/{id}/override` needs **2n+1** agreement.
+  Marsita's spec: *"to make override more expensive."*
+- **Store** — signals keep the path downsampled to 400 points. The **raw**
+  paths go to `~/.config/fleet/signatures-collected.jsonl`, outside the repo:
+  a movement trace is closer to biometrics than to art.
+- **Render** — `fleet/static/signature.js`, drawn inline next to each message
+  at 110×26, transparent, no background of its own.
+
+**The rendering bugs, so they are not rediscovered:** sizing the canvas inside
+`pointermove` wipes the stroke mid-gesture; `clearRect` does not touch the
+backing store (assigning `canvas.width` does); using x/width but y/height for
+normalisation bakes the pad's aspect into stored data; and magnifying a flat
+stroke to fill a box makes it a smear. The fit is aspect-preserving with a
+cap — `S = Math.min(fit, W)` — so a signature is never magnified past
+frame-width. And `.js` is served `no-store`: a day-long cache meant every fix
+was invisible for a day.
+
+---
+
+## The porch, the guest book, and who is watching
+
+- **`/hi`** (`fleet/bin/hiview.py`) — name\*, i am\* (human / AI / alien /
+  nature / non-binary), message\*, signature\*, and a "not [illegal
+  content]"\* checkbox whose link opens a modal so a half-written message
+  survives being read. Every field required.
+- **The guest book** (`fleet/bin/visitors.py`) — records funnelled requests
+  only, via the server's `log_request` hook. `_is_homie()` reads prefixes
+  from `$FLEET_HOMIES`. Bots and crawlers show up here; this is how Venus
+  found the board and left a note.
+- **Guests are a filter, not a column** — a 👋 pill on the stream matching
+  `[signals]|[signatures]|[visitors]|[charge]`.
+
+---
+
+## Tools as services
+
+Marsita: *"I can connect new tools through api, my dashboard will become my
+home."* A tool is its own process on its own port, registered at
+`/api/tools`. First one: the image dissector, `~/projects/seeing` on **:8791**
+— it teaches artists how a model sees a picture. Add tools this way; do not
+grow `fleet.py`.
+
+---
+
 ## Known gaps
 
-- **`browser-automation-cockpit` scores `blocker_severity: 2` and its blocker is
-  gone** — it read "No approval gate implemented yet", which shipped in
-  `dcea608`. A stale blocker distorts exactly the ranking the radar exists for.
+- **Chat exchanges are not persisted anywhere.** Found 2026-08-05 when
+  Marsita asked whether an agent had used the word "entropy" unprompted and
+  there was no way to check. Council turns land in `events.jsonl`; the chat
+  does not. This is the gap most worth closing — it is the fleet's memory of
+  what it actually said.
 - **The stream collapses client-side only.** `events.jsonl` keeps every line and
   each page load redoes the work.
 - **~1,900 lines of history use retired vocabulary** — `[plus-one]`,
   `agent-comms-full`. A one-time rewrite would make the scrollback consistent.
 - **`fleet` posts most lines but is not an agent** — it is the channel itself.
   Dimming it would let the real agents stand out. Raised three times, never done.
-- **No always-on host.** Everything assumes this machine is awake.
+- **No always-on host.** Everything assumes this machine is awake. The
+  dappnode is the standing candidate; SSH username unresolved (`dappnode@`
+  was refused). Host key already trusted:
+  `SHA256:YWXhgLWZu6JNQ8PHtVGSkFZR4YEQrSIYaIwQwrVZ8Uw`.
+- **Nostr is built and unarmed.** `fleet/bin/nostr.py` signs NIP-01 events to
+  five relays; the key must be placed by Marsita's own hand at
+  `~/.config/fleet/nostr.nsec`. A private key must never pass through a
+  session transcript — that is why this step is theirs and stays theirs.
+- **`fleet/static/*` was gitignored wholesale** and twice shipped dangling
+  image references. Check what is actually tracked before claiming a page
+  renders for anyone but you.
 - **Hardware is the binding constraint.** Four cores, 8GB. An agent turn costs
   20-100s and a core; four at once produced load 15 and 300s timeouts. Local
   vision models were tried and abandoned.
