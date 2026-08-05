@@ -16,9 +16,9 @@ stay where they belong on their own page — this is navigation only.
 # Two. The terminal is a drawer on the dashboard, not a destination — having
 # both a CONSOLE button and a TERMINAL tab was the same word twice.
 PAGES = [
-    ("/", "focus"),
+    ("/", "fleet"),
+    ("/intro", "intro"),
     ("/orbit", "orrery"),
-    ("/fleet", "fleet"),
     ("/hi", "send a message"),
     ("/chat", "chat"),
 ]
