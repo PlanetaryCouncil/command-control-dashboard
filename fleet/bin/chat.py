@@ -32,7 +32,13 @@ OLLAMA = "http://127.0.0.1:11434"
 # The local model. dolphin-llama3 (8B, 4.7GB) was measured unable to take a
 # council turn on this 8GB box (2026-08-03: 300s timeout, load 166).
 # llama3.2:1b (1.3GB) measured 2026-08-04: 160 tokens in 17s, 10.4 tok/s.
-OLLAMA_MODEL = "llama3.2:1b"
+# qwen2.5:3b answers a short question better than llama3.2:1b and costs
+# about the same when the prompt is small (measured 2026-08-05: 79s vs
+# 87s on a one-line question). It is markedly worse on long input — 195s
+# vs 71s at 200 words — which is exactly why the local model belongs in
+# the chat pane, where questions are short, and not in the council, where
+# the brief is 1,500 tokens.
+OLLAMA_MODEL = os.environ.get("FLEET_OLLAMA_MODEL", "qwen2.5:3b")
 
 TEXT_EXT = {".txt", ".md", ".py", ".js", ".ts", ".json", ".yaml", ".yml", ".toml",
             ".csv", ".tsv", ".sh", ".html", ".css", ".sql", ".xml", ".log", ".rs", ".go"}
