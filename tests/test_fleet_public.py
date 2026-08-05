@@ -100,10 +100,14 @@ def test_read_only_views_stay_public(server, path):
     assert status == 200, f"{path} should be readable by anyone, got {status}"
 
 
-def test_the_landing_page_does_not_leak_the_kill_token(server):
-    """404ing /api/kill-token is theatre if the page embeds the token anyway."""
-    _, local = fetch("/")
-    _, remote = fetch("/", forwarded="203.0.113.7")
+def test_the_board_does_not_leak_the_kill_token(server):
+    """404ing /api/kill-token is theatre if the page embeds the token anyway.
+
+    The board moved to /fleet on 2026-08-05 when a human-facing focus page
+    took over `/` — the token lives with the controls, so this follows it.
+    """
+    _, local = fetch("/fleet")
+    _, remote = fetch("/fleet", forwarded="203.0.113.7")
 
     status, body = fetch("/api/kill-token")
     assert status == 200
@@ -111,6 +115,16 @@ def test_the_landing_page_does_not_leak_the_kill_token(server):
 
     assert token in local, "the operator's own page needs its controls to work"
     assert token not in remote, "the kill token reached a remote viewer"
+
+
+def test_the_human_front_door_never_holds_the_token(server):
+    """`/` is for visitors now; it has no controls and must carry no key."""
+    status, body = fetch("/api/kill-token")
+    assert status == 200
+    token = json.loads(body)["token"]
+    for forwarded in (None, "203.0.113.7"):
+        _, page = fetch("/", forwarded=forwarded)
+        assert token not in page
 
 
 def test_kill_is_refused_through_the_funnel(server):
