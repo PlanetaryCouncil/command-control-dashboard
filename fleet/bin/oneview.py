@@ -257,8 +257,11 @@ tr.self td{color:var(--muted);}
    turned a name into a green smear — the aspect ratio IS the handwriting.
    30px tall, 3:1, and no plate behind it: the ink sits straight on the
    row like the rest of the text. */
-canvas.mark{height:30px;width:90px;margin-left:10px;
-  background:transparent;flex:none;opacity:.9;align-self:center;}
+/* Exactly the height of the line it sits on, and no taller — a row with
+   a signature must look like every other row, or the stream develops a
+   lumpy rhythm. Wide, because handwriting is. */
+canvas.mark{height:15px;width:70px;margin-left:10px;
+  background:transparent;flex:none;opacity:.95;align-self:center;}
 canvas.mark:hover{opacity:1;}
 .m .sender{color:var(--ink);font-weight:700;}
 .sayrow{display:flex;gap:5px;align-items:center;}
@@ -1355,7 +1358,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Fleet</title>
 <link rel="stylesheet" href="/static/xterm.css">
-<script src="/static/signature.js"></script>
+<script src="/static/signature.js?v=2"></script>
 <style>{CSS}\n{nav.CSS}</style></head>
 <body>
 

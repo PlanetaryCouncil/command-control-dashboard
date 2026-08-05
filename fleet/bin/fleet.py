@@ -864,9 +864,14 @@ def serve(port):
                          "gif": "image/gif", "svg": "image/svg+xml",
                          }.get(name.rsplit(".", 1)[-1].lower(),
                                "application/octet-stream")
-                # Assets may cache: the 2.9MB artwork re-sent on every
-                # visit was most of the funnel's perceived slowness.
-                self._send(f.read_bytes(), ctype, cache="public, max-age=86400")
+                # Images may cache for a day — the 2.9MB artwork re-sent on
+                # every visit was most of the funnel's perceived slowness.
+                # Code may NOT: a fix to signature.js sat invisible in a
+                # browser for an hour because the file was still cached
+                # while the page it belonged to was no-store (2026-08-05).
+                cache = ("no-store" if name.endswith((".js", ".css"))
+                         else "public, max-age=86400")
+                self._send(f.read_bytes(), ctype, cache=cache)
                 return
 
             if path == "/ws/terminal":
