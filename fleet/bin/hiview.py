@@ -75,8 +75,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
-    <input type="text" id="who" maxlength="60" placeholder="name">
-    <textarea id="msg" maxlength="4000" placeholder="message"></textarea>
+    <input type="text" id="who" maxlength="60" placeholder="name" required>
+    <textarea id="msg" maxlength="4000" placeholder="message" required></textarea>
     <div>
       <p class="hint" style="margin:.2rem 0 .4rem">signature</p>
       <div class="padwrap">
@@ -146,8 +146,9 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     const signed = stroke.length >= 20;
     send.disabled = !(named && written && lawful.checked && signed);
     clearBtn.disabled = stroke.length === 0;
-    state.textContent = !named || !written ? "" : !signed ? "sign to send"
-      : !lawful.checked ? "tick the box" : "";
+    // One rule, said once: all of it, or nothing. A hint that changes as
+    // you fill fields is four instructions pretending to be one.
+    state.textContent = send.disabled ? "name, message and signature — all required" : "";
   }};
   clearBtn.addEventListener("click", () => {{
     stroke = [];
