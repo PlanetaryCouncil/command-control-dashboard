@@ -1028,6 +1028,14 @@ async def post_signal(signal: Signal, request: Request) -> dict:
         if alive >= 0.2:
             record["hand_signed"] = True
             record["status"] = "triaged"
+            # Keep the path itself, downsampled. The score alone proved a
+            # hand was there; the board wants to SHOW whose. Same data the
+            # signature wall already publishes, so nothing new is exposed.
+            pts = signal.signature
+            step = max(1, len(pts) // 400)
+            record["signature"] = [
+                {"x": round(float(q["x"]), 4), "y": round(float(q["y"]), 4),
+                 "t": round(float(q["t"]), 1)} for q in pts[::step]]
 
     data = load_inbox()
     data.setdefault("signals", []).append(record)

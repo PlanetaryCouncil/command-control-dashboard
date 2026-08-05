@@ -253,9 +253,14 @@ tr.self td{color:var(--muted);}
 #sayOk a{color:var(--info);}
 /* The mark rides at the end of the line, 14px tall — enough to recognise
    a hand, small enough that a stream of them still reads as a stream. */
-canvas.mark{height:14px;width:34px;vertical-align:middle;margin-left:6px;
-  border-radius:2px;background:#03060a;flex:none;opacity:.85;}
+/* The mark fills the row it belongs to — a signature squeezed to 14px is
+   a smudge, and the whole point is that you can tell one hand from
+   another at a glance. */
+canvas.mark{height:100%;min-height:22px;width:56px;margin-left:8px;
+  border-radius:2px;background:#03060a;flex:none;opacity:.9;align-self:stretch;}
 canvas.mark:hover{opacity:1;}
+.ev:has(canvas.mark){align-items:stretch;}
+.m .sender{color:var(--ink);font-weight:700;}
 .sayrow{display:flex;gap:5px;align-items:center;}
 #say{flex:none;display:flex;flex-direction:column;padding:4px 6px;
   border-top:1px solid var(--border);background:var(--raised);}
@@ -590,7 +595,18 @@ function addEvent(e){
   icon.textContent = (TAG_ICON[tag] === agentIcon) ? "" : (TAG_ICON[tag] || "");
   icon.title = tag;
   const m = document.createElement("span"); m.className="m";
-  m.textContent = clean(e.msg);
+  const said = clean(e.msg);
+  // Bold the person, not the plumbing: "[signals] NAME: words" reads as
+  // one grey run otherwise, and the name is the thing you scan for.
+  const who = /^\[signals\]\s+([^:]{1,40}):\s*([\s\S]*)$/.exec(said);
+  if (who){
+    const b = document.createElement("b");
+    b.textContent = who[1].trim();
+    b.className = "sender";
+    m.append(b, document.createTextNode(" " + who[2]));
+  } else {
+    m.textContent = said;
+  }
   row.append(t,icon,w,m);
   const mk = markFor(e.msg);
   if (mk && window.drawRawSignature){
