@@ -296,7 +296,8 @@ def cycle() -> None:
             break
         seen = by_proposal()
         todo = [p for p in reversed(proposals())
-                if p["ts"] not in seen and (not picks or p["ts"] in picks)]
+                if p["ts"] not in seen
+                and (not picks or p["ts"][:16] in {x[:16] for x in picks})]
         if not todo:
             if built:
                 ev.emit("pipeline", "ok",
