@@ -517,15 +517,17 @@ def serve(port):
                 self._forward(path)
                 return
 
-            if path == "/":
-                # The flip, 2026-08-04: a human arrives at goals and
-                # projects; the agent machinery is one click in at /fleet.
+            if path == "/intro":
+                # The human-facing page. It lived at `/` for a day, and
+                # Marsita's own habit settled it: "I'm more familiar with
+                # fleet as a home, not the focus." The board is home; this
+                # is the page you send someone.
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import homeview
                 self._send(homeview.page(remote=self._remote()).encode())
                 return
 
-            if path in ("/fleet", "/one", "/index.html"):
+            if path in ("/", "/fleet", "/one", "/index.html"):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev, oneview, agentsview as av
                 evts = ev.tail(200)
