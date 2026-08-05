@@ -61,3 +61,8 @@ done < "$LIST"
 # always-on server happens to be down.
 python3 "$FLEET/bin/events.py" fleet info "watchdog sweep finished" 2>/dev/null
 python3 "$FLEET/bin/fleet.py" render >/dev/null 2>&1 || true
+
+# A rota turn deferred for load gets one retry now — the sweep ending is the
+# idle window its pending marker was waiting for. No-op if nothing is pending,
+# and rota's own load gate still applies if the machine is somehow still busy.
+python3 "$FLEET/bin/rota.py" --retry-deferred || true
