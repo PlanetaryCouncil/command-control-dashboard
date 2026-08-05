@@ -1124,24 +1124,24 @@ def triage_signal(signal_id: str, triage: Triage, request: Request) -> dict:
 
 @app.post("/api/signals/{signal_id}/override", status_code=202)
 async def override_signal(signal_id: str, request: Request) -> dict:
-    """Escalating-quorum override: 2n+1 or nothing.
+    """Single-node moderation: any paired node has full authority.
 
-    Any paired node may vote to change a signal's status. A decision backed
-    by n signers is overturned only when 2n+1 distinct signed nodes vote for
-    the same new status — so every flip doubles the price of flipping back,
-    and moderation ping-pong is exponentially expensive by construction.
+    Low traffic and a small circle of trusted nodes make an escalating quorum
+    more ceremony than protection. So any node that can prove it is paired — its
+    vote is signed — sets a signal's status in one move. That is how a node
+    "removes" a signal: it declines it. The operator can always restore it.
 
-    Two things are not votable at any quorum:
+    Two things stay off-limits to a node at any authority:
     - a quarantined signal (the hard categories are not a matter of opinion;
       only the operator, locally, can release one), and
-    - voting a signal INTO "quarantined" (that label belongs to the filter,
-      not to a crowd — a quorum that can quarantine is a heckler's veto).
+    - moving a signal INTO "quarantined" (that label belongs to the filter,
+      not to a node).
     """
     raw = await request.body()
     node_id = await signed_by_trusted_node(request, raw)
     if not node_id:
         raise HTTPException(status_code=403,
-                            detail="override votes must be signed by a paired node")
+                            detail="moderation votes must be signed by a paired node")
     try:
         target = json.loads(raw).get("status", "")
     except ValueError:
@@ -1149,7 +1149,7 @@ async def override_signal(signal_id: str, request: Request) -> dict:
     if target not in inbox.STATUSES or target == "quarantined":
         raise HTTPException(
             status_code=422,
-            detail=f"votable statuses: {sorted(inbox.STATUSES - {'quarantined'})}")
+            detail=f"settable statuses: {sorted(inbox.STATUSES - {'quarantined'})}")
 
     data = load_inbox()
     for signal in data.get("signals", []):
@@ -1158,30 +1158,16 @@ async def override_signal(signal_id: str, request: Request) -> dict:
         if signal.get("status") == "quarantined":
             raise HTTPException(status_code=403,
                                 detail="quarantine is not votable; ask the operator")
-        decision = signal.get("decision") or {
-            "status": signal.get("status"), "backers": ["operator"], "depth": 0}
-        if target == decision["status"]:
-            return {"status": decision["status"], "note": "already the decision"}
-        votes = signal.setdefault("override_votes", {}).setdefault(target, [])
-        if node_id not in votes:
-            votes.append(node_id)
-        need = 2 * len(decision["backers"]) + 1
-        if len(votes) >= need:
-            signal["status"] = target
-            signal["decision"] = {"status": target, "backers": list(votes),
-                                  "depth": decision.get("depth", 0) + 1}
-            signal.pop("override_votes", None)
-            save_inbox(data)
-            log_event("signal.overridden", signal=signal_id, status=target,
-                      backers=len(votes), depth=signal["decision"]["depth"])
-            fleet.ring("visitors", "needs_you",
-                       f"[moderation] signal {signal_id} overridden to "
-                       f"'{target}' by {len(votes)} nodes (next flip costs "
-                       f"{2 * len(votes) + 1})")
-            return inbox.public_view(signal)
+        if signal.get("status") == target:
+            return {"status": target, "note": "already there"}
+        signal["status"] = target
+        signal["decision"] = {"status": target, "by": node_id}
+        signal.pop("override_votes", None)
         save_inbox(data)
-        return {"status": signal.get("status"), "target": target,
-                "votes": len(votes), "needed": need}
+        log_event("signal.moderated", signal=signal_id, status=target, by=node_id)
+        fleet.ring("visitors", "needs_you",
+                   f"[moderation] signal {signal_id} set to '{target}' by {node_id}")
+        return inbox.public_view(signal)
     raise HTTPException(status_code=404, detail=f"No signal {signal_id!r}")
 
 
