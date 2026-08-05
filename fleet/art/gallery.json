@@ -1,0 +1,65 @@
+{
+  "note": "The rotating gallery. Submitted via issue #2, hung 2026-08-05. One piece per hour, so the board is never the same twice in a day.",
+  "pieces": [
+    {
+      "image": "/static/gallery/01.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/02.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/03.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/04.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/05.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/06.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/07.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/08.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/09.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    },
+    {
+      "image": "/static/gallery/10.jpg",
+      "title": "Powerful memes",
+      "artist": "Marsita the Ultra \u00b7 PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org/"
+    }
+  ]
+}
