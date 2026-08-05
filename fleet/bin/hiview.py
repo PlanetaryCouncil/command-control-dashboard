@@ -35,7 +35,11 @@ button:disabled{opacity:.4;cursor:default}
 canvas{touch-action:none;width:100%;aspect-ratio:2.2/1;background:#03060a;
   border:1px solid var(--rule);cursor:crosshair;display:block}
 /* Inside the pad, bottom right: clearing belongs to the drawing, not to
-   the form. One main button on the page, and it says send. */
+   the form. One main button on the page, and it says send.
+   Always visible, disabled until there is ink — hidden-then-appearing
+   startled the first person who used it (2026-08-05): a control that
+   materialises mid-gesture reads as the page doing something, not as
+   the page waiting. */
 .padwrap{position:relative}
 .padwrap button{position:absolute;right:.6rem;bottom:.6rem;padding:.25rem .7rem;
   font-size:.72rem;opacity:.65;background:#03060a}
@@ -77,7 +81,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       <p class="hint" style="margin:.2rem 0 .4rem">signature</p>
       <div class="padwrap">
         <canvas id="pad"></canvas>
-        <button id="clear" type="button" hidden>clear</button>
+        <button id="clear" type="button" disabled>clear</button>
       </div>
     </div>
     <!-- Under the pad, deliberately: the mark is content too, and a
@@ -137,7 +141,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     const written = msg.value.trim().length > 0;
     const signed = stroke.length >= 20;
     send.disabled = !(written && lawful.checked && signed);
-    clearBtn.hidden = stroke.length === 0;
+    clearBtn.disabled = stroke.length === 0;
     state.textContent = !written ? "" : !signed ? "sign to send"
       : !lawful.checked ? "tick the box" : "";
   }};
