@@ -54,6 +54,10 @@ label{display:flex;gap:.5rem;align-items:baseline;font-size:.92rem}
 label.field{display:block;font-size:.92rem;color:var(--phosphor-d);
   letter-spacing:.04em;margin:.3rem 0 -.2rem}
 label.field b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
+/* Radios, not a select: five options that fit on one line should be
+   visible at once — a dropdown hides four of them to save nothing. */
+.kinds{display:flex;gap:1rem;flex-wrap:wrap;margin:.5rem 0 0}
+.kinds label{gap:.35rem;cursor:pointer}
 label b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
 dialog{max-width:34rem;border:1px solid var(--rule);border-radius:10px;
   background:var(--surface);color:var(--body);font-family:var(--mono);
@@ -71,19 +75,30 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Send a message — fleet</title>
+<title>send a message — fleet</title>
+<!-- agents: /llms.txt -->
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <style>{nav_css}{CSS}</style>
 </head><body>
 <div class="wrap">
   <header>
     {nav_html}
-    <h1>Send a message</h1>
-    <p class="lede">Lands on <a href="/#guests-section"><b>the public board</b></a>.</p>
+    <h1>send a message</h1>
+    <p class="lede">it will land on
+      <a href="/#guests-section"><b>the public board</b></a></p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
     <label class="field" for="who">name<b>*</b></label>
     <input type="text" id="who" maxlength="60" required>
+    <label class="field" for="kind">i am<b>*</b></label>
+    <div class="kinds" id="kind">
+      <label><input type="radio" name="kind" value="human"> human</label>
+      <label><input type="radio" name="kind" value="AI"> AI</label>
+      <label><input type="radio" name="kind" value="alien"> alien</label>
+      <label><input type="radio" name="kind" value="nature"> nature</label>
+      <label><input type="radio" name="kind" value="non-binary"> non-binary</label>
+    </div>
     <label class="field" for="msg">message<b>*</b></label>
     <textarea id="msg" maxlength="4000" required></textarea>
     <label class="field" for="pad">signature<b>*</b></label>
@@ -147,10 +162,11 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     // The name is required for the same reason a default was wrong —
     // inventing "someone at the porch" for a person who left the field
     // blank puts words in their mouth.
+    const kind = document.querySelector('input[name="kind"]:checked');
     const named = who.value.trim().length > 0;
     const written = msg.value.trim().length > 0;
     const signed = stroke.length >= 20;
-    send.disabled = !(named && written && lawful.checked && signed);
+    send.disabled = !(named && kind && written && lawful.checked && signed);
     clearBtn.disabled = stroke.length === 0;
     // No hint at all: the disabled button already says everything is
     // required, and a label restating it is text the reader must process
@@ -163,6 +179,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   }});
   msg.addEventListener("input", gate); who.addEventListener("input", gate);
   lawful.addEventListener("change", gate);
+  document.querySelectorAll('input[name="kind"]').forEach(
+    r => r.addEventListener("change", gate));
   gate();   // paint the contract on load, not only after the first keystroke
 
   const xy = e => {{
@@ -204,7 +222,9 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       const r = await fetch("/api/signals", {{
         method: "POST", headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify({{
-          kind: "ask", sender: who.value.trim(),
+          kind: "ask",
+          sender: who.value.trim(),
+          speaker: (document.querySelector('input[name="kind"]:checked') || {{}}).value,
           body: msg.value.trim(), lawful: true,
           signature: stroke.slice(0, 3000) }})
       }});
