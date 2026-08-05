@@ -141,7 +141,14 @@
     const spanX = Math.max(maxX - minX, 1e-6);
     const spanY = Math.max(maxY - minY, 1e-6);
     const pad = 0.06;
-    const S = Math.min(W * (1 - pad * 2) / spanX, H * (1 - pad * 2) / spanY);
+    // Fit to the box, but NEVER magnify past "the whole pad maps to the
+    // whole frame". Coordinates are fractions of the pad's width, so a
+    // stroke covering 30% of the pad draws at 30% of the frame — a quick
+    // flick stays small instead of being stretched into a long bar to
+    // fill space it never used (2026-08-05). Relative size is part of a
+    // signature too: some people sign big.
+    const fit = Math.min(W * (1 - pad * 2) / spanX, H * (1 - pad * 2) / spanY);
+    const S = Math.min(fit, W);
     const px = p => (p.x - (minX + maxX) / 2) * S + W / 2;
     const py = p => (p.y - (minY + maxY) / 2) * S + H / 2;
 
