@@ -34,6 +34,12 @@ button{background:#03060a;border:1px solid var(--rule);color:var(--phosphor);
 button:disabled{opacity:.4;cursor:default}
 canvas{touch-action:none;width:100%;aspect-ratio:2.2/1;background:#03060a;
   border:1px solid var(--rule);cursor:crosshair;display:block}
+/* Inside the pad, bottom right: clearing belongs to the drawing, not to
+   the form. One main button on the page, and it says send. */
+.padwrap{position:relative}
+.padwrap button{position:absolute;right:.6rem;bottom:.6rem;padding:.25rem .7rem;
+  font-size:.72rem;opacity:.65;background:#03060a}
+.padwrap button:hover{opacity:1}
 .hint{font-size:.74rem;color:var(--phosphor-d)}
 .ok{color:var(--phosphor)} .warn{color:var(--amber)}
 a{color:var(--phosphor-d)}
@@ -69,7 +75,10 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     <textarea id="msg" maxlength="4000" placeholder="message"></textarea>
     <div>
       <p class="hint" style="margin:.2rem 0 .4rem">signature</p>
-      <canvas id="pad"></canvas>
+      <div class="padwrap">
+        <canvas id="pad"></canvas>
+        <button id="clear" type="button" hidden>clear</button>
+      </div>
     </div>
     <!-- Under the pad, deliberately: the mark is content too, and a
          declaration should sit after everything it covers. -->
@@ -77,7 +86,6 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       <span>not <a href="#rules" id="rulelink">illegal content</a></span></label>
     <div class="row">
       <button id="send" disabled>send</button>
-      <button id="clear" type="button">clear signature</button>
       <span class="hint" id="state"></span>
     </div>
   </section>
@@ -129,6 +137,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     const written = msg.value.trim().length > 0;
     const signed = stroke.length >= 20;
     send.disabled = !(written && lawful.checked && signed);
+    clearBtn.hidden = stroke.length === 0;
     state.textContent = !written ? "" : !signed ? "sign to send"
       : !lawful.checked ? "tick the box" : "";
   }};
