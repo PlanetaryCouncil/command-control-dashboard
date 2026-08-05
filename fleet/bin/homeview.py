@@ -170,7 +170,6 @@ def page(remote: bool = False) -> str:
   <nav class="rail">
     <a class="key" href="/fleet">the fleet dashboard &rarr;</a>
     <a href="/hi">say hi</a>
-    <a href="/orbit">the orrery &mdash; projects in orbit</a>
     <a href="/signatures">signatures</a>
     <a href="/art">submit art</a>
     <a href="/about">what this is</a>
