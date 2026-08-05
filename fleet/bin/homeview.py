@@ -26,8 +26,25 @@ CSS = """
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
-.wrap{max-width:940px;margin:0 auto;padding:2.2rem 1.4rem 5rem;
-  display:flex;flex-direction:column;gap:2rem}
+/* Sized to be read in one look on a 1920x1080 panel — the intro is the
+   page you send someone, and a first impression that needs scrolling is
+   two impressions. Below 1100px it falls back to a normal column. */
+.wrap{max-width:1820px;margin:0 auto;padding:1.1rem 1.4rem;
+  display:flex;flex-direction:column;gap:.9rem}
+@media (min-width:1100px){
+  html,body{height:100%;overflow:hidden}
+  .wrap{height:100vh;display:grid;gap:.9rem;
+    grid-template-columns:minmax(0,1fr) minmax(0,1.05fr) minmax(0,.95fr);
+    grid-template-rows:auto auto minmax(0,1fr);
+    grid-template-areas:"head head head" "rail rail rail"
+                        "left  mid   right"}
+  header{grid-area:head} .rail{grid-area:rail}
+  .col-left{grid-area:left} .col-mid{grid-area:mid} .col-right{grid-area:right}
+  .col-left,.col-mid,.col-right{display:flex;flex-direction:column;gap:.9rem;
+    min-height:0;overflow:auto}
+  .hero{grid-template-columns:1fr}
+  #chain,.proj{overflow:auto}
+}
 .eyebrow{font-family:var(--mono);font-size:.68rem;letter-spacing:.2em;
   text-transform:uppercase;color:var(--muted);margin:0 0 .5rem}
 h1{margin:0;font-size:clamp(1.6rem,4vw,2.3rem);font-weight:600;line-height:1.15;
@@ -137,6 +154,7 @@ def page(remote: bool = False) -> str:
 
   {WELCOME if remote else ''}
 
+  <div class="col-left">
   <section class="hero">
     <a href="/art" id="heroart" title="the current artwork — how to submit"></a>
     <div class="pulse">
@@ -164,18 +182,26 @@ def page(remote: bool = False) -> str:
     <p class="eyebrow">the chain · horizons</p>
     <div class="chain" id="chain"><div class="link"><span class="txt empty">reading…</span></div></div>
   </section>
+  </div>
+
+  <div class="col-mid">
 
   <section>
     <p class="eyebrow">projects · ranked by what needs a human</p>
     <div class="proj" id="projects"><div class="row"><span class="nm empty">reading…</span></div></div>
   </section>
+  </div>
+
+  <div class="col-right">
 
   <section class="card" id="guests-section">
     <p class="eyebrow" style="margin:0" id="guests-anchor">guests · who came by</p>
     <div id="guests" class="empty">reading…</div>
   </section>
 
-  <footer>
+  </div>
+
+  <footer style="grid-column:1/-1">
     The machinery that keeps this honest — agents proposing, building,
     reviewing each other, a human merging — is
     <a href="/fleet">one click away</a>. Clone the whole thing:
