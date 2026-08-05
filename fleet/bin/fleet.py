@@ -626,13 +626,36 @@ def serve(port):
                 return
 
             if path == "/api/artwork":
-                # The gallery slot: one curated piece, set by art.py. An
-                # absent file is an empty gallery, not an error.
-                f = FLEET / "art" / "current.json"
+                # The gallery rotates: ten pieces arrived in one issue, and
+                # hanging one forever would waste nine. The piece changes by
+                # the hour — stable while you read the page, different when
+                # you come back. art/current.json still wins if it exists,
+                # so a deliberate hang always beats the rotation.
+                cur = FLEET / "art" / "current.json"
+                gal = FLEET / "art" / "gallery.json"
+                try:
+                    self._send(cur.read_bytes(), "application/json")
+                    return
+                except OSError:
+                    pass
+                try:
+                    pieces = json.loads(gal.read_text()).get("pieces", [])
+                    if pieces:
+                        i = datetime.now(timezone.utc).hour % len(pieces)
+                        self._send(json.dumps(pieces[i]).encode(),
+                                   "application/json")
+                        return
+                except (OSError, ValueError):
+                    pass
+                self._send(b"{}", "application/json")
+                return
+
+            if path == "/api/gallery":
+                f = FLEET / "art" / "gallery.json"
                 try:
                     self._send(f.read_bytes(), "application/json")
                 except OSError:
-                    self._send(b"{}", "application/json")
+                    self._send(b'{"pieces": []}', "application/json")
                 return
 
             if path == "/api/council":
