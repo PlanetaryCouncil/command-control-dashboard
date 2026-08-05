@@ -142,8 +142,18 @@ def run_cmd(cmd, timeout, stdin_text=None):
         if not out and err:
             return f"[stderr] {err[:1500]}"
         return out or "(no output)"
-    except subprocess.TimeoutExpired:
-        return f"[timed out after {timeout}s]"
+    except subprocess.TimeoutExpired as e:
+        # "Did not answer" and "answered too slowly" are different faults —
+        # hermes hit the 300s ceiling three times on 2026-08-02 and the board
+        # could not say whether it was alive. The killed process's partial
+        # stdout is the tell: present means slow, absent means silent.
+        part = e.stdout if e.stdout is not None else e.output
+        if isinstance(part, bytes):
+            part = part.decode(errors="replace")
+        part = " ".join((part or "").split())
+        if part:
+            return f"[timed out after {timeout}s; partial: {part[:200]}]"
+        return f"[timed out after {timeout}s; no output]"
     except Exception as e:
         return f"[error] {e}"
 
@@ -193,7 +203,7 @@ def ask_ollama(model, prompt, images, emit, num_predict=None):
     return "".join(acc).strip() or "(no output)"
 
 
-def ask_claude(prompt, files, emit):
+def ask_claude(prompt, files, emit, timeout=600):
     if files:
         prompt += ("\n\nAttached files (read them from these paths):\n"
                    + "\n".join(str(f) for f in files))
@@ -205,14 +215,14 @@ def ask_claude(prompt, files, emit):
     # only one that can. hermes/openclaw/ollama are single-shot chat calls.
     return run_cmd(["claude", "--print", "--permission-mode", "acceptEdits",
                     "--allowedTools", "WebSearch", "WebFetch",
-                    "--add-dir", str(FLEET)], timeout=600, stdin_text=prompt)
+                    "--add-dir", str(FLEET)], timeout=timeout, stdin_text=prompt)
 
 
-def ask_hermes(prompt, emit):
-    return run_cmd(["hermes", "-z", prompt], timeout=300)
+def ask_hermes(prompt, emit, timeout=300):
+    return run_cmd(["hermes", "-z", prompt], timeout=timeout)
 
 
-def ask_openclaw(prompt, emit, session=None):
+def ask_openclaw(prompt, emit, session=None, timeout=420):
     """One OpenClaw turn.
 
     `session` scopes the gateway's conversation memory. A fixed key makes the
@@ -225,7 +235,7 @@ def ask_openclaw(prompt, emit, session=None):
     # Slower than the rest: a full gateway turn. Long timeout beats a false failure.
     out = run_cmd(["openclaw", "agent", "--agent", "main",
                    "--session-key", key,
-                   "-m", prompt, "--json"], timeout=420)
+                   "-m", prompt, "--json"], timeout=timeout)
     try:
         d = json.loads(out)
     except Exception:
