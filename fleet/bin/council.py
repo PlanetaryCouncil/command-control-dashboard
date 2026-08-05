@@ -90,7 +90,8 @@ def already_asked(limit: int = 6) -> list:
     conclusion the previous council had already reached, 25 hours earlier.
     openclaw counted the loop at 30 of 60 events in a day. The 6-hour transcript
     window in `transcript()` is doing its job and stays; this is the separate
-    memory it was never meant to be.
+    memory it was never meant to be. `proposal_ledger()` is the fuller record —
+    this stays the compact "am I repeating myself" check.
     """
     path = FLEET / "rota" / "proposals.jsonl"
     if not path.exists():
@@ -113,6 +114,100 @@ def already_asked(limit: int = 6) -> list:
         # "merge the branches" on 2026-08-04 because nothing on the board said
         # the human had already seen it. age_days 0 means "surfaced today,
         # Marsita is aware" — a reason to say NOTHING TO ADD, not to restate.
+        t = _when(p.get("ts"))
+        if t:
+            row["age_days"] = max(0, (now - t).days)
+        out.append(row)
+    return out[-limit:]
+
+
+def proposal_ledger(limit: int = 20, gist_len: int = 240) -> list:
+    """Every recent proposal with where it GOT to, not just that it was filed.
+
+    Four agents converged on this between 2026-08-03 and 2026-08-04:
+    self-improve filed the same needs_you three nights running, councils
+    re-derived the same gap 25 hours apart, and `already_asked`'s rows say
+    "proposed" forever — the board never answered the question a council
+    actually has, which is *did anything happen to it?*
+
+    Each row: `id` (the minute-precision ts every pipeline file keys on),
+    the gist, the turn's `outcome`, and a `status` read from
+    rota/pipeline.jsonl and rota/build.txt — filed, picked, built, approved,
+    rejected. Direct file reads; the under-a-second board_state contract
+    holds.
+    """
+    rota = FLEET / "rota"
+
+    # Latest pipeline record per proposal. Minute-precision keys throughout:
+    # build.txt clips to at most 19 chars and proposals.jsonl carries the Z.
+    latest = {}
+    try:
+        for line in (rota / "pipeline.jsonl").read_text(errors="replace").splitlines():
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            latest[str(r.get("proposal_ts", ""))[:16]] = r
+    except OSError:
+        pass
+
+    # build.txt is the human's picks; an item's proposals all share the fate
+    # of the item's first ts, which is what the pipeline branches on.
+    items, cur = [], None
+    try:
+        for raw in (rota / "build.txt").read_text().splitlines():
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith("#"):
+                body = line.lstrip("# ").strip()
+                cur = None
+                if body and body[0].isdigit() and "." in body[:4]:
+                    cur = []
+                    items.append(cur)
+                continue
+            if cur is not None:
+                cur.append(line[:16])
+        items = [i for i in items if i]
+    except OSError:
+        items = []
+    covered = {ts: item[0] for item in items for ts in item}
+
+    status_of = {
+        ("build", True): "built — awaiting verify",
+        ("build", False): "build failed",
+        ("revise", True): "revised — awaiting verify",
+        ("revise", False): "rejected (no revision)",
+        ("verify", True): "approved — awaits your merge",
+        ("verify", False): "rejected",
+    }
+
+    now = datetime.now(timezone.utc)
+    out = []
+    try:
+        lines = (rota / "proposals.jsonl").read_text(errors="replace").splitlines()
+    except OSError:
+        return []
+    for line in lines:
+        try:
+            p = json.loads(line)
+        except ValueError:
+            continue
+        pid = str(p.get("ts", ""))[:16]
+        rec = latest.get(covered.get(pid, pid))
+        if rec is None:
+            status = "picked — awaiting build" if pid in covered else "filed"
+        else:
+            status = status_of.get((rec.get("stage"), bool(rec.get("ok"))),
+                                   rec.get("stage") or "?")
+        text = (p.get("text") or "").lstrip("█").strip()
+        first = next((s.strip() for s in text.splitlines()
+                      if s.strip() and not s.strip().startswith("#")), "")
+        row = {"id": pid, "by": p.get("agent", "?"),
+               "outcome": p.get("outcome", "?"), "status": status,
+               "gist": first[:gist_len]}
+        if rec and rec.get("branch"):
+            row["branch"] = rec["branch"]
         t = _when(p.get("ts"))
         if t:
             row["age_days"] = max(0, (now - t).days)
@@ -272,9 +367,11 @@ def board_state() -> dict:
     return {
         "needs_attention": " · ".join(attention) or "nothing",
         "workers": workers,
-        # Read these two before proposing anything. If your idea is already
-        # here, say so and move on rather than deriving it again.
+        # Read these before proposing anything. If your idea is already
+        # here, say so and move on rather than deriving it again — and
+        # `proposals` says what HAPPENED to each one, not just that it exists.
         "already_proposed": already_asked(),
+        "proposals": proposal_ledger(),
         "unmerged_branches": branches,
         "event_levels": levels,
         "event_kinds": kinds,
