@@ -47,12 +47,12 @@ canvas{touch-action:none;width:100%;aspect-ratio:2.2/1;background:#03060a;
 .hint{font-size:.74rem;color:var(--phosphor-d)}
 .ok{color:var(--phosphor)} .warn{color:var(--amber)}
 a{color:var(--phosphor-d)}
-label{display:flex;gap:.5rem;align-items:baseline}
+label{display:flex;gap:.5rem;align-items:baseline;font-size:.92rem}
 /* Real labels, not placeholders: a placeholder disappears the moment you
    type, so the one thing telling you what the box is for vanishes exactly
    when you might check. Screen readers get them too. */
-label.field{display:block;font-size:.74rem;color:var(--phosphor-d);
-  letter-spacing:.08em;margin:.2rem 0 -.3rem}
+label.field{display:block;font-size:.92rem;color:var(--phosphor-d);
+  letter-spacing:.04em;margin:.3rem 0 -.2rem}
 label.field b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
 label b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
 dialog{max-width:34rem;border:1px solid var(--rule);border-radius:10px;
@@ -71,14 +71,14 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Say hi — fleet</title>
+<title>Send a message — fleet</title>
 <style>{nav_css}{CSS}</style>
 </head><body>
 <div class="wrap">
   <header>
     {nav_html}
-    <h1>Say hi</h1>
-    <p class="lede">Lands on a <a href="/"><b>public board</b></a>.</p>
+    <h1>Send a message</h1>
+    <p class="lede">Lands on <a href="/#guests-section"><b>the public board</b></a>.</p>
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
