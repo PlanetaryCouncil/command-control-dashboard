@@ -233,7 +233,7 @@ tr.self td{color:var(--muted);}
 /* Everyone signs, including the operator. Collapsed until you touch the
    box, because a pad sitting open in a status bar is noise; expanded the
    moment you type, because the signature is not optional. */
-#sayMore{display:none;padding:5px 6px 6px;gap:6px;flex-direction:column;}
+#sayMore{display:none;padding:5px 0 2px;gap:6px;flex-direction:column;}
 #say.open #sayMore{display:flex;}
 #sayMore .padwrap{position:relative;}
 #sayMore canvas{width:100%;height:78px;background:#03060a;display:block;
@@ -245,7 +245,7 @@ tr.self td{color:var(--muted);}
   font-family:var(--mono);font-size:10px;color:var(--muted);opacity:.5;
   pointer-events:none;letter-spacing:.06em;}
 #sayMore.drawn #sayHint{display:none;}
-#sayMore .padwrap button{position:absolute;left:5px;bottom:5px;
+#sayMore .padwrap button{position:absolute;right:5px;bottom:5px;
   font-family:var(--mono);font-size:8px;padding:1px 6px;background:#03060a;
   border:1px solid var(--border);color:var(--muted);border-radius:3px;
   cursor:pointer;opacity:.7;}
@@ -280,10 +280,17 @@ canvas.mark:hover{opacity:1;}
    A list of goals is a poster. What makes it accountable is the review date
    sitting next to each one, and the word OVERDUE when it has passed — the week
    goal was due 2026-07-27 and nothing on any screen said so. */
-#goals .body{padding:0;}
+/* The pane is drag-resizable (gripV above it) so the body must scroll
+   rather than push the artwork off the column. */
+#goals .body{padding:0;overflow-y:auto;min-height:0;}
+/* One height per row, whatever the goal's length. Ragged rows made the
+   chain read as a list of unrelated notes; two lines each, clipped with
+   an ellipsis, and the full text on hover. */
 .goal{display:grid;grid-template-columns:52px minmax(0,1fr) auto;
   gap:8px;align-items:baseline;padding:5px 8px;
   border-bottom:1px solid var(--border);}
+.goal .g{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;line-height:1.35;}
 .goal:last-child{border-bottom:0;}
 .goal .s{font-family:var(--mono);font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;color:var(--muted);}
@@ -779,15 +786,18 @@ function renderProcs(s){
   const stop = () => { drawing = false; };
   pad.addEventListener("pointerup", stop);
   pad.addEventListener("pointercancel", stop);
-  clr.addEventListener("click", () => {
-    stroke = []; ctx.clearRect(0, 0, pad.width, pad.height); clr.disabled = true;
-    $("#sayMore").classList.remove("drawn");
-  });
-  window.__sayReset = () => {
-    stroke = []; ctx.clearRect(0, 0, pad.width, pad.height);
-    clr.disabled = true; form.classList.remove("open");
+  const wipe = () => {
+    // Setting width resets the backing store entirely. clearRect(0,0,
+    // pad.width, pad.height) missed a strip whenever the CSS box and the
+    // buffer disagreed, which is why a few pixels of the last signature
+    // survived every post.
+    pad.width = pad.width;
+    stroke = []; clr.disabled = true;
     $("#sayMore").classList.remove("drawn");
   };
+  clr.addEventListener("click", wipe);
+  window.__sayWipe = wipe;
+  window.__sayReset = () => { wipe(); form.classList.remove("open"); };
 })();
 
 $("#say").addEventListener("submit", async ev => {
@@ -979,12 +989,17 @@ async function loadHorizons(){
 
       if (l.review){
         // Days, not a date. "2026-07-27" needs arithmetic to mean anything;
-        // "7d overdue" is the sentence you would say out loud.
+        // "review 7d late" is the sentence you would say out loud.
         const r = new Date(l.review + "T00:00:00");
         const days = Math.round((r - today) / 86400000);
-        if (days < 0){ due = Math.abs(days) + "d overdue"; cls += " late"; late++; }
-        else if (days <= 7){ due = "due " + days + "d"; cls += " soon"; }
-        else { due = "due " + days + "d"; }
+        // The field is `review`, not `due` — the date a horizon gets
+        // LOOKED AT again, not the date it must be finished. Labelling it
+        // "due 149d" made a ten-year goal read as expiring in five months
+        // (Marsita, 2026-08-05: "but this is 10y goal?"). The arithmetic
+        // was right and the sentence was nonsense.
+        if (days < 0){ due = "review " + Math.abs(days) + "d late"; cls += " late"; late++; }
+        else if (days <= 7){ due = "review in " + days + "d"; cls += " soon"; }
+        else { due = "review in " + days + "d"; }
       } else if (l.started_at){
         const s0 = new Date(l.started_at);
         const days = Math.floor((Date.now() - s0) / 86400000);
@@ -993,13 +1008,14 @@ async function loadHorizons(){
 
       return `<div class="goal${cls}">` +
              `<span class="s">${esc(scale)}</span>` +
-             `<span class="g" title="${esc(l.why || "")}">${esc(l.goal || "")}</span>` +
+             `<span class="g" title="${esc(l.goal || "")}${l.why ? " — " + esc(l.why) : ""}">${esc(l.goal || "")}</span>` +
              `<span class="d">${esc(due)}</span></div>`;
     }).join("");
 
     // The count is the accountability, so it says what is wrong rather than
     // how many rows exist.
-    pane.querySelector(".n").textContent = late ? late + " overdue" : "on track";
+    pane.querySelector(".n").textContent =
+      late ? late + " to review" : "all reviewed";
     pane.querySelector(".n").style.color = late ? "var(--critical)" : "var(--good)";
     pane.dataset.state = "ready";
   } catch(e){ paneFailed(pane, e); }
