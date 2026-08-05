@@ -309,7 +309,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   function padXY(e) {{
     const r = pad.getBoundingClientRect();
     return {{ x: (e.clientX - r.left) / r.width,
-              y: (e.clientY - r.top) / r.height,
+              y: (e.clientY - r.top) / r.width,
               t: performance.now() - t0 }};
   }}
   function padLine(a, b) {{
@@ -326,8 +326,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
                          [w, "rgba(190,255,215,0.95)"]]) {{
       pctx.lineWidth = layer[0]; pctx.strokeStyle = layer[1];
       pctx.beginPath();
-      pctx.moveTo(a.x * r.width, a.y * r.height);
-      pctx.lineTo(b.x * r.width, b.y * r.height);
+      pctx.moveTo(a.x * r.width, a.y * r.width);
+      pctx.lineTo(b.x * r.width, b.y * r.width);
       pctx.stroke();
     }}
   }}

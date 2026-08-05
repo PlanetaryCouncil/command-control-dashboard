@@ -802,8 +802,14 @@ function renderProcs(s){
 
   const xy = e => {
     const r = pad.getBoundingClientRect();
+    // Both axes divided by WIDTH, deliberately. Dividing y by height
+    // normalises the two axes differently, so a wide pad squashes every
+    // gesture: a signature drawn across a 700x78 box came back with a
+    // bounding ratio of 0.24 — taller than wide — and rendered as a
+    // vertical smear no matter how the frame was sized (2026-08-05).
+    // One denominator keeps the true proportions of the hand.
     return {x: (e.clientX - r.left) / r.width,
-            y: (e.clientY - r.top) / r.height,
+            y: (e.clientY - r.top) / r.width,
             t: performance.now() - t0};
   };
   pad.addEventListener("pointerdown", e => {
@@ -836,8 +842,8 @@ function renderProcs(s){
       for (const l of [[w * 3, "rgba(125,255,176,0.10)"], [w, "rgba(190,255,215,0.95)"]]){
         ctx.lineWidth = l[0]; ctx.strokeStyle = l[1];
         ctx.beginPath();
-        ctx.moveTo(a.x * r.width, a.y * r.height);
-        ctx.lineTo(b.x * r.width, b.y * r.height);
+        ctx.moveTo(a.x * r.width, a.y * r.width);
+        ctx.lineTo(b.x * r.width, b.y * r.width);
         ctx.stroke();
       }
     }
@@ -855,8 +861,8 @@ function renderProcs(s){
     for (const l of [[w * 3, "rgba(125,255,176,0.10)"], [w, "rgba(190,255,215,0.95)"]]){
       ctx.lineWidth = l[0]; ctx.strokeStyle = l[1];
       ctx.beginPath();
-      ctx.moveTo(a.x * r.width, a.y * r.height);
-      ctx.lineTo(b.x * r.width, b.y * r.height);
+      ctx.moveTo(a.x * r.width, a.y * r.width);
+      ctx.lineTo(b.x * r.width, b.y * r.width);
       ctx.stroke();
     }
     stroke.push(b);

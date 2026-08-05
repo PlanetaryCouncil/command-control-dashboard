@@ -186,7 +186,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   const xy = e => {{
     const r = pad.getBoundingClientRect();
     return {{ x: (e.clientX - r.left) / r.width,
-              y: (e.clientY - r.top) / r.height,
+              y: (e.clientY - r.top) / r.width,
               t: performance.now() - t0 }};
   }};
   pad.addEventListener("pointerdown", e => {{
@@ -211,8 +211,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     for (const l of [[w * 3.2, "rgba(125,255,176,0.10)"], [w, "rgba(190,255,215,0.95)"]]) {{
       pctx.lineWidth = l[0]; pctx.strokeStyle = l[1];
       pctx.beginPath();
-      pctx.moveTo(a.x * r.width, a.y * r.height);
-      pctx.lineTo(b.x * r.width, b.y * r.height);
+      pctx.moveTo(a.x * r.width, a.y * r.width);
+      pctx.lineTo(b.x * r.width, b.y * r.width);
       pctx.stroke();
     }}
     stroke.push(b); gate();
