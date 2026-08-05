@@ -144,7 +144,11 @@ def main():
     bstate = breaker.record(a.name, {"status": status, "hops": res["hops"]},
                             healthy=(status == "pass"))
 
-    misses = [f"{h['agent']} lap{h['lap']} ({h['received']}->{h['got']})"
+    # "missed: hermes lap1 (92659->None)" could not say whether hermes was
+    # slow or gone — the outcome word ("slow" vs "timeout" vs "silent") is
+    # the split the board was missing.
+    misses = [f"{h['agent']} lap{h['lap']} "
+              f"({h['received']}->{h['got']}, {h['outcome']})"
               for h in res["hops"] if not h["ok"]]
     # Per-agent latency, not just correctness: hermes runs ~4x slower than claude
     # and the old summary made a healthy-but-slow agent invisible.
