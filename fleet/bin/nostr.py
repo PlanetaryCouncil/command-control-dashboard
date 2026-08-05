@@ -3,7 +3,8 @@
 
   nostr.py keygen                     make a key, print the npub, store the nsec
   nostr.py whoami                     which key is loaded, and where from
-  nostr.py post "text"                publish a note (kind 1)
+  nostr.py post "text"                publish a note (kind 1), marked 🦩
+  nostr.py post "text" --raw          publish unmarked (a human wrote it)
   nostr.py post - < file              publish from stdin
   nostr.py relays                     list the relays it will send to
 
@@ -44,6 +45,14 @@ RELAYS = [
     "wss://relay.primal.net",
     "wss://nostr.wine",
 ]
+
+# Every note this machine sends carries the flamingo. Marsita posts as
+# themselves — that is the point of using their own key — so the only
+# honest thing is to make the machine's hand visible: if a note has the
+# bird, a program wrote it and a human did not press send. Chosen
+# 2026-08-05; changing it later breaks that promise retroactively for
+# every note already published, so it does not change.
+MARK = "🦩"
 
 BECH32_CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l"
 
@@ -159,16 +168,23 @@ def publish(ev: dict, relays=None) -> dict:
     return results
 
 
-def post(text: str, tags=None) -> int:
+def post(text: str, tags=None, mark: bool = True) -> int:
     priv = load_key()
-    ev = sign_event(priv, 1, text, tags)
+    body = text.strip()
+    if mark and MARK not in body:
+        body = f"{body}\n\n{MARK}"
+    # A machine-readable twin of the emoji: clients that show tags let a
+    # reader filter the fleet out, and the emoji alone is only a
+    # convention. Both, so the promise holds for humans and for software.
+    tags = list(tags or []) + [["t", "fleet"], ["client", "planetary-council-fleet"]]
+    ev = sign_event(priv, 1, body, tags)
     results = publish(ev)
     ok = sum(1 for v in results.values() if v == "accepted")
 
     LEDGER.parent.mkdir(exist_ok=True)
     with LEDGER.open("a") as fh:
         fh.write(json.dumps({"ts": ev["created_at"], "id": ev["id"],
-                             "content": text[:400], "relays": results}) + "\n")
+                             "content": body[:400], "relays": results}) + "\n")
     sys.path.insert(0, str(FLEET / "bin"))
     import events as ev_log
     ev_log.emit("nostr", "ok" if ok else "warn",
@@ -198,5 +214,9 @@ if __name__ == "__main__":
         sys.exit(0)
     if cmd == "post":
         arg = sys.argv[2] if len(sys.argv) > 2 else "-"
-        sys.exit(post(sys.stdin.read().strip() if arg == "-" else arg))
+        text = sys.stdin.read().strip() if arg == "-" else arg
+        # --raw is for the operator writing by hand through this tool; the
+        # mark means "a machine wrote this", and a human at a keyboard is
+        # not that.
+        sys.exit(post(text, mark="--raw" not in sys.argv))
     print(__doc__.strip())
