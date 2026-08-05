@@ -192,12 +192,17 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   pad.addEventListener("pointerdown", e => {{
     pad.setPointerCapture(e.pointerId);
     if (!stroke.length) t0 = performance.now();
+    // Size the buffer here, never mid-stroke: assigning canvas.width
+    // clears the canvas, which is why only the last segment survived.
+    const rr = pad.getBoundingClientRect();
+    if (pad.width !== Math.round(rr.width)) {{
+      pad.width = Math.round(rr.width); pad.height = Math.round(rr.height);
+    }}
     drawing = true; stroke.push(xy(e));
   }});
   pad.addEventListener("pointermove", e => {{
     if (!drawing) return;
     const r = pad.getBoundingClientRect();
-    if (pad.width !== r.width) {{ pad.width = r.width; pad.height = r.height; }}
     const a = stroke[stroke.length - 1], b = xy(e);
     const dt = Math.max(b.t - a.t, 1e-3);
     const v = Math.min(Math.hypot(b.x - a.x, b.y - a.y) / dt * 40, 3);
