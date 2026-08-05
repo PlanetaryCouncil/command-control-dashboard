@@ -138,11 +138,15 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   const gate = () => {{
     // Required, not optional: an optional signature makes every sender
     // weigh pros and cons at the door. Everyone signs; nobody decides.
+    // The name is required for the same reason a default was wrong —
+    // inventing "someone at the porch" for a person who left the field
+    // blank puts words in their mouth.
+    const named = who.value.trim().length > 0;
     const written = msg.value.trim().length > 0;
     const signed = stroke.length >= 20;
-    send.disabled = !(written && lawful.checked && signed);
+    send.disabled = !(named && written && lawful.checked && signed);
     clearBtn.disabled = stroke.length === 0;
-    state.textContent = !written ? "" : !signed ? "sign to send"
+    state.textContent = !named || !written ? "" : !signed ? "sign to send"
       : !lawful.checked ? "tick the box" : "";
   }};
   clearBtn.addEventListener("click", () => {{
@@ -150,7 +154,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     pctx.clearRect(0, 0, pad.width, pad.height);
     gate();
   }});
-  msg.addEventListener("input", gate); lawful.addEventListener("change", gate);
+  msg.addEventListener("input", gate); who.addEventListener("input", gate);
+  lawful.addEventListener("change", gate);
 
   const xy = e => {{
     const r = pad.getBoundingClientRect();
@@ -191,7 +196,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       const r = await fetch("/api/signals", {{
         method: "POST", headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify({{
-          kind: "ask", sender: who.value.trim() || "someone at the porch",
+          kind: "ask", sender: who.value.trim(),
           body: msg.value.trim(), lawful: true,
           signature: stroke.slice(0, 3000) }})
       }});
