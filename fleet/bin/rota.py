@@ -26,7 +26,7 @@ turn moves, the load does not stack.
 **Proposes, never applies.** Same rule as everything else here. The turn is
 appended to a ledger a human reads.
 
-  rota.py [--agents claude,hermes,openclaw] [--dry-run]
+  rota.py [--agents claude,hermes,openclaw] [--dry-run] [--retry-deferred]
 """
 
 from __future__ import annotations
@@ -120,6 +120,8 @@ def main() -> int:
     ap.add_argument("--agents", default="claude,hermes,openclaw")
     ap.add_argument("--dry-run", action="store_true",
                     help="show whose turn it is and the prompt, spawn nothing")
+    ap.add_argument("--retry-deferred", action="store_true",
+                    help="take a load-deferred turn if one is pending, else exit")
     a = ap.parse_args()
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
     if not agents:
@@ -127,13 +129,30 @@ def main() -> int:
 
     agent, state = whose_turn(agents)
 
+    if a.retry_deferred:
+        deferred = state.get("deferred")
+        if not deferred:
+            print("rota: no deferred turn pending")
+            return 0
+        agent = deferred["agent"]
+
     # Same gate as the relay, same reason: a turn taken on a saturated machine
     # times out and gets recorded as the agent having nothing to say.
     load1 = os.getloadavg()[0]
     if load1 > MAX_LOAD and not a.dry_run:
+        # Deferring used to drop the turn — the fleet's next thought waited a
+        # full hour. Leave a pending marker instead; the watchdog retries it
+        # once the sweep (the usual load source) finishes.
+        state["deferred"] = {
+            "agent": agent, "load": round(load1, 2),
+            "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        STATE.parent.mkdir(parents=True, exist_ok=True)
+        STATE.write_text(json.dumps(state, indent=2) + "\n")
         ev.emit("fleet", "warn",
-                f"[rota] {agent}'s turn deferred — load {load1:.1f} over {MAX_LOAD:.0f}")
-        print(f"rota: load {load1:.1f} > {MAX_LOAD}; deferring {agent}")
+                f"[rota] {agent}'s turn deferred — load {load1:.1f} over "
+                f"{MAX_LOAD:.0f}; retry pending for the next idle window")
+        print(f"rota: load {load1:.1f} > {MAX_LOAD}; deferring {agent}, retry pending")
         return 0
 
     board = council.board_state()
@@ -145,7 +164,10 @@ def main() -> int:
         print(prompt[:1200])
         return 0
 
-    ev.emit("fleet", "info", f"[rota] {agent}'s turn — three questions")
+    ev.emit("fleet", "info",
+            f"[rota] retrying {agent}'s deferred turn — three questions"
+            if a.retry_deferred else
+            f"[rota] {agent}'s turn — three questions")
     t0 = time.time()
     try:
         out = ask(agent, prompt, session=f"rota-{int(t0)}-{agent}")
