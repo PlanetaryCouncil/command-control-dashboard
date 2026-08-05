@@ -408,6 +408,8 @@ function tagOf(e){
   if (m.includes("[relay]") || m.includes("[plus-one]") || /\bhops\b/.test(m))
     return "relay";
   if (m.includes("[council]")) return "council";
+  if (m.includes("[signals]") || m.includes("[signatures]")
+      || m.includes("[visitors]") || m.includes("[charge]")) return "guests";
   if (m.includes("[rota]") || m.includes("[pipeline]")) return "rota";
   if (m.includes("[e2e]") || m.includes("pytest") || m.includes("passed") || m.includes("watchdog")) return "tests";
   return "other";
@@ -416,9 +418,10 @@ function tagOf(e){
    including none. Deselecting everything is a legitimate state that shows
    nothing, so it gets an explicit banner rather than an empty box that looks
    broken. */
-const TAGS = ["relay", "council", "rota", "tests", "attention", "other"];
+const TAGS = ["relay", "council", "rota", "guests", "tests", "attention", "other"];
 const TAG_ICON = {relay: "\u{1F517}", council: "\u{1F5E3}", rota: "\u{1F528}",
-                  tests: "\u{1F9EA}", attention: "\u{1F6A8}", other: "\u{1F4CE}"};
+                  guests: "\u{1F44B}", tests: "\u{1F9EA}", attention: "\u{1F6A8}",
+                  other: "\u{1F4CE}"};
 const shown = new Set(TAGS);
 
 /* Three distinct empty states, because "blank panel" is not an answer.
@@ -912,7 +915,6 @@ function connect(){
     // A new piece announces itself on the stream; the gallery re-hangs
     // immediately instead of waiting out the 5-minute poll.
     if ((ev.msg || "").includes("[art]")) loadArt();
-    if (/\[(signals|signatures|visitors)\]/.test(ev.msg || "")) loadGuests();
   }catch(e){} };
   es.onerror = () => { $("#pulse").className = "stale"; };
 }
@@ -1060,49 +1062,9 @@ setInterval(loadHorizons, 300000);
 loadArt();
 setInterval(loadArt, 300000);
 
-// Guests live on the main board now: their words and their hands together.
-// The signatures page is the archive; this pane is the doorway.
-async function loadGuests(){
-  const pane = $("#guests");
-  try {
-    const d = await (await fetch("api/guests",{cache:"no-store"})).json();
-    const body = pane.querySelector(".body");
-    body.innerHTML = "";
-    if (d.marks && d.marks.length) {
-      const strip = document.createElement("div");
-      strip.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px";
-      for (const m of d.marks.slice(-6)) {
-        const cv = document.createElement("canvas");
-        cv.style.cssText = "width:52px;height:52px;background:#03060a;border-radius:6px";
-        cv.title = (m.name || "anonymous") + " (" + m.kind + ")";
-        strip.append(cv);
-        requestAnimationFrame(() => window.drawRawSignature
-          && drawRawSignature(cv, m.points));
-      }
-      body.append(strip);
-    }
-    for (const msg of (d.messages || []).slice().reverse()) {
-      const row = document.createElement("div");
-      row.style.cssText = "margin-bottom:4px;font-size:10.5px;line-height:1.4";
-      const who = document.createElement("b");
-      who.textContent = msg.sender || "someone";
-      who.style.cssText = "font-family:var(--mono)";
-      const what = document.createElement("span");
-      what.textContent = " " + msg.body;
-      const st = document.createElement("span");
-      st.textContent = " · " + msg.status
-        + (msg.ts ? " · " + msg.ts.slice(5, 16).replace("T", " ") : "");
-      st.style.cssText = "color:var(--muted);font-family:var(--mono);font-size:9.5px";
-      row.append(who, what, st);
-      body.append(row);
-    }
-    if (!body.children.length)
-      body.innerHTML = "<span style='color:var(--muted)'>no guests yet — the porch is at /hi</span>";
-    pane.dataset.state = "ready";
-  } catch (e) { paneFailed(pane); }
-}
-loadGuests();
-setInterval(loadGuests, 120000);
+// Guests are a stream filter now, not a pane: their messages, marks
+// and arrivals all ring the stream already, so a second surface was the
+// same information twice. The pill is at the top with the others.
 
 // Tools are separate processes with URLs. The board shows whether each
 // one is up and links to it — that is the whole integration contract.
@@ -1220,11 +1182,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
       <div class="load"><i></i><span class="msg"></span></div>
     </section>
 
-    <section class="pane" id="guests" style="flex:0 0 var(--hGuests,200px)" data-state="loading">
-      <h2>guests <span class="n"></span></h2>
-      <div class="body" style="overflow-y:auto"></div>
-      <div class="load"><i></i><span class="msg"></span></div>
-    </section>
   </div>
 
   <div class="grip" id="gripL"></div>
@@ -1236,6 +1193,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
           <button data-f="relay" aria-pressed="true">&#128279; relay</button>
           <button data-f="council" aria-pressed="true">&#128483; council</button>
           <button data-f="rota" aria-pressed="true">&#128296; rota</button>
+          <button data-f="guests" aria-pressed="true">&#128075; guests</button>
           <button data-f="tests" aria-pressed="true">&#129514; tests</button>
           <button data-f="attention" aria-pressed="true">&#128680; needs you</button>
           <button data-f="other" aria-pressed="true">&#128206; other</button>
