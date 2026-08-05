@@ -19,7 +19,7 @@ PAGES = [
     ("/", "focus"),
     ("/orbit", "orrery"),
     ("/fleet", "fleet"),
-    ("/hi", "say hi"),
+    ("/hi", "send a message"),
     ("/chat", "chat"),
 ]
 
