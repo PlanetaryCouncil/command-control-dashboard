@@ -170,8 +170,8 @@ def page(remote: bool = False) -> str:
     <div class="proj" id="projects"><div class="row"><span class="nm empty">reading…</span></div></div>
   </section>
 
-  <section class="card">
-    <p class="eyebrow" style="margin:0">guests · who came by</p>
+  <section class="card" id="guests-section">
+    <p class="eyebrow" style="margin:0" id="guests-anchor">guests · who came by</p>
     <div id="guests" class="empty">reading…</div>
   </section>
 
