@@ -1,0 +1,12 @@
+{
+  "note": "Small tools, each its own process on its own port. The board links and health-checks them; it never imports them. Add a tool by adding a line here \u2014 no fleet code changes.",
+  "tools": [
+    {
+      "name": "dissector",
+      "what": "how a machine sees your image \u2014 drop one, get the floor",
+      "url": "http://127.0.0.1:8791/",
+      "health": "http://127.0.0.1:8791/health",
+      "repo": "~/projects/seeing"
+    }
+  ]
+}
