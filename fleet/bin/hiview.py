@@ -54,6 +54,7 @@ label{display:flex;gap:.5rem;align-items:baseline}
 label.field{display:block;font-size:.74rem;color:var(--phosphor-d);
   letter-spacing:.08em;margin:.2rem 0 -.3rem}
 label.field b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
+label b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
 dialog{max-width:34rem;border:1px solid var(--rule);border-radius:10px;
   background:var(--surface);color:var(--body);font-family:var(--mono);
   font-size:.85rem;line-height:1.6;padding:1.4rem}
@@ -95,7 +96,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     <!-- Under the pad, deliberately: the mark is content too, and a
          declaration should sit after everything it covers. -->
     <label><input type="checkbox" id="lawful">
-      <span>not <a href="#rules" id="rulelink">illegal content</a></span></label>
+      <span>not <a href="#rules" id="rulelink">illegal content</a><b>*</b></span></label>
     <div class="row">
       <button id="send" disabled>send</button>
       <span class="hint" id="state"></span>
@@ -120,10 +121,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     <p><button id="ruleok" type="button">got it</button></p>
   </dialog>
 
-  <footer class="hint">
-    Agents: POST /api/signals signed, or start at
-    <a href="/llms.txt">/llms.txt</a>.
-  </footer>
+  <footer class="hint"><a href="/llms.txt">/llms.txt</a></footer>
 </div>
 <script>
 (() => {{
