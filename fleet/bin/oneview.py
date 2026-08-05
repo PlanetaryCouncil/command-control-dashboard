@@ -1103,6 +1103,23 @@ async function loadGuests(){
 }
 loadGuests();
 setInterval(loadGuests, 120000);
+
+// Tools are separate processes with URLs. The board shows whether each
+// one is up and links to it — that is the whole integration contract.
+async function loadTools(){
+  const slot = document.getElementById("toolslot");
+  if (!slot) return;
+  try {
+    const d = await (await fetch("api/tools",{cache:"no-store"})).json();
+    const t = (d.tools||[]).map(x =>
+      `<a href="${x.url}" target="_blank" rel="noopener" title="${x.what}"
+         style="color:${x.up ? "var(--good)" : "var(--muted)"}">${x.name}${
+         x.up ? "" : " (down)"}</a>`).join("");
+    slot.innerHTML = t || "none registered";
+  } catch (e) { slot.textContent = "unreachable"; }
+}
+loadTools();
+setInterval(loadTools, 60000);
 """
 
 
@@ -1299,6 +1316,10 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="/api/fleet" title="The cockpit's read-only view of the fleet: workers, events, blocked count.">fleet</a>
     <a href="/api/approvals" title="Standing permissions granted to agents. Granting one needs a human at this machine.">approvals</a>
     <a href="/health" title="Is the cockpit alive, and which data file is it reading. One line.">health</a>
+  </section>
+  <section>
+    <h3>tools</h3>
+    <span id="toolslot" style="color:var(--muted)">checking…</span>
   </section>
   <section>
     <h3>public</h3>

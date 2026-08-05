@@ -650,6 +650,26 @@ def serve(port):
                 self._send(b"{}", "application/json")
                 return
 
+            if path == "/api/tools":
+                # The registry, plus a live health probe of each tool.
+                # Marsita, 2026-08-05: "I can connect new tools through
+                # api, my dashboard will become my home." A tool is a
+                # process with a URL; the board never imports one.
+                import urllib.request as _u
+                try:
+                    reg = json.loads(
+                        (FLEET / "data" / "tools.json").read_text())
+                except (OSError, ValueError):
+                    reg = {"tools": []}
+                for t in reg.get("tools", []):
+                    try:
+                        with _u.urlopen(t.get("health", ""), timeout=1) as r:
+                            t["up"] = r.status == 200
+                    except Exception:
+                        t["up"] = False
+                self._send(json.dumps(reg).encode(), "application/json")
+                return
+
             if path == "/api/gallery":
                 f = FLEET / "art" / "gallery.json"
                 try:
