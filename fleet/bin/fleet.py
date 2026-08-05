@@ -589,6 +589,37 @@ def serve(port):
                     self._send(b'{"levels": []}', "application/json")
                 return
 
+            if path == "/api/marks":
+                # sender -> their most recent pad path, so the stream can
+                # draw a signature beside the message it belongs to.
+                out = {}
+                f = Path(os.environ.get(
+                    "FLEET_SIGNATURES",
+                    FLEET / "data" / "signatures-collected.jsonl"))
+                try:
+                    for line in f.read_text(errors="replace").splitlines():
+                        try:
+                            d = json.loads(line)
+                        except ValueError:
+                            continue
+                        if d.get("status") != "purgatory" and d.get("points"):
+                            out[str(d.get("name", ""))[:40]] = d["points"]
+                except OSError:
+                    pass
+                # Signals carry their own signature; index those by sender
+                # too, since most marks arrive attached to a message.
+                try:
+                    inbox = json.loads(
+                        (FLEET.parent / "data" / "inbox.json").read_text())
+                    for sg in inbox.get("signals", []):
+                        if sg.get("signature"):
+                            out[str(sg.get("sender", ""))[:40]] = sg["signature"]
+                except (OSError, ValueError):
+                    pass
+                self._send(json.dumps({"marks": out}).encode(),
+                           "application/json")
+                return
+
             if path == "/api/guests":
                 # Guests on the main board: their words (the public signal
                 # queue) and their hands (the collected marks), one payload.
