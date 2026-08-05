@@ -57,6 +57,24 @@ JOBS_LOCK = threading.Lock()
 CONCURRENCY = int(os.environ.get("FLEET_CHAT_CONCURRENCY", "2"))
 _slots = threading.Semaphore(CONCURRENCY)
 
+# But only LOCAL work contends for cores. hermes and openclaw are calls to
+# somebody else's GPU: they cost this laptop a socket and some waiting, and
+# making them queue behind a local model is throttling the wrong thing.
+# Marsita, 2026-08-05: "I prefer to launch them all at once. Some agents
+# use external API (cloud), only ollama is local here."
+LOCAL_AGENTS = {"ollama", "claude"}
+
+
+class _NoWait:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+_free = _NoWait()
+
 
 # --------------------------------------------------------------------------- utils
 def safe_name(name):
@@ -187,7 +205,7 @@ def ask_claude(prompt, files, emit):
     # only one that can. hermes/openclaw/ollama are single-shot chat calls.
     return run_cmd(["claude", "--print", "--permission-mode", "acceptEdits",
                     "--allowedTools", "WebSearch", "WebFetch",
-                    "--add-dir", str(FLEET)], timeout=300, stdin_text=prompt)
+                    "--add-dir", str(FLEET)], timeout=600, stdin_text=prompt)
 
 
 def ask_hermes(prompt, emit):
@@ -237,8 +255,10 @@ def _worker(job_id, agent, prompt, images, files):
     def emit(kind, data):
         q.put({"agent": agent, "kind": kind, "data": data})
 
-    emit("queued", "")
-    with _slots:                       # wait for a slot before doing real work
+    gate = _slots if agent in LOCAL_AGENTS else _free
+    if agent in LOCAL_AGENTS:
+        emit("queued", "")
+    with gate:                         # only local inference waits
         emit("start", "")
         t0 = time.time()
         _run(agent, prompt, images, files, emit, q, job_id, t0)
@@ -259,6 +279,11 @@ def _run(agent, prompt, images, files, emit, q, job_id, t0):
     except Exception as e:
         text = f"[error] {e}"
 
+    # The style leak, caught at the door: ~/.claude/CLAUDE.md loads into
+    # every Claude Code process here, and agents read each other's output,
+    # so block-bar furniture spreads. It carries no information in a chat
+    # card — strip runs of it rather than asking four agents to remember.
+    text = re.sub(r"[█▉▊▋▌▍▎▏▐▓▒░]{3,}", "", str(text)).strip()
     emit("done", {"text": text, "seconds": round(time.time() - t0, 1)})
     with JOBS_LOCK:
         JOBS[job_id]["remaining"] -= 1
@@ -266,11 +291,27 @@ def _run(agent, prompt, images, files, emit, q, job_id, t0):
             q.put({"kind": "all_done"})
 
 
+# Without this, an agent has no idea what it is or where. Asked about
+# "hermes and openclaw" on 2026-08-05, ollama answered about characters
+# from Super Mario World — correctly, for a model with no context. The
+# preamble is deliberately short: a 1B model has a small window, and the
+# cost of context is paid by every agent on every question.
+PREAMBLE = """You are one of several AI agents running on Marsita the Ultra's
+laptop, answering in a chat pane on their fleet dashboard. The others are:
+claude (Claude Code, local process, can edit files), hermes and openclaw
+(cloud APIs), ollama (a small local model). The machine runs a public board
+at cockpit-1.tail151af.ts.net with a council, a rota of proposals, a build
+pipeline and a signature wall. Answer plainly and briefly. No status bars,
+no block characters, no headings unless asked.
+
+QUESTION: """
+
+
 def start_job(message, agents, attachments):
     text_ctx, images, saved = build_context(attachments)
-    prompt = message
+    prompt = PREAMBLE + message
     if text_ctx:
-        prompt = f"{message}\n\n{text_ctx}"
+        prompt = f"{prompt}\n\n{text_ctx}"
 
     # Images need a model that can see. Local vision was too slow on this
     # machine, so Claude is the vision path; adding it beats dropping the image.
