@@ -106,8 +106,8 @@ def test_the_board_does_not_leak_the_kill_token(server):
     The board moved to /fleet on 2026-08-05 when a human-facing focus page
     took over `/` — the token lives with the controls, so this follows it.
     """
-    _, local = fetch("/fleet")
-    _, remote = fetch("/fleet", forwarded="203.0.113.7")
+    _, local = fetch("/")
+    _, remote = fetch("/", forwarded="203.0.113.7")
 
     status, body = fetch("/api/kill-token")
     assert status == 200
@@ -117,13 +117,13 @@ def test_the_board_does_not_leak_the_kill_token(server):
     assert token not in remote, "the kill token reached a remote viewer"
 
 
-def test_the_human_front_door_never_holds_the_token(server):
-    """`/` is for visitors now; it has no controls and must carry no key."""
+def test_the_intro_page_never_holds_the_token(server):
+    """/intro is for visitors; it has no controls and must carry no key."""
     status, body = fetch("/api/kill-token")
     assert status == 200
     token = json.loads(body)["token"]
     for forwarded in (None, "203.0.113.7"):
-        _, page = fetch("/", forwarded=forwarded)
+        _, page = fetch("/intro", forwarded=forwarded)
         assert token not in page
 
 
