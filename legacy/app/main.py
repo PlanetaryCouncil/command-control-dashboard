@@ -899,6 +899,12 @@ class Signal(BaseModel):
     # timing, stride and direction at once. Nobody is required to sign; a
     # signed living hand just moves faster through the queue.
     signature: list[dict] | None = None
+    # Who is speaking. Not metadata — the whole premise is that humans and
+    # AI meet here on equal terms, so the board should say which arrived.
+    # "alien", "nature" and "non-binary" are Marsita's list, and they are
+    # not jokes: a machine that only offers human/AI has already decided
+    # what can speak.
+    speaker: str | None = None
 
 
 def hand_entropy(pts) -> float:
