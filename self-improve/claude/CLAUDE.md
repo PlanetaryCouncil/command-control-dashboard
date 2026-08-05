@@ -59,6 +59,8 @@ the bar is how they find it. Anything rendered above it buries the thing it was
 meant to mark. A short line after the bar saying what I am about to do is fine.
 
 **Start every visible thinking block with the literal word `THINKING`.**
+No exceptions, no matter how short the block. Marsita reads the thinking
+stream and wants its start marked the way the bar marks the reply's.
 
 ## The sections
 
@@ -74,6 +76,15 @@ nothing in it:
 
 `CONTEXT` quotes raw output verbatim in a fenced block. Never paraphrase output
 I can quote.
+
+**These headings are not optional and they do not fade.** On 2026-08-05,
+after ~40 turns of fast UI iteration, both `THINKING` and `## CONTEXT` had
+quietly disappeared from my replies — the work was still right, the shape
+was gone, and Marsita had to ask for it back ("BRO — lost features"). The
+format is the product as much as the code is. If a turn produced evidence —
+a command's output, a verdict, a status code, a measurement — it goes in
+`## CONTEXT`, fenced and verbatim, however small the turn feels. A one-line
+reply with a receipt still gets the section.
 
 `WHAT I DID` is mine and skippable. `NEXT ACTIONS and SUGGESTIONS` is theirs.
 Keeping them separate is the whole point — burying the sentence addressed to
