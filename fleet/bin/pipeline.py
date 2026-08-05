@@ -38,6 +38,7 @@ REPO = FLEET.parent
 PROPOSALS = FLEET / "rota" / "proposals.jsonl"
 STATE = FLEET / "rota" / "pipeline.jsonl"
 WORKER = FLEET / "workers" / "pipeline.json"
+LOCK = FLEET / "logs" / ".pipeline.lock"
 WORKTREES = REPO.parent / ".cc-pipeline-worktrees"
 MAX_LOAD = 6.0
 # One cycle keeps going until the queue empties or the box gets busy. The
@@ -302,6 +303,32 @@ def _picked_items() -> list:
 
 
 def cycle() -> None:
+    """One cycle, and only one at a time.
+
+    The hourly launchd job fired while a manual run was mid-build on
+    2026-08-05, so two pipelines built the same items in parallel and the
+    ledger recorded two contradictory verdicts for one branch. Every other
+    long job here (council, rota, plusone) already shares a lock; the
+    pipeline was written without one. A cycle that finds the lock held
+    exits quietly — the next hour will do it.
+    """
+    import fcntl
+    LOCK.parent.mkdir(exist_ok=True)
+    fh = LOCK.open("w")
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        ev.emit("pipeline", "info",
+                "[pipeline] another cycle is running — skipping this one")
+        return
+    try:
+        _cycle()
+    finally:
+        fcntl.flock(fh, fcntl.LOCK_UN)
+        fh.close()
+
+
+def _cycle() -> None:
     if os.getloadavg()[0] > MAX_LOAD:
         ev.emit("pipeline", "info",
                 f"[pipeline] deferred — load {os.getloadavg()[0]:.1f} over {MAX_LOAD}")
