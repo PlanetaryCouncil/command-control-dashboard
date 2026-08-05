@@ -96,7 +96,10 @@ print(pairing.invite(Path('data/pairing.json'), 'first-friend', ttl_hours=8784))
 PY
 ```
 
-The receiving side redeems at `/auth` (the page documents everything).
+The receiving side redeems the code against `POST /api/pair` and gets a secret
+back exactly once; `/auth` documents the whole flow, including how to sign.
+Note the invitation fixes the node id — the far side signs as the name you
+chose here, whatever it calls itself.
 Secrets: env `NODE_SECRETS` or `data/node_secrets.json` — never committed.
 Revoking = deleting the node from `data/trusted_nodes.json`, full stop.
 
@@ -110,7 +113,9 @@ IndexNow if you want engines to come to you).
 ## 8. Verify the loop
 
 - `curl <public-url>/robots.txt` → 200, and the hit appears in
-  `fleet/logs/access.jsonl` (the guest book)
+  `fleet/logs/access.jsonl` (the guest book). Use the public URL, not
+  localhost: the guest book records visitors, and the dashboard tab polling
+  itself is not one, so local requests are deliberately not written.
 - wait for (or trigger) a council sitting: `fleet/council/transcript.jsonl`
   grows
 - `python3 fleet/bin/pipeline.py run` — a rota proposal becomes a branch,

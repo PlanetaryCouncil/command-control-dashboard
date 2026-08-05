@@ -42,6 +42,14 @@ mkdir -p "$GUARD_DIR"
 checksum() { [[ -f "$1" ]] && shasum -a 256 "$1" 2>/dev/null | awk '{print $1}' || echo "absent"; }
 BEFORE_SETTINGS="$(checksum "$SETTINGS")"
 
+# Which config channels were symlinks when the cycle began. A machine that
+# never linked one has no breach to report, and warning about it every night
+# trains the operator to ignore the log that exists to be believed.
+LINKED_BEFORE=""
+for link in skills agents; do
+  [[ -L "$HOME/.claude/$link" ]] && LINKED_BEFORE="$LINKED_BEFORE $link"
+done
+
 python3 "$REPO/../fleet/bin/events.py" self-improve info "cycle started" 2>/dev/null
 log "=== cycle $STAMP ==="
 
@@ -129,9 +137,13 @@ if [[ "$BEFORE_SETTINGS" != "$AFTER_SETTINGS" ]]; then
 fi
 
 # Symlinks are the agent's only channel to the live config; a replaced or
-# dangling link means the loop has silently stopped taking effect.
+# dangling link means the loop has silently stopped taking effect. A machine
+# that never linked in the first place has nothing to lose, so only the
+# delinking of a channel this repo actually provides is worth a violation —
+# otherwise every clone reports a breach it never had.
 for link in skills agents; do
   tgt="$HOME/.claude/$link"
+  [[ " $LINKED_BEFORE " == *" $link "* ]] || continue
   if [[ -e "$tgt" && ! -L "$tgt" ]]; then
     log "!! WARNING: ~/.claude/$link is no longer a symlink"
     echo "$(date -u +%FT%TZ) VIOLATION ~/.claude/$link delinked" >> "$REPO/state/violations.log"
