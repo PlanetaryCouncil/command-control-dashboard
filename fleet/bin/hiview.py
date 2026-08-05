@@ -48,6 +48,11 @@ canvas{touch-action:none;width:100%;aspect-ratio:2.2/1;background:#03060a;
 .ok{color:var(--phosphor)} .warn{color:var(--amber)}
 a{color:var(--phosphor-d)}
 label{display:flex;gap:.5rem;align-items:baseline}
+/* Real labels, not placeholders: a placeholder disappears the moment you
+   type, so the one thing telling you what the box is for vanishes exactly
+   when you might check. Screen readers get them too. */
+label.field{display:block;font-size:.74rem;color:var(--phosphor-d);
+  letter-spacing:.08em;margin:.2rem 0 -.3rem}
 dialog{max-width:34rem;border:1px solid var(--rule);border-radius:10px;
   background:var(--surface);color:var(--body);font-family:var(--mono);
   font-size:.85rem;line-height:1.6;padding:1.4rem}
@@ -75,12 +80,14 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
-    <input type="text" id="who" maxlength="60" placeholder="name" required>
-    <textarea id="msg" maxlength="4000" placeholder="message" required></textarea>
+    <label class="field" for="who">name</label>
+    <input type="text" id="who" maxlength="60" required>
+    <label class="field" for="msg">message</label>
+    <textarea id="msg" maxlength="4000" required></textarea>
     <div>
-      <p class="hint" style="margin:.2rem 0 .4rem">signature</p>
+      <label class="field" for="pad">signature</label>
       <div class="padwrap">
-        <canvas id="pad"></canvas>
+        <canvas id="pad" aria-label="signature pad — hold the pointer down and sign"></canvas>
         <button id="clear" type="button" disabled>clear</button>
       </div>
     </div>
@@ -146,9 +153,9 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
     const signed = stroke.length >= 20;
     send.disabled = !(named && written && lawful.checked && signed);
     clearBtn.disabled = stroke.length === 0;
-    // One rule, said once: all of it, or nothing. A hint that changes as
-    // you fill fields is four instructions pretending to be one.
-    state.textContent = send.disabled ? "name, message and signature — all required" : "";
+    // No hint at all: the disabled button already says everything is
+    // required, and a label restating it is text the reader must process
+    // to learn nothing.
   }};
   clearBtn.addEventListener("click", () => {{
     stroke = [];
