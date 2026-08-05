@@ -40,6 +40,10 @@ STATE = FLEET / "rota" / "pipeline.jsonl"
 WORKER = FLEET / "workers" / "pipeline.json"
 WORKTREES = REPO.parent / ".cc-pipeline-worktrees"
 MAX_LOAD = 6.0
+# One cycle keeps going until the queue empties or the box gets busy. The
+# ceiling is a backstop against a runaway loop, not a target: at ~6 min a
+# build, twelve is roughly an hour of work.
+MAX_PER_CYCLE = 12
 BUILD_TIMEOUT = 900
 DIFF_CLIP = 6000
 
@@ -258,13 +262,31 @@ def cycle() -> None:
         if (r.get("stage") == "verify" and not r.get("ok")
                 and r["proposal_ts"] not in revised):
             revise(r)
-    seen = by_proposal()
-    todo = [p for p in reversed(proposals()) if p["ts"] not in seen]
-    if todo:
-        build(todo[0])
-        latest = by_proposal().get(todo[0]["ts"], {})
-        if latest.get("stage") == "build" and latest.get("ok"):
-            verify(latest)
+    # Drain, don't sip. The rota files one proposal an hour and this ran
+    # one every two — so the queue grew by half a proposal an hour,
+    # forever, and 27 of them was 54 hours of work that would never
+    # arrive (Marsita did the arithmetic, 2026-08-05). Now a cycle keeps
+    # building until the queue is empty, the load gate says stop, or the
+    # budget is spent — whichever comes first.
+    built = 0
+    while built < MAX_PER_CYCLE:
+        if os.getloadavg()[0] > MAX_LOAD:
+            ev.emit("pipeline", "info",
+                    f"[pipeline] stopping after {built} — load "
+                    f"{os.getloadavg()[0]:.1f} over {MAX_LOAD}")
+            break
+        seen = by_proposal()
+        todo = [p for p in reversed(proposals()) if p["ts"] not in seen]
+        if not todo:
+            if built:
+                ev.emit("pipeline", "ok",
+                        f"[pipeline] queue empty after {built} this cycle")
+            break
+        rec = build(todo[0])
+        built += 1
+        if rec.get("stage") == "build" and rec.get("ok"):
+            verify(rec)
+        write_worker()
     write_worker()
 
 
