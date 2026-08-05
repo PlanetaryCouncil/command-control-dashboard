@@ -39,3 +39,5 @@ fleet/data/indexnow-key.txt
 !fleet/static/artwork-full.jpg
 fleet/data/signatures-collected.jsonl
 fleet/data/homies-real.txt
+!fleet/static/gallery/
+!fleet/static/gallery/*
