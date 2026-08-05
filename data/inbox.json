@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-04T20:51:41.685926+00:00",
+  "updated_at": "2026-08-05T00:41:24.728395+00:00",
   "note": "Public submissions. Untrusted by definition. Never merged into life.json without a human promoting the record.",
   "signals": [
     {
@@ -414,6 +414,66 @@
         "reasons": [],
         "note": "No rule fired. Still needs a human."
       }
+    },
+    {
+      "id": "sig-9001a25e",
+      "kind": "ask",
+      "sender": "Mars / Marsita testing",
+      "body": "Wassup?",
+      "project": null,
+      "status": "triaged",
+      "received_at": "2026-08-05T00:01:27.440146+00:00",
+      "public": true,
+      "response": "",
+      "trusted": false,
+      "declared_lawful_at": "2026-08-05T00:01:27.440146+00:00",
+      "triage": {
+        "risk": "review",
+        "reasons": [],
+        "note": "No rule fired. Still needs a human."
+      },
+      "hand_entropy": 0.648,
+      "hand_signed": true
+    },
+    {
+      "id": "sig-3e3ce749",
+      "kind": "ask",
+      "sender": "someone at the porch",
+      "body": "test",
+      "project": null,
+      "status": "triaged",
+      "received_at": "2026-08-05T00:09:20.136346+00:00",
+      "public": true,
+      "response": "",
+      "trusted": false,
+      "declared_lawful_at": "2026-08-05T00:09:20.136346+00:00",
+      "triage": {
+        "risk": "review",
+        "reasons": [],
+        "note": "No rule fired. Still needs a human."
+      },
+      "hand_entropy": 1.0,
+      "hand_signed": true
+    },
+    {
+      "id": "sig-32664e69",
+      "kind": "ask",
+      "sender": "alien",
+      "body": "aliens welcome?",
+      "project": null,
+      "status": "triaged",
+      "received_at": "2026-08-05T00:41:24.723003+00:00",
+      "public": true,
+      "response": "",
+      "trusted": false,
+      "declared_lawful_at": "2026-08-05T00:41:24.723003+00:00",
+      "triage": {
+        "risk": "review",
+        "reasons": [],
+        "note": "No rule fired. Still needs a human."
+      },
+      "hand_entropy": 1.0,
+      "hand_signed": true
     }
   ]
 }
