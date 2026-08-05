@@ -810,9 +810,20 @@ def serve(port):
                 return
 
             if path.startswith("/static/"):
-                # Vendored assets only: no traversal outside the directory.
-                name = Path(path).name
-                f = FLEET / "static" / name
+                # Subdirectories allowed, traversal still not: the old
+                # guard took only the basename, so /static/gallery/01.jpg
+                # resolved to static/01.jpg and every gallery image 404'd
+                # while sitting right there on disk (2026-08-05). Resolve
+                # the real path and require it to stay inside static/ —
+                # that blocks ../ properly AND permits folders.
+                root = (FLEET / "static").resolve()
+                try:
+                    f = (root / path[len("/static/"):]).resolve()
+                    f.relative_to(root)
+                except (ValueError, OSError):
+                    self.send_error(404)
+                    return
+                name = f.name
                 if not f.is_file():
                     self.send_error(404)
                     return
