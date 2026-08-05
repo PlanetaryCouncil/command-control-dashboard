@@ -51,3 +51,15 @@
 {"ts": "2026-08-05T00:01:27.489751+00:00", "kind": "signal.received", "signal": "sig-9001a25e", "signal_kind": "ask", "trusted": false}
 {"ts": "2026-08-05T00:09:20.147621+00:00", "kind": "signal.received", "signal": "sig-3e3ce749", "signal_kind": "ask", "trusted": false}
 {"ts": "2026-08-05T00:41:24.771974+00:00", "kind": "signal.received", "signal": "sig-32664e69", "signal_kind": "ask", "trusted": false}
+{"ts": "2026-08-05T12:47:39.360333+00:00", "kind": "signal.received", "signal": "sig-a8179610", "signal_kind": "ask", "trusted": false}
+{"ts": "2026-08-05T13:45:18.024467+00:00", "kind": "signal.received", "signal": "sig-d7db2ed6", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T14:01:04.100221+00:00", "kind": "signal.received", "signal": "sig-5c7ce9da", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T14:08:20.307361+00:00", "kind": "signal.received", "signal": "sig-4c289029", "signal_kind": "signal", "trusted": true}
+{"ts": "2026-08-05T14:20:11.990399+00:00", "kind": "signal.received", "signal": "sig-7cdd4593", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T14:43:08.267468+00:00", "kind": "signal.received", "signal": "sig-851dc8db", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T14:45:50.127462+00:00", "kind": "signal.received", "signal": "sig-757e4373", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T14:47:14.279273+00:00", "kind": "signal.received", "signal": "sig-1207979d", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T14:57:55.232496+00:00", "kind": "signal.received", "signal": "sig-d2096116", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T15:58:54.931961+00:00", "kind": "signal.received", "signal": "sig-4709838e", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T15:59:20.112769+00:00", "kind": "signal.received", "signal": "sig-4f7e1194", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-05T15:59:37.954210+00:00", "kind": "signal.received", "signal": "sig-b25428e1", "signal_kind": "signal", "trusted": false}
