@@ -15,10 +15,12 @@ stay where they belong on their own page — this is navigation only.
 # are simply not worth a permanent slot in front of you.
 # Two. The terminal is a drawer on the dashboard, not a destination — having
 # both a CONSOLE button and a TERMINAL tab was the same word twice.
+# The orrery (/orbit) is off the nav from 2026-08-05 — "looks amateur".
+# The route still resolves; it is a sketch, not a room, until the drawing
+# is worth the idea.
 PAGES = [
     ("/", "fleet"),
     ("/intro", "intro"),
-    ("/orbit", "orrery"),
     ("/hi", "send a message"),
     ("/chat", "chat"),
 ]
