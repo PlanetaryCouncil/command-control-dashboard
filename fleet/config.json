@@ -23,8 +23,8 @@
     "at_minute": 0
   },
   "pipeline": {
-    "_what": "Closes the rota's loop: newest unprocessed proposal is implemented by claude on a rota/* branch in a worktree, pytest runs mechanically, hermes (different vendor) reviews the diff, and the board's pipeline card lists branches awaiting a human merge. Nothing merges itself.",
-    "every_seconds": 7200
+    "_what": "Closes the rota's loop: unprocessed proposals are implemented by claude on rota/* branches in worktrees, pytest runs, hermes (a different vendor) reviews each diff, and the board lists what awaits a human merge. One cycle drains the queue — up to 12 builds — rather than taking one and leaving the rest; at one proposal an hour from the rota, taking one every two hours meant the backlog only ever grew. Nothing merges itself.",
+    "every_seconds": 3600
   },
   "council": {
     "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied — a human reads and decides.",
