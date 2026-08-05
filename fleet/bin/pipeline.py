@@ -88,6 +88,7 @@ def proposals() -> list[dict]:
 
 def slug(text: str) -> str:
     first = next((l for l in str(text).splitlines() if l.strip("# ").strip()), "")
+    first = first.lstrip("# ").strip()
     s = re.sub(r"[^a-z0-9]+", "-", first.lower()).strip("-")[:40]
     return s or "proposal"
 
@@ -247,18 +248,37 @@ def write_worker() -> None:
     }, indent=2))
 
 
-def _picked() -> set:
-    """Timestamps a human marked for building, one per line in rota/build.txt.
+def _picked_items() -> list:
+    """Tasks a human picked, each carrying every proposal it covers.
 
-    Absent or empty file means "no picks yet" and the pipeline builds
-    nothing new — triage first, then choose. That is the point.
+    ONE ITEM, ONE BRANCH. The first version of this returned bare
+    timestamps and the build loop iterated them, so 27 proposals that
+    triage had folded into 8 items produced 20 branches — 12 of them
+    editing the same file, each tested against main and none against the
+    others (2026-08-05, logged in brainfarts). Deduplication that the
+    next stage ignores is not deduplication.
+
+    build.txt is written by a human from triage.md: `# N. title` starts an
+    item, the timestamps under it belong to it.
     """
+    items, cur = [], None
     try:
-        return {l.strip()[:19] for l in
-                (FLEET / "rota" / "build.txt").read_text().splitlines()
-                if l.strip() and not l.startswith("#")}
+        lines = (FLEET / "rota" / "build.txt").read_text().splitlines()
     except OSError:
-        return set()
+        return []
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        if line.startswith("#"):
+            body = line.lstrip("# ").strip()
+            if body and body[0].isdigit() and "." in body[:4]:
+                cur = {"title": body.split(".", 1)[1].strip(), "ts": []}
+                items.append(cur)
+            continue
+        if cur is not None:
+            cur["ts"].append(line[:19])
+    return [i for i in items if i["ts"]]
 
 
 def cycle() -> None:
@@ -286,28 +306,48 @@ def cycle() -> None:
     # Only build what triage picked. An unreviewed proposal is a
     # suggestion, not a work order — the same mistake in miniature that
     # built a project out of an idea earlier today.
-    picks = _picked()
+    items = _picked_items()
+    if not items:
+        ev.emit("pipeline", "info",
+                "[pipeline] nothing picked — run triage, then fill build.txt")
+        write_worker()
+        return
+
+    by_ts = {p["ts"][:16]: p for p in proposals()}
+    done = by_proposal()
     built = 0
-    while built < MAX_PER_CYCLE:
+    for item in items:
+        if built >= MAX_PER_CYCLE:
+            break
+        key = item["ts"][0]                    # an item is keyed by its first
+        if key in done:
+            continue
         if os.getloadavg()[0] > MAX_LOAD:
             ev.emit("pipeline", "info",
                     f"[pipeline] stopping after {built} — load "
                     f"{os.getloadavg()[0]:.1f} over {MAX_LOAD}")
             break
-        seen = by_proposal()
-        todo = [p for p in reversed(proposals())
-                if p["ts"] not in seen
-                and (not picks or p["ts"][:16] in {x[:16] for x in picks})]
-        if not todo:
-            if built:
-                ev.emit("pipeline", "ok",
-                        f"[pipeline] queue empty after {built} this cycle")
-            break
-        rec = build(todo[0])
+        # Every proposal the item covers goes into one prompt, so the
+        # builder sees the whole ask instead of one agent's wording of it.
+        parts = []
+        for ts in item["ts"]:
+            p = by_ts.get(ts[:16])
+            if p:
+                parts.append(f"--- observed by {p.get('agent','?')} at "
+                             f"{p['ts'][:16]} ---\n{str(p['text'])[:900]}")
+        merged = {"ts": key, "agent": "council-triage",
+                  "text": f"# {item['title']}\n\n"
+                          f"{len(parts)} agents observed this "
+                          f"independently:\n\n" + "\n\n".join(parts)}
+        rec = build(merged)
         built += 1
         if rec.get("stage") == "build" and rec.get("ok"):
             verify(rec)
         write_worker()
+    if built:
+        ev.emit("pipeline", "ok",
+                f"[pipeline] built {built} item(s) this cycle — "
+                f"one branch each")
     write_worker()
 
 
