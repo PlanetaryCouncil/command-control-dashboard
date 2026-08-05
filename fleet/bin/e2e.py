@@ -51,11 +51,17 @@ def check(name: str, detail: str = ""):
     return record
 
 
-def serve_test_instance(port: int):
+def serve_test_instance(port: int, sig_file: Path | None = None):
     """Own server instance, so HTTP assertions do not depend on reaching the
-    launchd-managed one (a sandboxed caller often cannot)."""
+    launchd-managed one (a sandboxed caller often cannot).
+
+    sig_file isolates the signature wall (FLEET_SIGNATURES) so the signature
+    canary's marks are written to a throwaway file, never the live wall."""
+    env = dict(os.environ)
+    if sig_file is not None:
+        env["FLEET_SIGNATURES"] = str(sig_file)
     p = subprocess.Popen([sys.executable, str(FLEET / "bin" / "fleet.py"), "serve", str(port)],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
     for _ in range(40):
         time.sleep(0.25)
         try:
@@ -71,6 +77,42 @@ def get(port: int, path: str, timeout=15) -> str:
     import urllib.request
     with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}", timeout=timeout) as r:
         return r.read().decode(errors="replace")
+
+
+def post(port: int, path: str, body: dict, headers=None, timeout=15):
+    """POST JSON; return (status, text). HTTP errors are returned, not raised,
+    so a check can assert on a 403/422 the same way it asserts on a 200."""
+    import urllib.error
+    import urllib.request
+    h = {"Content-Type": "application/json"}
+    h.update(headers or {})
+    req = urllib.request.Request(f"http://127.0.0.1:{port}{path}",
+                                data=json.dumps(body).encode(), headers=h,
+                                method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read().decode(errors="replace")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode(errors="replace")
+
+
+def _jagged_path(n=60):
+    """A living-hand pad path: zigzagging direction, irregular stride and
+    timing — the three things hand_entropy rewards. Deterministic so the check
+    is not flaky."""
+    pts, t = [], 0.0
+    for i in range(n):
+        pts.append({"x": (i % 2) * 37.0 + (i * 0.9 % 11),
+                    "y": (i * i % 31) + (i % 4) * 6.0,
+                    "t": t})
+        t += 7.0 + (i * 13 % 17)
+    return pts
+
+
+def _straight_path(n=60):
+    """A dead-straight, even-timed path: entropy 0.0 — the spam the gate exists
+    to catch."""
+    return [{"x": i * 2.0, "y": i * 2.0, "t": i * 10.0} for i in range(n)]
 
 
 # --------------------------------------------------------------------- checks
@@ -109,6 +151,66 @@ def check_worker_publication(port):
         rec(False, f"unreachable: {e}")
     finally:
         f.unlink(missing_ok=True)
+
+
+def check_signature_pipeline(port):
+    """Canary: a signed pad path must traverse capture -> spam gate -> wall.
+
+    Two remote marks carrying this run's canary: a living, jagged one that must
+    reach the wall, and a dead-straight one that must be held in purgatory. If
+    the gate ever inverts, stops scoring, or the endpoint stops serving, exactly
+    one of these two assertions flips — which a single 200 could never tell you.
+    """
+    rec = check("signature: living hand reaches the wall, flat line to purgatory")
+    import signature as sig
+    jagged, straight = _jagged_path(), _straight_path()
+    ej, es = sig.hand_entropy(jagged), sig.hand_entropy(straight)
+    # The gate's own premise, asserted before we trust the endpoint's verdict.
+    if not (ej >= 0.2 > es):
+        return rec(False, f"fixture entropy off: jagged={ej} straight={es}")
+
+    live, spam = f"{CANARY}-live", f"{CANARY}-spam"
+    remote = {"X-Forwarded-For": "203.0.113.7"}   # make the gate actually judge
+    s1, _ = post(port, "/api/signatures/sign",
+                 {"points": jagged, "name": live, "kind": "human"}, remote)
+    s2, _ = post(port, "/api/signatures/sign",
+                 {"points": straight, "name": spam, "kind": "human"}, remote)
+    if s1 != 200 or s2 != 200:
+        return rec(False, f"sign POST returned {s1}/{s2}")
+    time.sleep(0.3)
+    try:
+        data = json.loads(get(port, "/api/signatures"))
+    except Exception as e:
+        return rec(False, f"/api/signatures unreachable: {e}")
+    collected = {d.get("name") for d in data.get("collected", [])}
+    purgatory = {d.get("name") for d in data.get("purgatory", [])}
+    if live not in collected:
+        return rec(False, "living mark never reached the wall")
+    if spam not in purgatory:
+        return rec(False, "flat-line mark was not held in purgatory")
+    if spam in collected:
+        return rec(False, "flat-line mark leaked onto the wall")
+    rec(True, f"living mark blessed (e={ej}), flat line quarantined (e={es})")
+
+
+def check_moderation_wire(port):
+    """Canary: the public board must forward a moderation vote to the cockpit,
+    and the cockpit must refuse an UNSIGNED vote with 403 — proving the 2n+1
+    override endpoint is alive and enforcing signing, end to end, while writing
+    nothing (the 403 lands before any inbox mutation).
+
+    The quorum arithmetic itself is exhaustively unit-tested in
+    tests/test_override.py; this proves the wire from the public door to it,
+    which is exactly the join a unit test cannot see.
+    """
+    rec = check("moderation: unsigned override is forwarded and refused (403)")
+    status, body = post(port, f"/api/signals/{CANARY}-nope/override",
+                        {"status": "declined"})
+    if status == 403:
+        return rec(True, "reached the cockpit, signing enforced")
+    if status in (404, 502, 503):
+        return rec(False, f"override not wired to the cockpit (HTTP {status})")
+    rec(False, f"unexpected HTTP {status}: {body[:80]}")
 
 
 def check_kill_switch(port):
@@ -224,11 +326,14 @@ def main():
     print(f"canary: {CANARY}\n")
     ev.emit("fleet", "info", f"[e2e] run starting · canary {CANARY}")
 
-    server = serve_test_instance(a.port)
+    sig_file = FLEET / "logs" / f".e2e-signatures-{a.port}.jsonl"
+    server = serve_test_instance(a.port, sig_file)
     try:
         check_event_pipeline(a.port)
         check_worker_publication(a.port)
-        check_kill_switch(a.port)
+        check_signature_pipeline(a.port)
+        check_moderation_wire(a.port)
+        check_kill_switch(a.port)   # takes the board down ~10s: keep it last
         if not a.quick:
             check_agent_relay()
             check_agent_reads_live_state()
@@ -238,6 +343,7 @@ def main():
             server.wait(timeout=5)
         except subprocess.TimeoutExpired:
             server.kill()
+        sig_file.unlink(missing_ok=True)
 
     passed = sum(1 for r in RESULTS if r["pass"])
     total = len(RESULTS)

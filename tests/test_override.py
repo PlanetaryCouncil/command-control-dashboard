@@ -1,9 +1,10 @@
-"""2n+1 or nothing: the escalating-quorum override.
+"""Single-node moderation: any paired node has full authority.
 
-The design goal is a single property: every flip doubles the price of
-flipping back. One operator decision (n=1) takes 3 signed nodes to
-overturn; overturning THAT takes 7; then 15. Ping-pong is exponentially
-expensive, and the hard-block categories are not votable at any price.
+Low traffic and a small circle of trusted nodes made an escalating quorum more
+ceremony than protection. So one signed vote moves a signal — that is how a node
+"removes" one: it declines it, and the operator can always restore it. The two
+things that stay true regardless: an unsigned vote is refused, and the hard
+categories (quarantine) are never a node's to set.
 """
 
 import json
@@ -16,7 +17,7 @@ from app.main import app
 
 client = TestClient(app)
 
-NODES = {f"node-{i}": f"secret-{i}" for i in range(1, 8)}
+NODES = {f"node-{i}": f"secret-{i}" for i in range(1, 4)}
 
 
 @pytest.fixture
@@ -51,38 +52,33 @@ def test_unsigned_votes_are_refused(paired):
     assert r.status_code == 403
 
 
-def test_one_vote_does_not_flip(paired):
+def test_one_signed_node_removes_in_one_move(paired):
+    """Removal = decline, and a single node has full authority to do it."""
     sid = make_signal()
     r = vote(sid, "node-1", "declined")
     assert r.status_code == 202
-    assert r.json()["votes"] == 1 and r.json()["needed"] == 3
-
-
-def test_three_votes_flip_an_operator_decision(paired):
-    sid = make_signal()
-    vote(sid, "node-1", "declined")
-    vote(sid, "node-2", "declined")
-    r = vote(sid, "node-3", "declined")
     assert r.json()["status"] == "declined"
-    assert len(r.json()["decision"]["backers"]) == 3
 
 
-def test_flipping_back_now_costs_seven(paired):
+def test_any_node_can_move_it_again_no_quorum(paired):
     sid = make_signal()
-    for n in ("node-1", "node-2", "node-3"):
-        vote(sid, n, "declined")
-    r = vote(sid, "node-4", "accepted")
-    assert r.json()["needed"] == 7
+    assert vote(sid, "node-1", "declined").json()["status"] == "declined"
+    # a different single node moves it back, no accumulating quorum
+    assert vote(sid, "node-2", "accepted").json()["status"] == "accepted"
 
 
-def test_double_voting_counts_once(paired):
+def test_repeating_the_current_status_is_a_noop(paired):
     sid = make_signal()
     vote(sid, "node-1", "declined")
-    r = vote(sid, "node-1", "declined")
-    assert r.json()["votes"] == 1
+    r = vote(sid, "node-2", "declined")
+    assert r.status_code == 202 and r.json().get("note") == "already there"
 
 
-def test_quarantine_is_not_a_votable_target(paired):
+def test_quarantine_is_not_a_settable_target(paired):
     sid = make_signal()
-    r = vote(sid, "node-1", "quarantined")
-    assert r.status_code == 422
+    assert vote(sid, "node-1", "quarantined").status_code == 422
+
+
+def test_unknown_status_is_refused(paired):
+    sid = make_signal()
+    assert vote(sid, "node-1", "banished").status_code == 422
