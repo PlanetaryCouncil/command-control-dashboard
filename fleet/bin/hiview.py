@@ -53,6 +53,7 @@ label{display:flex;gap:.5rem;align-items:baseline}
    when you might check. Screen readers get them too. */
 label.field{display:block;font-size:.74rem;color:var(--phosphor-d);
   letter-spacing:.08em;margin:.2rem 0 -.3rem}
+label.field b{color:#ff5f6d;font-weight:400;margin-left:.15rem}
 dialog{max-width:34rem;border:1px solid var(--rule);border-radius:10px;
   background:var(--surface);color:var(--body);font-family:var(--mono);
   font-size:.85rem;line-height:1.6;padding:1.4rem}
@@ -80,12 +81,12 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
   </header>
 
   <section style="display:flex;flex-direction:column;gap:.8rem">
-    <label class="field" for="who">name</label>
+    <label class="field" for="who">name<b>*</b></label>
     <input type="text" id="who" maxlength="60" required>
-    <label class="field" for="msg">message</label>
+    <label class="field" for="msg">message<b>*</b></label>
     <textarea id="msg" maxlength="4000" required></textarea>
+    <label class="field" for="pad">signature<b>*</b></label>
     <div>
-      <label class="field" for="pad">signature</label>
       <div class="padwrap">
         <canvas id="pad" aria-label="signature pad — hold the pointer down and sign"></canvas>
         <button id="clear" type="button" disabled>clear</button>
