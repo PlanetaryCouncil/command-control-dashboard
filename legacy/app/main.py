@@ -164,6 +164,25 @@ def dashboard_payload() -> dict:
     }
 
 
+def _coarse_addr(addr: str) -> str:
+    """Blur a caller address before it is written to a tracked file.
+
+    The exact IP is needed live — require_local() compares it — but it must
+    never be persisted: a full residential IPv6 is a stable home fingerprint,
+    and every pairing was publishing one into data/. Loopback labels are kept
+    (not sensitive); an IPv6 collapses to a /48, an IPv4 to a /24, anything
+    else to a short opaque hash.
+    """
+    if not addr or addr in LOCAL_HOSTS:
+        return addr
+    if ":" in addr:
+        return ":".join(addr.split(":")[:3]) + "::/48"
+    if addr.count(".") == 3 and addr.replace(".", "").isdigit():
+        return addr.rsplit(".", 1)[0] + ".0/24"
+    import hashlib
+    return "anon-" + hashlib.sha256(addr.encode()).hexdigest()[:8]
+
+
 def steering_caller(request: Request) -> str:
     """The address a write decision is allowed to be made about.
 
@@ -387,7 +406,7 @@ def redeem_pairing_code(body: PairRedeem, request: Request) -> dict:
         raise HTTPException(status_code=429, detail="too many attempts",
                             headers={"Retry-After": str(max(1, int(retry_after + 0.999)))})
 
-    caller = steering_caller(request) or "unknown"
+    caller = _coarse_addr(steering_caller(request)) or "unknown"
     try:
         result = pairing.redeem(PAIRING_PATH, body.code, from_addr=caller)
     except ValueError as exc:
