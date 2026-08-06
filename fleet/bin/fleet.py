@@ -582,6 +582,16 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/projects.yaml":
+                # The operator's public project list — human- and AI-readable,
+                # hand-edited at fleet/data/projects.yaml and served live.
+                f = FLEET / "data" / "projects.yaml"
+                try:
+                    self._send(f.read_bytes(), "text/yaml; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
             if path == "/events":
                 self._stream_events()
                 return
