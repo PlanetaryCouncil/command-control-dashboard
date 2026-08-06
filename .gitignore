@@ -46,7 +46,6 @@ fleet/data/homies-real.txt
 .live
 
 # runtime state — written by the running fleet, never release source (#6/#8)
-data/inbox.json
 data/pairing.json
 data/sync_conflicts.json
 data/oplog/

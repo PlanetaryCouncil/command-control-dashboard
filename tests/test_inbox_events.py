@@ -16,7 +16,10 @@ def sandbox(tmp_path, monkeypatch):
     life.write_text(main.DATA_PATH.read_text())
     monkeypatch.setattr(main, "DATA_PATH", life)
     ibx = tmp_path / "inbox.json"
-    ibx.write_text(main.INBOX_PATH.read_text())
+    # inbox.json is untracked runtime state (issue #6/#8), so it may be absent
+    # on a fresh clone — seed an empty queue rather than crashing the fixture.
+    ibx.write_text(main.INBOX_PATH.read_text() if main.INBOX_PATH.exists()
+                   else '{"signals": []}')
     monkeypatch.setattr(main, "INBOX_PATH", ibx)
     hz = tmp_path / "horizons.json"
     hz.write_text(main.HORIZONS_PATH.read_text())
