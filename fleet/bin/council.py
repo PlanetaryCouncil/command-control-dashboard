@@ -459,7 +459,10 @@ def _guest_signals(limit: int = 5) -> list:
         return []
     out = []
     for sg in data.get("signals", []):
-        if sg.get("status") in ("new", "triaged", "accepted", "in_progress") \
+        # Only signals a HUMAN has already triaged reach an agent's prompt.
+        # Status "new" is raw, unreviewed stranger text — the airlock keeps it
+        # out until the operator has looked at it (issue #18, path 1).
+        if sg.get("status") in ("triaged", "accepted", "in_progress") \
                 and sg.get("public", True):
             ts = str(sg.get("received_at", sg.get("ts", "")))[:16]
             out.append(f"{ts} {sg.get('sender', '?')[:30]} "

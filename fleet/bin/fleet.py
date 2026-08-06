@@ -397,6 +397,17 @@ def forwards(path):
     return any(path.startswith(pre) for pre in FORWARD_PREFIX)
 
 
+def _safe_label(s, n=48):
+    """Neutralise attacker-supplied free text before it enters the event log,
+    which is read verbatim into agent prompts (issue #18, path 2). Collapse all
+    whitespace (kills injected newlines and fake log/role lines), drop control
+    characters, cap length. A charge or signature can still show WHO, but cannot
+    smuggle an instruction into a council or rota prompt."""
+    import re
+    s = re.sub(r"[\x00-\x1f\x7f]", " ", str(s))
+    return re.sub(r"\s+", " ", s).strip()[:n]
+
+
 def _redact_processes(snap):
     """Strip anything that could carry a private prompt, path or token from a
     public /api/processes response. Agents receive chat prompts as argv, so the
@@ -981,7 +992,7 @@ def serve(port):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev
                 ev.emit("orrery", "ok",
-                        f"[charge] {by} charged '{project}'")
+                        f"[charge] {_safe_label(by)} charged '{_safe_label(project)}'")
                 self._send(json.dumps({"ok": True}).encode(), "application/json")
                 return
 
@@ -1043,10 +1054,10 @@ def serve(port):
                     return
                 if blessed:
                     ev.emit("visitors", "ok",
-                            f"[signatures] a hand signed the pad: {name}")
+                            f"[signatures] a hand signed the pad: {_safe_label(name)}")
                 else:
                     ev.emit("visitors", "warn",
-                            f"[signatures] mark from '{name}' held in "
+                            f"[signatures] mark from '{_safe_label(name)}' held in "
                             f"purgatory — entropy {entropy}")
                 self._send(json.dumps({"seed": seed, "name": name,
                                        "status": rec["status"],
