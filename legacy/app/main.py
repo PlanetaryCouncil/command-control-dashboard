@@ -62,8 +62,13 @@ def save(data: dict) -> None:
 
 
 def load_inbox() -> dict:
-    with INBOX_PATH.open() as fh:
-        return json.load(fh)
+    try:
+        with INBOX_PATH.open() as fh:
+            return json.load(fh)
+    except (FileNotFoundError, ValueError):
+        # A fresh clone has no queue yet — boot empty rather than crash. The
+        # inbox is runtime state and is not tracked (see .gitignore).
+        return {"signals": []}
 
 
 def save_inbox(data: dict) -> None:
