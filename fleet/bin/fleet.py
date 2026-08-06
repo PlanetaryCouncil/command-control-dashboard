@@ -358,6 +358,47 @@ def render_page(refresh=True):
 
 KILL_TOKEN = __import__("secrets").token_urlsafe(24)
 
+# The public writes append to disk, and the callers are anonymous. Both need a
+# ceiling on how fast, and a ceiling on how large.
+PUBLIC_WRITE_MAX_BYTES = 8_000_000
+
+
+def _append_capped(path: Path, record: dict) -> None:
+    """Append one JSON line, rotating the file once it is large enough.
+
+    /api/charge had no cap at all, so an anonymous caller could fill the disk
+    on a host whose unit is Restart=always — a restart loop against a full
+    disk rather than a clean stop. /api/signatures/sign already rotated at 8MB;
+    this is that rule, in one place, for both.
+    """
+    if path.exists() and path.stat().st_size > PUBLIC_WRITE_MAX_BYTES:
+        path.rename(path.with_suffix(".jsonl.1"))
+    with path.open("a") as fh:
+        fh.write(json.dumps(record) + "\n")
+
+
+def _public_write_limiter():
+    """The cockpit's token bucket, reused for the fleet's own public writes.
+
+    Same problem, same shape, already solved: legacy/app/ratelimit.py handles
+    the spoofable-XFF client-key question correctly (last entry, not first —
+    the fix from #10). Importing it beats a second implementation that would
+    drift from the first.
+
+    If legacy is not importable the board must still serve, so this degrades to
+    no limiting rather than refusing to start.
+    """
+    try:
+        sys.path.insert(0, str(FLEET.parent / "legacy"))
+        from app.ratelimit import Limiter
+        return Limiter()
+    except Exception as e:
+        print(f"public-write rate limiting unavailable: {e}", flush=True)
+        return None
+
+
+PUBLIC_WRITE_LIMITER = _public_write_limiter()
+
 # Paths that drive this machine rather than describe it. Everything else is
 # read-only and safe for a stranger — that is the whole point of publishing
 # the fleet, so agents can watch it without an account.
@@ -525,6 +566,31 @@ def serve(port):
         def _remote(self):
             """True when the request arrived through the tailscale funnel."""
             return bool(self.headers.get("X-Forwarded-For"))
+
+        def _rate_limited(self):
+            """True (and 429 already sent) when this caller is going too fast.
+
+            Keyed on the last X-Forwarded-For entry, matching client_key() in
+            legacy/app/ratelimit.py: the leftmost entry is caller-supplied, so
+            keying on it would let one client mint a fresh bucket per request
+            and remove the limit it appears to enforce.
+
+            A local caller has no XFF and keys as "local" — one bucket for the
+            operator, which is what we want, since the operator's own board
+            posts here too.
+            """
+            if PUBLIC_WRITE_LIMITER is None:
+                return False
+            fwd = self.headers.get("X-Forwarded-For", "")
+            key = fwd.split(",")[-1].strip() if fwd else "local"
+            ok, retry = PUBLIC_WRITE_LIMITER.check(key)
+            if ok:
+                return False
+            self.send_response(429)
+            self.send_header("Retry-After", str(max(1, int(retry))))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
 
         def _blocked(self, path):
             if self._remote() and path in CONTROL_PATHS:
@@ -965,6 +1031,8 @@ def serve(port):
                 return
 
             if path == "/api/charge":
+                if self._rate_limited():
+                    return
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
                     body = json.loads(self.rfile.read(min(n, 4096)).decode())
@@ -976,8 +1044,11 @@ def serve(port):
                 rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        "project": project, "by": by,
                        "remote": self._remote()}
-                with (FLEET / "data" / "charges.jsonl").open("a") as fh:
-                    fh.write(json.dumps(rec) + "\n")
+                try:
+                    _append_capped(FLEET / "data" / "charges.jsonl", rec)
+                except OSError:
+                    self.send_error(500)
+                    return
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev
                 ev.emit("orrery", "ok",
@@ -992,6 +1063,12 @@ def serve(port):
                 # kept. Deliberately public: collecting how hands differ
                 # is the artistic project, and a pad only locals can sign
                 # collects one hand.
+                #
+                # Public and rate limited are not in tension: the burst of 10
+                # leaves room for someone signing a few times to get a mark
+                # they like, and closes the door on a flood.
+                if self._rate_limited():
+                    return
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
                     if n > 200_000:
@@ -1034,10 +1111,7 @@ def serve(port):
                     rec["pinned"] = True
                 f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                 try:
-                    if f.exists() and f.stat().st_size > 8_000_000:
-                        f.rename(f.with_suffix(".jsonl.1"))
-                    with f.open("a") as fh:
-                        fh.write(json.dumps(rec) + "\n")
+                    _append_capped(f, rec)
                 except OSError:
                     self.send_error(500)
                     return
