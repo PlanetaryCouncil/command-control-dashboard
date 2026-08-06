@@ -24,8 +24,18 @@ open_to:
   advisors: true
   note: We welcome contributions and advisors, from humans and AI.
 
+# Project scopes — each node runs a blend of these layers:
+#   global    shared by every node, enabled by default
+#   mars      Mars's projects; anyone can sign up (enabled-by-default: Mars decides)
+#   personal  a node's own local projects, enabled by default there
+scopes:
+  global:   { enabled_by_default: true }
+  mars:     { enabled_by_default: undecided }
+  personal: { enabled_by_default: true }
+
 projects:
   - name: Planetary Council
+    scope: mars
     url: https://planetarycouncil.org
     tagline: Changing the world through art and culture — an upgrade to global governance
     status: active
@@ -33,54 +43,63 @@ projects:
     tags: [governance, art, memes]
 
   - name: BaseX
+    scope: mars
     url: https://basex.com
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
     status: awaiting-deployment   # awaiting initial deployment
     tags: [economics, value, climate]
 
   - name: Money from the Future
+    scope: mars
     url: https://moneyfromthefuture.com
     tagline: The best way to make money is to make money
     status: active
     tags: [economics]
 
   - name: Network State Genesis
+    scope: mars
     url: TODO
     tagline: A new model of a state with aligned values
     status: active
     tags: [governance, network-state]
 
   - name: Future Vision XPRIZE
+    scope: mars
     url: TODO
     tagline: Imagination athlete — expanding the horizons of the imaginable
     status: active
     tags: [futures, prize]
 
   - name: Live Agent Fleet (Command & Control Dashboard)
+    scope: mars
     url: TODO   # a clean public domain, NOT the tailnet funnel host
     tagline: A transparent, public AI-agent operations dashboard
     status: active
     tags: [ai, infrastructure, transparency]
 
   - name: Haiku Command-Line Poems
+    scope: mars
     url: https://poems.planetarycouncil.org
     tagline: Two-line closing poems from the terminal
     status: active
     tags: [art, poetry]
 
   - name: AI Brain Farts
+    scope: mars
     url: https://brainfarts.planetarycouncil.org
     tagline: Logged cases of confidently-wrong AI output, scored on a four-axis scale
     status: active
     tags: [ai, honesty]
 
   - name: Personal Wiki
+    scope: mars
     url: https://wiki.secondrenaissance.net/wiki/Mars_Robertson
     tagline: Open, contributable wiki
     status: active
     tags: [wiki, reference]
 
   - name: Artizen.fund projects
+    scope: mars
     url: https://artizen.fund
     tagline: Art funded on Artizen
     status: active
@@ -93,12 +112,14 @@ projects:
 
   # --- added off the top of Mars's head 2026-08-06; verified in-browser ---
   - name: Solarpunk Estates
+    scope: mars
     url: https://solarpunkestates.org
     tagline: Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun
     status: active
     tags: [solarpunk, real-estate, climate, coliving]
 
   - name: Independent Tribunal
+    scope: mars
     url: https://independenttribunal.org
     tagline: An independent tribunal
     status: active
@@ -106,24 +127,28 @@ projects:
     tags: [governance, justice]
 
   - name: Dating Relating
+    scope: mars
     url: https://datingrelating.com
     tagline: Dating and relating — a fresh take on connection
     status: active
     tags: [relationships, community]
 
   - name: Legal Screenshot
+    scope: mars
     url: https://legalscreenshot.com
     tagline: Timestamped, legally-defensible screenshots (domain for sale, with legalprintscreen.com)
     status: for-sale
     tags: [legal, evidence, tools]
 
   - name: Ultra Magic Hands
+    scope: mars
     url: https://ultramagichands.com
     tagline: Massage
     status: active   # not verified in-browser (extension dropped) — confirm
     tags: [massage, wellbeing, bodywork]
 
   - name: Ministry of Memes and Better Propaganda
+    scope: mars
     tagline: The good guys need better propaganda than the bad guys — memes to end the war through awareness and education
     status: active
     part_of: Planetary Council
