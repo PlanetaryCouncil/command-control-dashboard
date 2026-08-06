@@ -99,8 +99,9 @@ projects:
 
   - name: Independent Tribunal
     url: https://independenttribunal.org
-    tagline: An independent tribunal   # site not live yet
-    status: idea
+    tagline: An independent tribunal
+    status: active
+    socials: { twitter: "@IndependentTrib" }
     tags: [governance, justice]
 
   - name: Dating Relating
