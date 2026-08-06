@@ -1331,6 +1331,11 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
 
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import nav
+    import os, socket
+    # Each dashboard self-identifies so an operator running several can tell them
+    # apart: FLEET_NAME env wins, else the machine's hostname, else "FLEET".
+    board_name = (os.environ.get("FLEET_NAME")
+                  or socket.gethostname().split(".")[0] or "FLEET").upper()
     js = (JS.replace("__AGENTS__", agents_json)
             .replace("__SEED__", seed_json)
             .replace("__TOKEN__", repr(token).replace("'", '"')))
@@ -1371,7 +1376,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
 <div id="bar">
   <span id="pulse"></span>
-  <h1>FLEET</h1>
+  <h1>{board_name}</h1>
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
