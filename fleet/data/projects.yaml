@@ -29,6 +29,7 @@ projects:
     url: https://planetarycouncil.org
     tagline: Changing the world through art and culture — an upgrade to global governance
     status: active
+    socials: { telegram: "@PlanetaryCouncil" }
     tags: [governance, art, memes]
 
   - name: BaseX
@@ -101,7 +102,7 @@ projects:
     url: https://independenttribunal.org
     tagline: An independent tribunal
     status: active
-    socials: { twitter: "@IndependentTrib" }
+    socials: { twitter: "@IndependentTrib", telegram: "@IndependentTribunal" }
     tags: [governance, justice]
 
   - name: Dating Relating
