@@ -41,3 +41,6 @@ fleet/data/signatures-collected.jsonl
 fleet/data/homies-real.txt
 !fleet/static/gallery/
 !fleet/static/gallery/*
+
+# local: names the reachable host — not for the repo
+.live
