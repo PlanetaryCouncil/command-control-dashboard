@@ -371,7 +371,7 @@ KILL_TOKEN = __import__("secrets").token_urlsafe(24)
 # 404 rather than 403: a stranger learns these routes do not exist here, which
 # is cheaper than telling them there is a terminal they are not allowed to use.
 CONTROL_PATHS = frozenset({
-    "/terminal", "/ws/terminal", "/chat", "/chat/stream",
+    "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
     "/api/kill", "/api/kill-token", "/api/paste-image",
 })
 
@@ -395,6 +395,19 @@ def forwards(path):
     if path in FORWARD_EXACT:
         return True
     return any(path.startswith(pre) for pre in FORWARD_PREFIX)
+
+
+def _redact_processes(snap):
+    """Strip anything that could carry a private prompt, path or token from a
+    public /api/processes response. Agents receive chat prompts as argv, so the
+    command line is sensitive: a remote viewer sees only a fixed safe set, never
+    cmd or cmd_full. The operator, local, still sees everything."""
+    safe = ("pid", "label", "elapsed", "cpu", "mem", "is_self")
+    clean = lambda p: {k: p[k] for k in safe if k in p}
+    out = dict(snap)
+    out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
+    out["external"] = [clean(p) for p in snap.get("external", [])]
+    return out
 
 
 def start_legacy_cockpit(port=8770):
@@ -468,15 +481,25 @@ def serve(port):
             target = COCKPIT + self.path
             req = urllib.request.Request(target, data=body,
                                          method=self.command)
-            for h in ("Content-Type", "X-Forwarded-For", "X-Node-Id",
-                      "X-Node-Signature", "Accept"):
+            for h in ("Content-Type", "X-Node-Id", "X-Node-Signature", "Accept"):
                 v = self.headers.get(h)
                 if v:
                     req.add_header(h, v)
-            # A request that arrived here from outside must not look local to
-            # the cockpit. If the funnel did not say who it was, say so.
-            if not self.headers.get("X-Forwarded-For") and self._remote():
-                req.add_header("X-Forwarded-For", "unknown")
+            # Never forward the caller's own X-Forwarded-For. tailscaled APPENDS
+            # the real client to whatever the caller sent, so a remote spoof of
+            # "127.0.0.1" arrives as "127.0.0.1, <real-ip>" — and the cockpit
+            # reading the leftmost entry would trust it. The fleet is the trust
+            # boundary: it decides local vs remote (by header presence, which a
+            # loopback browser never sets) and hands the cockpit ONE clean value.
+            # 127.0.0.1 for a genuinely local caller, so the operator's own
+            # writes pass; otherwise the real remote address — the LAST entry the
+            # trusted proxy appended — so a funnelled write is refused.
+            if self._remote():
+                incoming = self.headers.get("X-Forwarded-For", "")
+                real = incoming.split(",")[-1].strip() if incoming else "unknown-remote"
+                req.add_header("X-Forwarded-For", real)
+            else:
+                req.add_header("X-Forwarded-For", "127.0.0.1")
 
             try:
                 with urllib.request.urlopen(req, timeout=30) as r:
@@ -572,9 +595,15 @@ def serve(port):
                 now = _t.monotonic()
                 cached = getattr(Handler, "_procs_cache", None)
                 if not cached or now - cached[0] > 3:
-                    cached = (now, json.dumps(procs.snapshot()).encode())
+                    cached = (now, procs.snapshot())
                     Handler._procs_cache = cached
-                self._send(cached[1], "application/json")
+                snap = cached[1]
+                # Command lines carry chat prompts (agents get them as argv),
+                # plus paths, tokens and session ids. A remote viewer gets a safe
+                # allowlist only; the operator, local, sees the full command.
+                if self._remote():
+                    snap = _redact_processes(snap)
+                self._send(json.dumps(snap).encode(), "application/json")
                 return
 
             if path == "/api/horizons":

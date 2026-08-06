@@ -98,6 +98,17 @@ def test_the_operator_can_still_steer_from_the_laptop(behind_tunnel):
     assert resp.status_code == 201, resp.text
 
 
+def test_a_spoofed_localhost_prefix_is_refused(behind_tunnel):
+    """#10: a reverse proxy APPENDS the real client, so a remote caller sending
+    '127.0.0.1' arrives as '127.0.0.1, <real-ip>'. Reading the LAST entry makes
+    that resolve to the real remote address and be refused — while a bare
+    '127.0.0.1' from the trusted front door still passes (test above)."""
+    resp = tunnel.post("/api/handoffs",
+                       json={"by": "attacker", "changed": "should be blocked"},
+                       headers={"x-forwarded-for": "127.0.0.1, 203.0.113.9"})
+    assert resp.status_code == 403, resp.text
+
+
 def test_steering_caller_discards_the_socket_when_a_proxy_is_declared(monkeypatch):
     """The unit-level guarantee the endpoint tests rest on."""
     class Req:

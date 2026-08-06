@@ -103,7 +103,10 @@ def client_key(request) -> str:
     if os.environ.get("TRUST_PROXY") == "1":
         fwd = request.headers.get("x-forwarded-for", "")
         if fwd:
-            return fwd.split(",")[0].strip()
+            # Last entry, not first: the leftmost is client-supplied and
+            # spoofable, so trusting it would let one caller mint a fresh bucket
+            # per request. The rightmost is what the trusted proxy appended.
+            return fwd.split(",")[-1].strip()
     client = getattr(request, "client", None)
     return getattr(client, "host", None) or "unknown"
 
