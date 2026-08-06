@@ -96,9 +96,14 @@ Deliberately, and unchanged by any of the above:
 
 - **Read everything.** `/`, `/boot`, `/llms.txt`, every `/api/…` GET. There is no
   private half.
-- **`POST /api/signals`** — the one public write. Rate limited, and quarantined
-  behind the airlock: a signal never reaches an agent's context until a human
-  writes their own summary of it.
+- **The public writes.** Three, and none of them carries authority or reaches
+  an agent's context:
+  - **`POST /api/signals`** — rate limited, and quarantined behind the airlock:
+    a signal never reaches an agent's context until a human writes their own
+    summary of it.
+  - **`POST /api/signatures/sign`** — a pointer-path signature for the wall. A
+    too-regular path waits in moderation; a living hand is shown.
+  - **`POST /api/charge`** — appends to the public charge log.
 
 Everything that steers the system — handoffs, project touches, horizons,
 approvals — needs the operator.

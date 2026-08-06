@@ -13,7 +13,8 @@ consequence:
 > authenticate.
 
 Reads are open to everyone. Writes that steer the system are gated to localhost.
-The single public write is quarantined behind an airlock.
+The public writes carry no authority — a signal (quarantined behind an airlock),
+a signature on the pad, a charge — and none of them reaches an agent's context.
 
 ---
 
@@ -59,9 +60,12 @@ as breaks rather than being hidden, because work below a gap is unanchored. The
 `now` rung carries a timer that resets when you write to it.
 
 **The airlock.** The load-bearing security property. Text written by strangers
-never reaches an agent's context. `POST /api/signals` is the one public write;
-each signal gets a permalink and a visible status queue, but `/boot` shows signal
-*counts only* — never bodies. Crossing into trusted state requires a human
+never reaches an agent's context. `POST /api/signals` is the airlocked public
+write — alongside `POST /api/signatures/sign` (the entropy pad) and
+`POST /api/charge` (the charge log), which are also public but likewise never
+reach an agent's context. Each signal gets a permalink and a visible status
+queue, but `/boot` shows signal *counts only* — never bodies. Crossing into
+trusted state requires a human
 writing their own summary via `POST /api/signals/{id}/promote`. Rate limited by
 token bucket, identity-blind on purpose: agents are invited here, so nothing may
 depend on proving you are human.

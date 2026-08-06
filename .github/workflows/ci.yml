@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Runtime deps come from pyproject; the test tools are explicit so CI
+          # does not depend on a PEP-735 --group flag being available.
+          pip install .
+          pip install pytest httpx
+
+      - name: Run the full test suite
+        run: pytest -q
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Dependency vulnerability audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-audit
+          pip install .
+          # Report, but do not fail the build on advisories yet: this is a
+          # signal to act, not a gate, until the dependency set is pinned.
+          pip-audit || true
