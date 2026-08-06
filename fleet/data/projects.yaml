@@ -34,7 +34,7 @@ projects:
   - name: BaseX
     url: https://basex.com
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
-    status: active
+    status: awaiting-deployment   # awaiting initial deployment
     tags: [economics, value, climate]
 
   - name: Money from the Future
@@ -114,3 +114,15 @@ projects:
     tagline: Timestamped, legally-defensible screenshots (domain for sale, with legalprintscreen.com)
     status: for-sale
     tags: [legal, evidence, tools]
+
+  - name: Ultra Magic Hands
+    url: https://ultramagichands.com
+    tagline: Massage
+    status: active   # not verified in-browser (extension dropped) — confirm
+    tags: [massage, wellbeing, bodywork]
+
+  - name: Ministry of Memes and Better Propaganda
+    tagline: The good guys need better propaganda than the bad guys — memes to end the war through awareness and education
+    status: active
+    part_of: Planetary Council
+    tags: [memes, art, propaganda]
