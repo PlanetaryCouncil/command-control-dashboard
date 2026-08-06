@@ -44,3 +44,13 @@ fleet/data/homies-real.txt
 
 # local: names the reachable host — not for the repo
 .live
+
+# runtime state — written by the running fleet, never release source (#6/#8)
+data/inbox.json
+data/pairing.json
+data/sync_conflicts.json
+data/oplog/
+data/inbox/
+fleet/rota/
+fleet/state/
+self-improve/state/
