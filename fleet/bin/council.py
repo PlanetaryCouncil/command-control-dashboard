@@ -319,6 +319,19 @@ def _when(iso):
     return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
 
 
+def _airlock(s, n: int = 130) -> str:
+    """THE airlock — the single gate every string passes through on its way into
+    an agent's prompt. Untrusted input (public signals, and charge/signature
+    free-text that lands in the event log) can carry injected newlines or fake
+    role/log lines; this collapses all whitespace, drops control characters and
+    caps length. Enforced here at *consumption* — the one place prompt-bound
+    text is assembled — so no producer anywhere can forget to do it. This
+    function IS the airlock; there is nothing else to remember."""
+    import re
+    s = re.sub(r"[\x00-\x1f\x7f]", " ", str(s))
+    return re.sub(r"\s+", " ", s).strip()[:n]
+
+
 def board_state() -> dict:
     """Everything an agent can see, gathered without spawning anything."""
     workers = []
@@ -386,8 +399,8 @@ def board_state() -> dict:
         "unmerged_branches": branches,
         "event_levels": levels,
         "event_kinds": kinds,
-        "guest_signals": _guest_signals(),
-        "recent_events": [f"{e.get('ts','')[11:19]} {e.get('agent')}: {e.get('msg','')[:110]}"
+        "guest_signals": [_airlock(g) for g in _guest_signals()],
+        "recent_events": [_airlock(f"{e.get('ts','')[11:19]} {e.get('agent')}: {e.get('msg','')}")
                           for e in recent[-25:]],
     }
 
