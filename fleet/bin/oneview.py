@@ -1329,6 +1329,24 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
 <script>if(!localStorage.getItem('welcomed'))document.getElementById('welcome').style.display='flex';</script>"""
 
 
+def _for_script(json_text: str) -> str:
+    """Make a JSON string safe to paste into a <script> element.
+
+    json.dumps escapes quotes and backslashes but not `/`, so an event whose
+    text contains `</script>` ends the script element and everything after it
+    is parsed as HTML. Event text is not ours: /api/charge and
+    /api/signatures/sign let any funnelled caller write into the event log,
+    and the board that renders it is the page carrying KILL_TOKEN.
+
+    `<`, `>` and `&` have no meaning inside a JSON string literal, so escaping
+    them to \\uXXXX changes nothing a JSON parser sees while leaving the HTML
+    tokenizer with nothing to find.
+    """
+    return (json_text.replace("&", "\\u0026")
+                     .replace("<", "\\u003c")
+                     .replace(">", "\\u003e"))
+
+
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import nav
     import os, socket
@@ -1344,9 +1362,9 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
             return ""
     board_name = (os.environ.get("FLEET_NAME") or _name_file()
                   or socket.gethostname().split(".")[0] or "FLEET").upper()
-    js = (JS.replace("__AGENTS__", agents_json)
-            .replace("__SEED__", seed_json)
-            .replace("__TOKEN__", repr(token).replace("'", '"')))
+    js = (JS.replace("__AGENTS__", _for_script(agents_json))
+            .replace("__SEED__", _for_script(seed_json))
+            .replace("__TOKEN__", _for_script(repr(token).replace("'", '"'))))
     return f"""<!doctype html>
 <!--
 
