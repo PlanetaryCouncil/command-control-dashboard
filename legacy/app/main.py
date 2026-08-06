@@ -182,7 +182,13 @@ def steering_caller(request: Request) -> str:
     """
     if os.environ.get("TRUST_PROXY") == "1":
         fwd = request.headers.get("x-forwarded-for", "")
-        return fwd.split(",")[0].strip() if fwd else ""
+        # Read the LAST entry, not the first. A reverse proxy APPENDS the real
+        # client to any header the client already sent, so the leftmost value is
+        # attacker-controlled and the rightmost is the one the trusted proxy
+        # (the fleet front door) added. The fleet sanitises this to a single
+        # value, but reading the last entry stays correct if anything else ever
+        # reaches this app.
+        return fwd.split(",")[-1].strip() if fwd else ""
     return request.client.host if request.client else ""
 
 

@@ -139,3 +139,39 @@ def test_kill_is_refused_through_the_funnel(server):
             pytest.fail(f"kill answered {r.status} to the internet")
     except urllib.error.HTTPError as e:
         assert e.code == 404
+
+
+def _post(path, body=b"{}", forwarded=None):
+    req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}",
+                                 method="POST", data=body)
+    req.add_header("Content-Type", "application/json")
+    if forwarded:
+        req.add_header("X-Forwarded-For", forwarded)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status, r.read().decode(errors="replace")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode(errors="replace")
+
+
+def test_remote_chat_send_cannot_dispatch_an_agent(server):
+    """#4: /chat/send is a control action, not just the /chat page. A funnelled
+    caller must get 404 and never reach chat.start_job()."""
+    status, _ = _post("/chat/send", body=b'{"agent":"claude","prompt":"pwn"}',
+                      forwarded="203.0.113.7")
+    assert status == 404, f"remote /chat/send answered {status}"
+
+
+def test_processes_redact_command_lines_for_a_remote_caller(server):
+    """#9: agents receive prompts as argv, so /api/processes must not ship cmd
+    or cmd_full to the internet — only a safe allowlist. The operator, local,
+    still sees the full command."""
+    rstatus, remote = fetch("/api/processes", forwarded="203.0.113.7")
+    lstatus, local = fetch("/api/processes")
+    assert rstatus == 200 and lstatus == 200, (rstatus, lstatus)
+    rem = json.loads(remote)
+    for bucket in ("fleet", "external"):
+        for proc in rem.get(bucket, []):
+            assert "cmd" not in proc and "cmd_full" not in proc, \
+                "a command line leaked to a remote caller"
+    assert '"cmd_full"' in local, "the operator lost the full command locally"
