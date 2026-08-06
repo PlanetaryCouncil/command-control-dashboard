@@ -372,7 +372,7 @@ KILL_TOKEN = __import__("secrets").token_urlsafe(24)
 # is cheaper than telling them there is a terminal they are not allowed to use.
 CONTROL_PATHS = frozenset({
     "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
-    "/api/kill", "/api/kill-token", "/api/paste-image",
+    "/api/kill", "/api/kill-token", "/api/paste-image", "/api/convene",
 })
 
 
