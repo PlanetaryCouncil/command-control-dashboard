@@ -1334,9 +1334,9 @@ def _for_script(json_text: str) -> str:
 
     json.dumps escapes quotes and backslashes but not `/`, so an event whose
     text contains `</script>` ends the script element and everything after it
-    is parsed as HTML. Event text is not ours: /api/charge and
-    /api/signatures/sign let any funnelled caller write into the event log,
-    and the board that renders it is the page carrying KILL_TOKEN.
+    is parsed as HTML. Event text is not ours: /api/signatures/sign lets any
+    funnelled caller write into the event log, and the board that renders it
+    is the page carrying KILL_TOKEN.
 
     `<`, `>` and `&` have no meaning inside a JSON string literal, so escaping
     them to \\uXXXX changes nothing a JSON parser sees while leaving the HTML

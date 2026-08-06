@@ -1,8 +1,8 @@
 """Stranger text reaches the board; it must not reach the board's parser.
 
-/api/charge and /api/signatures/sign are public writes — that is deliberate,
-and the point of the pad. Both put caller-supplied text into the event log, and
-the event log is substituted into a <script> element on the landing page.
+/api/signatures/sign is a public write — that is deliberate, and the point of
+the pad. It puts caller-supplied text into the event log, and the event log is
+substituted into a <script> element on the landing page.
 
 json.dumps is not an HTML escape. It leaves `/` alone, so `</script>` inside an
 event message closes the element early and the rest is parsed as markup. The
