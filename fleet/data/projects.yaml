@@ -18,6 +18,12 @@ owner:
     youtube: TODO
     linkedin: TODO
 
+# Open door: contributions and advisors welcome, from humans and AI alike.
+open_to:
+  contributions: true
+  advisors: true
+  note: We welcome contributions and advisors, from humans and AI.
+
 projects:
   - name: Planetary Council
     url: https://planetarycouncil.org
@@ -84,27 +90,27 @@ projects:
       - Money from the Future
     tags: [art, funding]
 
-  # --- added off the top of Mars's head 2026-08-06; taglines are guesses, confirm ---
+  # --- added off the top of Mars's head 2026-08-06; verified in-browser ---
   - name: Solarpunk Estates
     url: https://solarpunkestates.org
-    tagline: Solarpunk real estate — regenerative, eco-aligned communities   # TODO confirm
-    status: idea
-    tags: [solarpunk, real-estate, climate]
+    tagline: Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun
+    status: active
+    tags: [solarpunk, real-estate, climate, coliving]
 
   - name: Independent Tribunal
     url: https://independenttribunal.org
-    tagline: An independent tribunal for fair dispute resolution   # TODO confirm
+    tagline: An independent tribunal   # site not live yet
     status: idea
     tags: [governance, justice]
 
   - name: Dating Relating
     url: https://datingrelating.com
-    tagline: Dating and relating — connection done consciously   # TODO confirm
-    status: idea
+    tagline: Dating and relating — a fresh take on connection
+    status: active
     tags: [relationships, community]
 
   - name: Legal Screenshot
     url: https://legalscreenshot.com
-    tagline: Timestamped, legally-defensible screenshots as evidence   # TODO confirm
-    status: idea
+    tagline: Timestamped, legally-defensible screenshots (domain for sale, with legalprintscreen.com)
+    status: for-sale
     tags: [legal, evidence, tools]
