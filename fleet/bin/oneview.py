@@ -1332,9 +1332,17 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import nav
     import os, socket
+    from pathlib import Path as _P
     # Each dashboard self-identifies so an operator running several can tell them
-    # apart: FLEET_NAME env wins, else the machine's hostname, else "FLEET".
-    board_name = (os.environ.get("FLEET_NAME")
+    # apart: FLEET_NAME env wins, else data/board-name.txt (per-instance, not
+    # tracked), else the machine's hostname, else "FLEET".
+    def _name_file():
+        try:
+            return (_P(__file__).resolve().parent.parent / "data"
+                    / "board-name.txt").read_text().strip()
+        except OSError:
+            return ""
+    board_name = (os.environ.get("FLEET_NAME") or _name_file()
                   or socket.gethostname().split(".")[0] or "FLEET").upper()
     js = (JS.replace("__AGENTS__", agents_json)
             .replace("__SEED__", seed_json)
