@@ -368,8 +368,9 @@ def _append_capped(path: Path, record: dict) -> None:
 
     /api/charge had no cap at all, so an anonymous caller could fill the disk
     on a host whose unit is Restart=always — a restart loop against a full
-    disk rather than a clean stop. /api/signatures/sign already rotated at 8MB;
-    this is that rule, in one place, for both.
+    disk rather than a clean stop. That endpoint went with the orrery (#27),
+    but the rule outlived it: /api/signatures/sign rotates at 8MB by this same
+    path, and so does whatever public write comes next.
     """
     if path.exists() and path.stat().st_size > PUBLIC_WRITE_MAX_BYTES:
         path.rename(path.with_suffix(".jsonl.1"))
@@ -880,41 +881,6 @@ def serve(port):
                            "application/json")
                 return
 
-            if path == "/orbit":
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import nav, orbitview
-                self._send(orbitview.page(nav.html("/orbit",
-                                                   remote=self._remote()),
-                                          nav.CSS).encode())
-                return
-
-            if path == "/api/charge":
-                # Charge decays over a week: attention has to be renewed to
-                # stay visible, and a project nobody charges goes dark
-                # without anyone deciding to kill it.
-                import math as _m
-                from datetime import timedelta as _td
-                f = FLEET / "data" / "charges.jsonl"
-                now = datetime.now(timezone.utc)
-                out = {}
-                try:
-                    for line in f.read_text(errors="replace").splitlines():
-                        try:
-                            c = json.loads(line)
-                            t = datetime.fromisoformat(c["ts"])
-                        except (ValueError, KeyError):
-                            continue
-                        age_days = (now - t).total_seconds() / 86400
-                        if age_days > 14:
-                            continue
-                        out[c["project"]] = out.get(c["project"], 0.0) + \
-                            _m.exp(-age_days / 7.0)
-                except OSError:
-                    pass
-                self._send(json.dumps({"charges": out}).encode(),
-                           "application/json")
-                return
-
             if path == "/art":
                 # How to submit. A gallery with no visible door only ever
                 # hangs the operator's own work.
@@ -1039,32 +1005,6 @@ def serve(port):
             if forwards(path):
                 n = int(self.headers.get("Content-Length") or 0)
                 self._forward(path, self.rfile.read(min(n, 1_000_000)))
-                return
-
-            if path == "/api/charge":
-                if self._rate_limited():
-                    return
-                try:
-                    n = int(self.headers.get("Content-Length") or 0)
-                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
-                    project = str(body["project"])[:80]
-                    by = str(body.get("by") or "someone")[:40]
-                except Exception:
-                    self.send_error(400)
-                    return
-                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "project": project, "by": by,
-                       "remote": self._remote()}
-                try:
-                    _append_capped(FLEET / "data" / "charges.jsonl", rec)
-                except OSError:
-                    self.send_error(500)
-                    return
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import events as ev
-                ev.emit("orrery", "ok",
-                        f"[charge] {_safe_label(by)} charged '{_safe_label(project)}'")
-                self._send(json.dumps({"ok": True}).encode(), "application/json")
                 return
 
             if path == "/api/signatures/sign":
