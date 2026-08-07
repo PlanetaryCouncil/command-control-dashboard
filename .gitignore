@@ -54,3 +54,6 @@ fleet/rota/
 fleet/state/
 self-improve/state/
 fleet/data/board-name.txt
+# job-internal runtime state: the localvoice worker appends a line per run, so a
+# tracked copy re-dirties the tree after every run (same treatment as 86ae51e).
+fleet/data/localvoice.jsonl
