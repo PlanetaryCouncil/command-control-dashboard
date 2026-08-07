@@ -27,6 +27,7 @@ nothing.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -405,6 +406,49 @@ def board_state() -> dict:
     }
 
 
+def board_fingerprint(state: dict) -> str:
+    """A hash of the board fields that would change what a council says.
+
+    Six proposals landed in 63 minutes on 2026-08-07 (13:00 to 14:03) and three
+    of them restated the same two points, because across that hour the board's
+    substance did not move: `pipeline` sat in `alert` with the same merge queue,
+    `command-control-dashboard` reported the same "341 passed", `visitors` the
+    same line. The rota kept firing and every turn saw the same picture.
+
+    So: worker identity/status/summary/alert_since, and how many proposals are
+    open. Deliberately NOT included — `last_run` stamps, event counts, the
+    recent-events tail. Those tick every few minutes without the situation
+    having changed, which is precisely the churn this gate exists to ignore.
+    """
+    material = {
+        "workers": sorted(
+            (w.get("worker"), w.get("status"), w.get("summary"),
+             w.get("alert_since"))
+            for w in state.get("workers", [])
+        ),
+        "open_proposals": len(state.get("already_proposed", [])),
+        "unmerged_branches": sorted(
+            b.get("branch") if isinstance(b, dict) else str(b)
+            for b in state.get("unmerged_branches", [])
+        ),
+    }
+    blob = json.dumps(material, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+
+def last_fingerprint() -> str | None:
+    try:
+        return (FLEET / "council" / "board.sha").read_text().strip() or None
+    except OSError:
+        return None
+
+
+def save_fingerprint(fp: str) -> None:
+    path = FLEET / "council" / "board.sha"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(fp + "\n")
+
+
 def transcript(limit: int = 12, max_age_hours: float = 6.0) -> list[dict]:
     """Recent turns only, and never from a session that has already ended.
 
@@ -582,12 +626,25 @@ Reply in at most 120 words. Do not run commands. Do not edit files. This is a
 discussion; a human decides what happens next."""
 
 
-def run(agents: list[str], rounds: int, dry_run: bool = False) -> dict:
+def run(agents: list[str], rounds: int, dry_run: bool = False,
+        force: bool = False) -> dict:
     run_id = str(int(time.time()))
     # A council of one cannot coordinate; convening it only emits noise.
     if len(agents) < 2:
         print(f"council needs at least two participants, got {len(agents)}")
         return {"run": run_id, "turns": [], "adjourned": "too few participants"}
+
+    # Rule 2 — checking is free, acting is not — applied to the council itself.
+    # The rota still fires on schedule; it just does not spend three agent turns
+    # re-describing a board that has not moved since the last one. `--force`
+    # overrides, and the fingerprint only advances when a turn actually runs, so
+    # a skipped council leaves the next one free to speak the moment anything
+    # changes.
+    fingerprint = board_fingerprint(board_state())
+    if not (dry_run or force) and fingerprint == last_fingerprint():
+        ev.emit("fleet", "info", "[council] board unchanged — skipped")
+        print("board unchanged — skipped")
+        return {"run": run_id, "turns": [], "adjourned": "board unchanged"}
     # Council turns and plus-one relays both spawn agents. When they overlapped,
     # a lap that normally takes ~21s took 33s and another never completed. They
     # now share the relay lock so only one agent-spawning job runs at a time.
@@ -602,6 +659,8 @@ def run(agents: list[str], rounds: int, dry_run: bool = False) -> dict:
             pass
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.write_text(str(__import__("os").getpid()))
+
+    save_fingerprint(fingerprint)
 
     ev.emit("fleet", "info",
             f"[council] convened — {', '.join(agents)}, up to {rounds} rounds")
@@ -697,11 +756,13 @@ def main():
     ap.add_argument("--rounds", type=int, default=2)
     ap.add_argument("--dry-run", action="store_true",
                     help="print the prompts without spending a turn")
+    ap.add_argument("--force", action="store_true",
+                    help="convene even if the board has not changed")
     ap.add_argument("--out")
     a = ap.parse_args()
 
     res = run([x.strip() for x in a.agents.split(",") if x.strip()],
-              a.rounds, dry_run=a.dry_run)
+              a.rounds, dry_run=a.dry_run, force=a.force)
     if a.dry_run:
         return 0
 
