@@ -104,6 +104,8 @@ def proposals_open() -> int:
         rows = [json.loads(l) for l in p.read_text().splitlines() if l.strip()]
     except (OSError, json.JSONDecodeError):
         return 0
+    # A narrated-prompt turn is filed `unusable`; it is not open work.
+    rows = [r for r in rows if r.get("outcome") != "unusable"]
     try:
         import pipeline
         return len([r for r in rows
