@@ -16,6 +16,7 @@ intent. Everything else the fleet decides.
 
     daily.py            print it
     daily.py --send     print it and send it to Telegram
+    daily.py --json     the same figures as data, for a page to render
 """
 
 from __future__ import annotations
@@ -166,7 +167,38 @@ def send(text: str) -> bool:
         return False
 
 
+def data() -> dict:
+    """The same figures the text report reads from, as data.
+
+    A published page should render numbers, not scrape a paragraph. Same
+    source, two renderings — so the page and the Telegram message can never
+    disagree about how many things landed.
+    """
+    stuck, rejected = pipeline_state()
+    land = landed()
+    try:
+        import buildgate
+        gate = buildgate.read()
+    except Exception:
+        gate = {}
+    return {
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "window_hours": WINDOW_H,
+        "host": gate.get("host"),
+        "building": gate.get("enabled"),
+        "landed": land,
+        "landed_count": len(land),
+        "rejected": rejected,
+        "could_not_land": stuck,
+        "proposals_waiting": proposals_open(),
+        "needs_you": workers_needing_you(),
+    }
+
+
 if __name__ == "__main__":
+    if "--json" in sys.argv:
+        print(json.dumps(data(), indent=2))
+        sys.exit(0)
     txt = report()
     print(txt)
     if "--send" in sys.argv:
