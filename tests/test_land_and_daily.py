@@ -43,6 +43,7 @@ def repo(tmp_path, monkeypatch):
 
     monkeypatch.setattr(pipeline, "REPO", r)
     monkeypatch.setattr(pipeline, "STATE", tmp_path / "pipeline.jsonl")
+    monkeypatch.setattr(pipeline, "WORKTREES", tmp_path / "wt")
     monkeypatch.setattr(pipeline.ev, "emit", lambda *a, **k: None)
     return r
 
@@ -60,7 +61,21 @@ def test_green_merge_lands(repo, tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "run", _no_push(repo))
     r = pipeline.land({"branch": "feature", "proposal_ts": "t1"})
     assert r["ok"] is True
-    assert (repo / "b.txt").exists(), "the branch's work is on main"
+    assert r["sha"], "the merge commit is recorded"
+
+
+def test_the_shared_checkout_is_never_moved(repo, tmp_path, monkeypatch):
+    """The operator's tree — or another agent's — must be exactly where it
+    was. On 2026-08-07 the Nuc was sitting on someone else's branch mid-task
+    and a checkout here would have taken it away from them."""
+    before = git("rev-parse", "--abbrev-ref", "HEAD", cwd=repo).stdout.strip()
+    head_before = git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+    monkeypatch.setattr(pipeline, "venv_pytest",
+                        lambda: _fake_pytest(tmp_path, 0))
+    monkeypatch.setattr(pipeline, "run", _no_push(repo))
+    pipeline.land({"branch": "feature", "proposal_ts": "t1"})
+    assert git("rev-parse", "--abbrev-ref", "HEAD", cwd=repo).stdout.strip() == before
+    assert git("rev-parse", "HEAD", cwd=repo).stdout.strip() == head_before
 
 
 def test_red_merge_rolls_back(repo, tmp_path, monkeypatch):
@@ -72,7 +87,8 @@ def test_red_merge_rolls_back(repo, tmp_path, monkeypatch):
     r = pipeline.land({"branch": "feature", "proposal_ts": "t1"})
     assert r["ok"] is False
     assert git("rev-parse", "HEAD", cwd=repo).stdout.strip() == before
-    assert not (repo / "b.txt").exists(), "main is exactly where it was"
+    assert git("rev-parse", "main", cwd=repo).stdout.strip() == before, \
+        "main is exactly where it was"
 
 
 def test_conflict_is_not_a_crash(repo, tmp_path, monkeypatch):
