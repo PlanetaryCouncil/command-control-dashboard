@@ -165,7 +165,7 @@ def run_cmd(cmd, timeout, stdin_text=None):
 
 
 # --------------------------------------------------------------------------- adapters
-def ask_ollama(model, prompt, images, emit, num_predict=None):
+def ask_ollama(model, prompt, images, emit, num_predict=None, timeout=600):
     """Local model. Cap the answer length, or it will not finish.
 
     An 8B model on this CPU generates a few tokens a second, and slower while
@@ -177,7 +177,13 @@ def ask_ollama(model, prompt, images, emit, num_predict=None):
 
     So callers that need it to finish pass num_predict. A short answer from a
     genuinely independent model beats a long one that never arrives.
+
+    timeout is wall-clock, not per-read. urlopen's timeout only bounds each
+    socket read, so a model dribbling one token a minute never trips it: on
+    2026-08-07 the localvoice ping hung for 607s under a nominal 600s cap.
+    The streaming loop checks the deadline itself and gives up mid-answer.
     """
+    deadline = time.time() + timeout
     body = {"model": model, "stream": True,
             "messages": [{"role": "user", "content": prompt}]}
     if num_predict:
@@ -189,8 +195,12 @@ def ask_ollama(model, prompt, images, emit, num_predict=None):
         headers={"Content-Type": "application/json"})
     acc = []
     try:
-        with urllib.request.urlopen(req, timeout=600) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             for line in r:
+                if time.time() > deadline:
+                    part = "".join(acc).strip()
+                    return (f"[timed out after {timeout}s; partial: {part}]"
+                            if part else f"[timed out after {timeout}s; no output]")
                 line = line.decode(errors="replace").strip()
                 if not line:
                     continue
