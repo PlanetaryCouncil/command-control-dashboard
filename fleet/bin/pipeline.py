@@ -295,45 +295,56 @@ def land(verified: dict) -> dict:
     this cycle.
     """
     branch = verified["branch"]
-    head_before = run(["git", "rev-parse", "HEAD"], cwd=REPO)[1].strip()
-
-    code, out = run(["git", "checkout", "main"], cwd=REPO)
+    ts = verified["proposal_ts"]
+    # Never touch the shared checkout. It belongs to whoever is working in it
+    # — on 2026-08-07 the Nuc's tree was sitting on another agent's branch
+    # mid-task, and `git checkout main` here would have yanked it away
+    # underneath them. The merge happens in a worktree of its own and the
+    # push goes from there; the operator's tree never moves.
+    wt = WORKTREES / f"land-{branch.replace('/', '-')}"
+    WORKTREES.mkdir(exist_ok=True)
+    run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+    code, out = run(["git", "worktree", "add", "--detach", str(wt), "main"],
+                    cwd=REPO)
     if code != 0:
-        return record(stage="land", proposal_ts=verified["proposal_ts"],
-                      branch=branch, ok=False, detail=f"checkout: {out[-200:]}")
+        return record(stage="land", proposal_ts=ts, branch=branch, ok=False,
+                      detail=f"worktree: {out[-200:]}")
 
-    code, out = run(["git", "merge", "--no-ff", "--no-edit", branch], cwd=REPO)
+    def done(ok, **extra):
+        run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+        return record(stage="land", proposal_ts=ts, branch=branch, ok=ok, **extra)
+
+    code, out = run(["git", "merge", "--no-ff", "--no-edit", branch], cwd=wt)
     if code != 0:
-        run(["git", "merge", "--abort"], cwd=REPO)
+        run(["git", "merge", "--abort"], cwd=wt)
         ev.emit("pipeline", "warn", f"[land] {branch}: conflicts with main")
-        return record(stage="land", proposal_ts=verified["proposal_ts"],
-                      branch=branch, ok=False, detail=f"conflict: {out[-200:]}")
+        return done(False, detail=f"conflict: {out[-200:]}")
 
-    merge_sha = run(["git", "rev-parse", "HEAD"], cwd=REPO)[1].strip()
-    code, out = run([str(venv_pytest()), "-q"], cwd=REPO, timeout=900)
+    merge_sha = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
+    code, out = run([str(venv_pytest()), "-q"], cwd=wt, timeout=900)
     if code != 0:
-        # The merge commit is the thing that failed, so the merge commit is
-        # what gets thrown away — not the branch, which is still good on its
-        # own and may land once whatever it collided with is fixed.
-        run(["git", "reset", "--hard", head_before], cwd=REPO)
+        # The merge commit is what failed, so the merge commit is what gets
+        # thrown away — not the branch, which is still good on its own and
+        # may land once whatever it collided with is fixed. Discarding the
+        # worktree discards the merge; main was never moved.
         tail = out.strip().splitlines()[-1] if out.strip() else "no output"
         ev.emit("pipeline", "warn",
-                f"[land] {branch}: green alone, red merged — rolled back ({tail})")
-        return record(stage="land", proposal_ts=verified["proposal_ts"],
-                      branch=branch, ok=False, detail=f"merged tests: {tail}")
+                f"[land] {branch}: green alone, red merged — dropped ({tail})")
+        return done(False, detail=f"merged tests: {tail}")
 
-    code, out = run(["git", "push", "origin", "main"], cwd=REPO, timeout=300)
+    # Push the merge commit straight at main. Nothing local is updated to
+    # point at it until the push is accepted, so a rejected push leaves no
+    # half-landed state anywhere.
+    code, out = run(["git", "push", "origin", f"{merge_sha}:main"],
+                    cwd=wt, timeout=300)
     if code != 0:
-        # Someone else moved main. Leave the merge locally; the next cycle
-        # re-tests against whatever landed and pushes then.
         ev.emit("pipeline", "info",
-                f"[land] {branch}: merged locally, push deferred ({out[-120:]})")
-        return record(stage="land", proposal_ts=verified["proposal_ts"],
-                      branch=branch, ok=False, detail=f"push: {out[-200:]}")
+                f"[land] {branch}: push refused, will retry ({out[-120:]})")
+        return done(False, detail=f"push: {out[-200:]}")
 
+    run(["git", "fetch", "origin", "main:main"], cwd=REPO)
     ev.emit("pipeline", "ok", f"[land] {branch} merged to main and pushed")
-    return record(stage="land", proposal_ts=verified["proposal_ts"],
-                  branch=branch, ok=True, sha=merge_sha[:12])
+    return done(True, sha=merge_sha[:12])
 
 
 def write_worker() -> None:

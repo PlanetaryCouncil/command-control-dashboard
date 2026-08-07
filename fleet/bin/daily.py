@@ -17,11 +17,13 @@ intent. Everything else the fleet decides.
     daily.py            print it
     daily.py --send     print it and send it to Telegram
     daily.py --json     the same figures as data, for a page to render
+    daily.py --publish  write that data to the public site and push it
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -195,11 +197,68 @@ def data() -> dict:
     }
 
 
+SITE = Path(os.environ.get(
+    "FLEET_SITE_REPO", Path.home() / "projects" / "planetarycouncil.org"))
+SITE_FILE = "fleet-report/daily.json"
+
+
+def publish() -> bool:
+    """Write the figures into the public site and push, if anything changed.
+
+    The page at planetarycouncil.org/fleet-report/ reads this file, so the
+    published numbers age exactly as fast as the morning message does. No
+    commit when the data is unchanged — a repository full of "no news today"
+    commits is noise, and the timestamp alone always differs.
+    """
+    repo = SITE
+    target = repo / SITE_FILE
+    if not (repo / ".git").exists():
+        print(f"no site checkout at {repo}", file=sys.stderr)
+        return False
+
+    fresh = data()
+    try:
+        old = json.loads(target.read_text())
+        old.pop("generated_at", None)
+        cmp_new = dict(fresh)
+        cmp_new.pop("generated_at", None)
+        if old == cmp_new:
+            print("site unchanged", file=sys.stderr)
+            return True
+    except (OSError, json.JSONDecodeError):
+        pass
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(fresh, indent=2) + "\n")
+
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    msg = (f"fleet-report: {day} — {fresh['landed_count']} landed, "
+           f"{fresh['proposals_waiting']} waiting")
+    for cmd in (["git", "add", SITE_FILE],
+                ["git", "commit", "-m", msg],
+                ["git", "pull", "--rebase", "origin", "gh-pages"],
+                ["git", "push", "origin", "gh-pages"]):
+        p = subprocess.run(cmd, cwd=str(repo), capture_output=True, text=True,
+                           timeout=180)
+        if p.returncode != 0:
+            print(f"{' '.join(cmd)}: {p.stderr.strip()[:200]}", file=sys.stderr)
+            return False
+    print("site published", file=sys.stderr)
+    return True
+
+
 if __name__ == "__main__":
+    # launchd takes one command, systemd takes a list — hence the combined
+    # form, so both schedulers can do the whole morning in one entry.
+    both = "--publish-and-send" in sys.argv
+    if "--publish" in sys.argv or both:
+        publish()
+        if not both:
+            sys.exit(0)
     if "--json" in sys.argv:
         print(json.dumps(data(), indent=2))
         sys.exit(0)
     txt = report()
     print(txt)
-    if "--send" in sys.argv:
+    if "--send" in sys.argv or both:
         print("sent" if send(txt) else "not sent", file=sys.stderr)
