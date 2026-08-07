@@ -49,6 +49,11 @@ TRANSCRIPT = FLEET / "council" / "transcript.jsonl"
 # at 300.7s and 300.6s. Now every seat gets the same clock.
 TURN_TIMEOUT = 420
 
+# How long a council will wait for the shared agent lock before giving up.
+# Longer than a rota turn (20-170s) plus its gap, so a normal rotation never
+# costs a sitting; short enough that a wedged holder does not pin a timer job.
+LOCK_WAIT = 600
+
 # Ollama was excluded here, with a reason worth keeping on the record: an 8B
 # model on this CPU is slow, and arguably too weak for meta-reasoning about a
 # system it cannot inspect. Both halves of that may still be true.
@@ -76,7 +81,7 @@ TURN_TIMEOUT = 420
 # nothing. Revisit ollama on a machine with a GPU or spare RAM — the reason to
 # want it has not changed, and it is still the only vendor-independent voice
 # available here.
-DEFAULT_AGENTS = ["claude", "hermes", "openclaw"]
+DEFAULT_AGENTS = ["claude", "codex", "hermes"]
 
 NOTHING = re.compile(r"\bNOTHING TO ADD\b", re.I)
 
@@ -661,14 +666,28 @@ def run(agents: list[str], rounds: int, dry_run: bool = False) -> dict:
     # a lap that normally takes ~21s took 33s and another never completed. They
     # now share the relay lock so only one agent-spawning job runs at a time.
     lock = FLEET / "logs" / ".plusone-any.lock"
-    if lock.exists():
+
+    def _holder() -> bool:
+        """True when a live process holds the shared agent lock."""
         try:
             import os as _os
             _os.kill(int(lock.read_text().strip() or 0), 0)
-            print("a relay is in flight; skipping this council")
-            return {"run": run_id, "turns": [], "adjourned": "relay in flight"}
+            return True
         except (ProcessLookupError, ValueError, OSError):
-            pass
+            return False
+
+    # Wait, do not skip. Skipping was correct when rota fired hourly and the
+    # lock was free 59 minutes in 60. With the NUC's continuous rota the lock
+    # is held most of the time — 18 rota turns in an hour on 2026-08-07 — so a
+    # council that skips on contention is a council that never sits, and the
+    # 3-hourly cadence quietly becomes never. Waiting costs a sleeping process;
+    # skipping costs the deliberation.
+    deadline = time.time() + LOCK_WAIT
+    while lock.exists() and _holder():
+        if time.time() > deadline:
+            print(f"a relay held the lock for {LOCK_WAIT}s; skipping this council")
+            return {"run": run_id, "turns": [], "adjourned": "relay in flight"}
+        time.sleep(5)
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.write_text(str(__import__("os").getpid()))
 

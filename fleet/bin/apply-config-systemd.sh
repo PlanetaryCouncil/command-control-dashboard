@@ -13,7 +13,16 @@ FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REPO="$(cd "$FLEET/.." && pwd)"
 CFG="$FLEET/config.json"
 UNITS="$HOME/.config/systemd/user"
+# Third place this same lesson has had to be learned: #32 fixed the pipeline,
+# #33 fixed the watchdog, and the unit files still hardcoded `.venv`. On the
+# NUC that is python 3.14 with none of the fleet's dependencies; the working
+# environment is `.venv311`. Pick the venv that is actually furnished —
+# pytest's presence is the marker — and fall back to the conventional path so
+# a failure still names somewhere a reader expects to look.
 PY="$REPO/.venv/bin/python3"
+for _v in .venv .venv311 .venv312 .venv313; do
+  if [[ -x "$REPO/$_v/bin/pytest" ]]; then PY="$REPO/$_v/bin/python3"; break; fi
+done
 
 [[ -f "$CFG" ]] || { echo "no config.json at $CFG"; exit 1; }
 python3 -c "import json;json.load(open('$CFG'))" || { echo "config.json is not valid JSON"; exit 1; }
