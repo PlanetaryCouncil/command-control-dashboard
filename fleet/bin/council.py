@@ -332,6 +332,52 @@ def _airlock(s, n: int = 130) -> str:
     return re.sub(r"\s+", " ", s).strip()[:n]
 
 
+ASK_FILE = FLEET / "data" / "council-question.md"
+ASK_MAX = 1200
+
+
+def operator_question() -> str:
+    """The one thing in the prompt that outranks the board.
+
+    2026-08-07: the operator put a decision on the board — merge a deny-list
+    fix before the self-improve loop runs unattended at 03:00 — convened the
+    council, and none of the three agents mentioned it. They were not ignoring
+    him. The prompt said "pick ONE line from the state above", the question was
+    one log line among sixty, and three models picked three other lines. The
+    council had no notion of being *asked* anything.
+
+    So a question from the operator lives in its own file, is rendered above
+    the board, and the instruction block makes answering it the turn's job.
+    Everything else in the prompt is data the agent may range over; this is the
+    single element with standing.
+
+    Deliberately a local file, not a public write. The airlock rule is
+    unchanged: strangers' text is DATA and reaches agents only as quoted
+    material. This channel is the operator's, which is exactly why it may
+    carry an instruction — and why nothing reachable from the funnel writes it.
+    """
+    try:
+        q = ASK_FILE.read_text(errors="replace").strip()
+    except OSError:
+        return ""
+    # Truncated rather than dropped: a question too long to fit is still the
+    # most important thing on the page.
+    return q[:ASK_MAX]
+
+
+def clear_question() -> None:
+    """Answered questions must not linger.
+
+    A stale question is worse than none: the council would keep answering last
+    week's decision with this week's board, and the operator would read
+    agreement where there was only an echo.
+    """
+    try:
+        ASK_FILE.unlink()
+    except OSError:
+        pass
+
+
 def board_state() -> dict:
     """Everything an agent can see, gathered without spawning anything."""
     workers = []
@@ -526,7 +572,18 @@ def build_prompt(agent: str, state: dict, prior: list[dict]) -> str:
         # cannot echo as a heading, one worked example of the shape
         # wanted, and the ask at the end where a completion model is
         # actually looking.
-        return f"""Here is the state of a small fleet of agents on one laptop.
+        ask = operator_question()
+        # For the small model the question goes FIRST and the instruction
+        # repeats it at the end, because a completion model answers what it
+        # read last and remembers what it read first.
+        ask_head = (f"The operator asked you this: {' '.join(ask.split())[:400]}\n\n"
+                    if ask else "")
+        ask_tail = ("Answer the operator's question above in your first "
+                    "sentence, then say why. " if ask else
+                    "Pick ONE line from the state above —\n"
+                    "a worker, or something that just happened — and say what is wrong with it\n"
+                    "and what would fix it. Quote the number or name you are talking about.\n")
+        return f"""{ask_head}Here is the state of a small fleet of agents on one laptop.
 
 Workers right now: {'; '.join(l.lstrip('- ') for l in brief_workers.splitlines())}
 
@@ -534,17 +591,29 @@ Things that just happened: {'; '.join(l.lstrip('- ') for l in brief_events.split
 
 Points other agents already made (do not repeat these): {'; '.join(l.lstrip('- ') for l in brief_said.splitlines())}
 
-{own_line}Now write your answer. Pick ONE line from the state above —
-a worker, or something that just happened — and say what is wrong with it
-and what would fix it. Quote the number or name you are talking about.
-Two sentences, under 60 words. Do not describe a bakery, a shop, or any
+{own_line}Now write your answer. {ask_tail}Two sentences, under 60 words. Do not describe a bakery, a shop, or any
 example; write only about this fleet. If nothing above is worth
 mentioning, reply with exactly: NOTHING TO ADD"""
+
+    ask = operator_question()
+    ask_block = (f"""
+THE OPERATOR ASKED THIS COUNCIL A QUESTION. It outranks everything below.
+Answer it directly, in your first sentence, before any other observation.
+If you disagree with the premise, say so and why — that is answering it.
+Saying nothing about it is not.
+
+  {ask}
+""" if ask else "")
+    ask_rule = ("1. Answer the operator's question first. Then, if you have room, ground a\n"
+                "   further observation in something visible below.\n"
+                if ask else
+                "1. Ground it in something visible above — a status, an event, a pattern in the\n"
+                "   log. An observation you cannot point at is worthless here.\n")
 
     return f"""You are {agent}, one of several AI agents that run unattended on this
 machine as a fleet. You are taking a turn in a council whose only subject is
 improving the workflow you all operate inside.
-
+{ask_block}
 CURRENT STATE OF THE FLEET
 Workers: {json.dumps(state['workers'], indent=1)}
 Event levels in the last 60 events: {json.dumps(state['event_levels'])}
@@ -564,9 +633,7 @@ YOUR TURN
 
 Say one thing that would make this fleet work better. Rules:
 
-1. Ground it in something visible above — a status, an event, a pattern in the
-   log. An observation you cannot point at is worthless here.
-2. Do not repeat a point another agent has already made. Build on it, disagree
+{ask_rule}2. Do not repeat a point another agent has already made. Build on it, disagree
    with it, or move on.
 3. Prefer the smallest change that removes a real friction over a large
    redesign.
@@ -698,12 +765,38 @@ def main():
     ap.add_argument("--dry-run", action="store_true",
                     help="print the prompts without spending a turn")
     ap.add_argument("--out")
+    ap.add_argument("--ask", metavar="TEXT",
+                    help="set the operator's question and convene; '-' reads stdin")
+    ap.add_argument("--clear-ask", action="store_true",
+                    help="drop the pending question without convening")
+    ap.add_argument("--show-ask", action="store_true",
+                    help="print the pending question, if any")
     a = ap.parse_args()
+
+    if a.show_ask:
+        print(operator_question() or "(no question pending)")
+        return 0
+    if a.clear_ask:
+        clear_question()
+        print("question cleared")
+        return 0
+    if a.ask:
+        text = sys.stdin.read() if a.ask == "-" else a.ask
+        ASK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        ASK_FILE.write_text(text.strip() + "\n")
+        print(f"question set ({len(text.strip())} chars) — convening")
 
     res = run([x.strip() for x in a.agents.split(",") if x.strip()],
               a.rounds, dry_run=a.dry_run)
     if a.dry_run:
         return 0
+
+    # The question is cleared once it has been put to a full council, answered
+    # or not. Leaving it would make every later council answer a decision the
+    # operator has already moved past, and agreement-by-echo reads exactly
+    # like agreement.
+    if operator_question() and res.get("turns"):
+        clear_question()
 
     for t in res["turns"]:
         mark = "—" if t["nothing"] else "•"
