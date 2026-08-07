@@ -103,7 +103,6 @@ Deliberately, and unchanged by any of the above:
     summary of it.
   - **`POST /api/signatures/sign`** — a pointer-path signature for the wall. A
     too-regular path waits in moderation; a living hand is shown.
-  - **`POST /api/charge`** — appends to the public charge log.
 
 Everything that steers the system — handoffs, project touches, horizons,
 approvals — needs the operator.
