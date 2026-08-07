@@ -39,6 +39,7 @@ you can read in one file is worth more here than one you cannot.
 
 import json
 import os
+import subprocess
 import sys
 import time
 import urllib.error
@@ -154,24 +155,76 @@ HELP = """direct line to the fleet
 /status     workers needing attention
 /events     recent event log
 /procs      what is running
+/new        fresh conversation (forget the thread so far)
 /help       this
 
-anything else is dispatched to an agent."""
+anything else goes to the agent, which remembers the thread and holds real
+tools. replies can take minutes."""
 
 
-def dispatch(text):
-    """Free text goes to an agent.
+SESSION = Path(os.environ.get("FLEET_TELEGRAM_SESSION",
+                              FLEET / "data" / "telegram-session"))
+
+# The line is the operator's own terminal, reached from a phone. It gets the
+# same tools it would have on the box, because a direct line that can look but
+# not touch is a status page with extra steps.
+TOOLS = ["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebSearch", "WebFetch"]
+
+
+def _session_id():
+    """One long-running conversation, not a series of strangers.
+
+    Without this every message was a fresh `claude --print`: no memory of the
+    last question, no idea what "it" refers to. That is the difference between
+    a direct line and a search box.
+    """
+    try:
+        sid = SESSION.read_text().strip()
+        if sid:
+            return sid, True          # resume
+    except OSError:
+        pass
+    import uuid
+    sid = str(uuid.uuid4())
+    try:
+        SESSION.parent.mkdir(parents=True, exist_ok=True)
+        SESSION.write_text(sid)
+    except OSError:
+        pass
+    return sid, False
+
+
+def dispatch(text, timeout=900):
+    """Free text goes to the agent, in a conversation that remembers.
 
     Only reachable after the allowlist check, so the sender is the operator and
     the text is an instruction rather than untrusted input. That distinction is
-    the whole reason the allowlist is not optional.
+    the whole reason the allowlist is not optional — and the reason this may
+    hold real tools.
     """
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    sid, resuming = _session_id()
+    cmd = ["claude", "--print",
+           "--resume" if resuming else "--session-id", sid,
+           "--permission-mode", "acceptEdits",
+           "--allowedTools", *TOOLS,
+           "--add-dir", str(FLEET.parent)]
     try:
-        import chat
-        return chat.ask_claude(text, [], lambda *a, **k: None, timeout=300)
-    except Exception as e:
-        return f"agent dispatch failed: {e}"
+        p = subprocess.run(cmd + [text], capture_output=True, text=True,
+                           timeout=timeout, cwd=str(FLEET.parent))
+    except subprocess.TimeoutExpired:
+        return f"timed out after {timeout // 60} min. still running? check /procs."
+    out = (p.stdout or "").strip()
+    if not out:
+        err = (p.stderr or "").strip()[:400]
+        # A dead session id must not wedge the line permanently.
+        if "session" in err.lower() and resuming:
+            try:
+                SESSION.unlink()
+            except OSError:
+                pass
+            return f"session was stale — cleared it, send that again.\n{err}"
+        return f"(no output){chr(10) + err if err else ''}"
+    return out
 
 
 def handle(text):
@@ -184,6 +237,12 @@ def handle(text):
         return cmd_events()
     if cmd == "/procs":
         return cmd_procs()
+    if cmd == "/new":
+        try:
+            SESSION.unlink()
+        except OSError:
+            pass
+        return "fresh thread — I have forgotten the conversation so far."
     return dispatch(text)
 
 
@@ -267,6 +326,14 @@ def main(argv):
                 if not text:
                     continue
                 print(f"<- {sender}: {text[:80]}", flush=True)
+                # An agent turn can run for minutes. Silence reads as a dead
+                # bot, and a dead bot gets poked again — so show the typing
+                # indicator before disappearing to think.
+                if not text.strip().startswith("/"):
+                    try:
+                        call(token, "sendChatAction", chat_id=sender, action="typing")
+                    except Exception:
+                        pass
                 try:
                     reply = handle(text)
                 except Exception as e:
