@@ -7,9 +7,16 @@ asked what would be *better*. Not what is broken.
 
 Three questions, deliberately in this order:
 
-    1. This machine — the workflow, the setup, the fleet it runs inside.
-    2. Marsita the Ultra — the person the machine exists to serve.
-    3. The planet — who this serves besides her.
+    1. One project, and the single most valuable action for it right now.
+    2. What that project could do for the people it serves.
+    3. The machine — and ONLY if it is blocking question 1.
+
+The order was the other way round until 2026-08-07, and it showed: asked
+first what would improve the machine, a fleet answers about the fleet. It
+filed 72 proposals in one day and almost none of them touched a project.
+Marsita: "My projects are fundamental, everything else is coordination and
+tooling and infrastructure." So the machine went last, and now has to name
+the project it unblocks to earn the slot at all.
 
 The ladder is the point, and the third rung is not decoration: `data/life.json`
 already asks of every project "who does this serve besides me?", so an agent that
@@ -51,11 +58,19 @@ STATE = FLEET / "state" / "rota.json"
 LEDGER = FLEET / "rota" / "proposals.jsonl"
 MAX_LOAD = float(os.environ.get("MAX_LOAD", "6"))
 
+# Reordered 2026-08-07. Marsita: "My projects are fundamental, everything else
+# is coordination and tooling and infrastructure." The old first question asked
+# what would improve the machine, and a fleet asked about itself answers about
+# itself — 72 proposals filed in one day, almost every one about the fleet.
+# The machine is now the third question and it has to earn its place by naming
+# the project it unblocks.
 QUESTIONS = [
-    "What would most improve this machine — the workflow, the setup, the fleet "
-    "you run inside?",
-    "What would most help Marsita the Ultra, the person this exists to serve?",
-    "What would this let her do for the planet — who does it serve besides her?",
+    "Pick ONE project from the list and name the single most valuable thing "
+    "that could be done for it right now. Not a plan — one action.",
+    "What is the most valuable thing that project could do for the people it "
+    "serves, that it is not doing yet?",
+    "Only if some part of this machine is BLOCKING that action: what is the "
+    "smallest fix? Name the project it unblocks, or answer NOTHING TO ADD.",
 ]
 
 
@@ -72,34 +87,91 @@ def whose_turn(agents: list[str]) -> tuple[str, dict]:
     return nxt, state
 
 
+def projects_text() -> str:
+    """The operator's own project list, verbatim.
+
+    Without this the rota only ever saw the board — and the board is the
+    fleet describing itself, so that is what came back. The projects are the
+    point; the fleet is how they get built.
+    """
+    try:
+        return (FLEET / "data" / "projects.yaml").read_text()[:4000]
+    except OSError:
+        return "(projects.yaml unavailable — say NOTHING TO ADD rather than guessing)"
+
+
 def prompt_for(agent: str, board: dict) -> str:
     return "\n".join([
-        "You are one agent in a small fleet running on a four-core laptop.",
-        "It is your turn. No other agent is running right now.",
+        "You are one agent in a small fleet. It is your turn; no other agent",
+        "is running right now.",
         "",
-        "Here is the current state of the board you all share:",
+        "THE PROJECTS ARE THE POINT. Marsita, 2026-08-07: \"My projects are",
+        "fundamental, everything else is coordination and tooling and",
+        "infrastructure.\" The fleet exists to move these forward. A turn spent",
+        "on the fleet itself is a turn not spent on them.",
         "",
-        json.dumps(board, indent=2)[:6000],
+        "Here is the project list:",
         "",
-        "Answer these three questions, in order, grounded in what you just read.",
-        "Cite actual numbers, workers or events from the board — a proposal that",
-        "would read the same without the board is not worth a turn.",
+        projects_text(),
+        "",
+        "And the current state of the board the fleet shares:",
+        "",
+        json.dumps(board, indent=2)[:4000],
+        "",
+        "Answer these three questions, in order.",
         "",
         *(f"{i}. {q}" for i, q in enumerate(QUESTIONS, 1)),
         "",
         "Rules:",
+        "- Name the project. A proposal that does not name one is not a turn.",
+        "- One action, small enough to finish today. 'Write the About page for",
+        "  X' beats 'improve X's positioning'.",
+        "- Prefer a project that is live but thin, or marked TODO, over one",
+        "  already doing well. Look for the gap.",
         "- Check already_proposed first. If an entry from the last 4 hours",
-        "  (its ts is on the board) already covers your idea — branch backlog,",
-        "  merge debt, a stale worker — say NOTHING TO ADD for that question.",
+        "  already covers your idea, say NOTHING TO ADD for that question.",
         "  The human has read it once; a sixth restatement is not a turn.",
-        "- Be specific and small. The smallest change that would actually help.",
-        "- One concrete proposal per question. Say what you would change, where.",
-        "- If a question has no honest answer from this board, say NOTHING TO ADD",
-        "  for that one rather than inventing something. Silence is a valid turn.",
-        "- You are proposing, not doing. A human reads this and decides.",
-        "- Four cores, 8GB. A proposal that needs more machine than exists is not",
-        "  a proposal.",
+        "- Do not restate these questions back. Answer them. A turn that",
+        "  opens 'Here are my answers to the three questions' is filed",
+        "  unusable and wastes the slot.",
+        "- If a question has no honest answer, say NOTHING TO ADD for that one",
+        "  rather than inventing something. Silence is a valid turn.",
+        "- The fleet builds what you propose. Write it as something a builder",
+        "  could implement, not as advice for a human to consider.",
     ])
+
+
+NARRATION = (
+    "the message seems to be",
+    "the text you provided appears to be",
+    "the text appears to be",
+    "here is the reformatted text",
+    "here's the reformatted text",
+    "what appears to be a discord",
+    "the format you requested is",
+    "this appears to be a log",
+    "it appears to be a log",
+    "i'll answer the three questions based on the provided text",
+    "based on the provided text, i'll answer",
+)
+
+
+def narrated(out: str) -> bool:
+    """True when the turn describes the prompt instead of answering it.
+
+    On 2026-08-07 three of the six entries on the board were the model
+    reading the prompt back — "the message seems to be an invitation for
+    discussion", "here is the reformatted text from what appears to be a
+    Discord proposal". They exit clean, so nothing catches them the way the
+    errored-turn check catches `[error]`, and each one takes a board slot a
+    human and the next agent have to read past. Filed `unusable`, they stay
+    in the ledger as evidence and stay off the board.
+
+    Deliberately narrow: only the opening of the turn is examined, because a
+    real proposal may well *quote* the board further down.
+    """
+    head = " ".join(out.split())[:300].lower()
+    return any(p in head for p in NARRATION)
 
 
 def ask(agent: str, prompt: str, session: str) -> str:
@@ -179,6 +251,7 @@ def main() -> int:
     # learn, where a timeout was recorded as the agent's answer.
     failed = out.strip().startswith(("[timed out", "[error", "[unknown agent"))
     nothing = "NOTHING TO ADD" in out.upper() and len(out.strip()) < 400
+    unusable = not failed and not nothing and narrated(out)
 
     record = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -188,7 +261,8 @@ def main() -> int:
         # every convergence looked like one model repeating itself.
         "vendor": vendors.vendor(agent), "model": vendors.model(agent),
         "seconds": secs,
-        "outcome": "error" if failed else ("nothing" if nothing else "proposed"),
+        "outcome": ("error" if failed else "nothing" if nothing
+                    else "unusable" if unusable else "proposed"),
         "load_at_start": round(load1, 2),
         "text": " ".join(out.split()),
     }
@@ -203,6 +277,10 @@ def main() -> int:
 
     if failed:
         ev.emit(agent, "warn", f"[rota] turn failed after {secs}s: {out.strip()[:80]}")
+    elif unusable:
+        ev.emit(agent, "warn",
+                f"[rota] unusable turn after {secs}s — narrated the prompt back: "
+                f"{record['text'][:80]}")
     elif nothing:
         ev.emit(agent, "ok", f"[rota] nothing to add ({secs}s)")
     else:

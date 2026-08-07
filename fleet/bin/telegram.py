@@ -171,6 +171,14 @@ SESSION = Path(os.environ.get("FLEET_TELEGRAM_SESSION",
 TOOLS = ["Bash", "Read", "Edit", "Write", "Glob", "Grep", "WebSearch", "WebFetch"]
 
 
+def clear_question_session() -> None:
+    """Drop a session id that no longer names a live conversation."""
+    try:
+        SESSION.unlink()
+    except OSError:
+        pass
+
+
 def _session_id():
     """One long-running conversation, not a series of strangers.
 
@@ -194,7 +202,7 @@ def _session_id():
     return sid, False
 
 
-def dispatch(text, timeout=900):
+def dispatch(text, timeout=420, _retry=True):
     """Free text goes to the agent, in a conversation that remembers.
 
     Only reachable after the allowlist check, so the sender is the operator and
@@ -208,12 +216,39 @@ def dispatch(text, timeout=900):
            "--permission-mode", "acceptEdits",
            "--allowedTools", *TOOLS,
            "--add-dir", str(FLEET.parent)]
-    try:
-        p = subprocess.run(cmd + [text], capture_output=True, text=True,
+    # Files, not pipes. capture_output=True makes run() wait for stdout to reach
+    # EOF as well as for the process to exit — and `claude` starts MCP servers
+    # that inherit stdout and outlive the turn, so the pipe never closes. On
+    # 2026-08-07 a message arrived at 15:07, the answer was ready in seconds,
+    # and the line sat silent because it was waiting on a pipe held open by a
+    # grandchild. Redirecting to files makes exit the only thing we wait for.
+    # The prompt goes on STDIN, not as a trailing argument: `--add-dir` is
+    # variadic and swallows a positional prompt as another directory. ask_claude
+    # in chat.py learned this already; passing it as argv here reproduced the
+    # bug one file over. A temp file rather than input= keeps stdout on a file
+    # too, which is the point of this block.
+    import tempfile
+    with tempfile.TemporaryFile("w+") as so, tempfile.TemporaryFile("w+") as se, \
+            tempfile.TemporaryFile("w+") as si:
+        si.write(text); si.seek(0)
+        try:
+            subprocess.run(cmd, stdout=so, stderr=se, stdin=si, text=True,
                            timeout=timeout, cwd=str(FLEET.parent))
-    except subprocess.TimeoutExpired:
-        return f"timed out after {timeout // 60} min. still running? check /procs."
+        except subprocess.TimeoutExpired:
+            return f"timed out after {timeout // 60} min. still running? check /procs."
+        so.seek(0), se.seek(0)
+        p = type("R", (), {"stdout": so.read(), "stderr": se.read()})()
     out = (p.stdout or "").strip()
+
+    # A session id that names no conversation is a dead end, and it is reached
+    # by an ordinary route: the id is written before the first turn proves it
+    # exists, so any first turn that dies — timeout, kill, crash — leaves the
+    # file pointing at nothing and every later message inherits the failure.
+    # Note the error arrives on STDOUT, so a stderr-only check misses it.
+    stale = "no conversation found" in (out + p.stderr).lower()
+    if stale and resuming and _retry:
+        clear_question_session()
+        return dispatch(text, timeout=timeout, _retry=False)
     if not out:
         err = (p.stderr or "").strip()[:400]
         # A dead session id must not wedge the line permanently.
@@ -340,6 +375,11 @@ def main(argv):
                     reply = f"failed: {e}"
                 try:
                     send(token, sender, reply or "(no output)")
+                    # Log the success too. Logging only failures meant a silent
+                    # line was indistinguishable from a working one: on
+                    # 2026-08-07 four messages arrived, nothing was logged, and
+                    # there was no way to tell whether they had been answered.
+                    print(f"-> {sender}: {(reply or '')[:80]!r}", flush=True)
                 except Exception as e:
                     print(f"reply failed: {e}", flush=True)
         return 0
