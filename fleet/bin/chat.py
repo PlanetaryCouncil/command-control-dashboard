@@ -50,6 +50,7 @@ AGENTS = {
     "claude":   ("Claude Code (handles images)", False),
     "hermes":   ("Hermes", False),
     "openclaw": ("OpenClaw", False),
+    "codex":    ("Codex (OpenAI)", False),
 }
 
 JOBS = {}          # job_id -> {queue, agents, done}
@@ -224,6 +225,26 @@ def ask_claude(prompt, files, emit, timeout=600):
                     "--add-dir", str(FLEET)], timeout=timeout, stdin_text=prompt)
 
 
+def ask_codex(prompt, emit, timeout=420):
+    """One Codex turn.
+
+    The council's standing problem is that it is not plural. hermes and openclaw
+    are one vendor between them, and on the NUC they are the same local model —
+    on 2026-08-07 both returned near-identical boilerplate in the same round and
+    repeated each other despite the rule against it. A panel whose members agree
+    because they share weights is not a panel.
+
+    Codex is the first genuinely independent vendor in the building: OpenAI
+    against Anthropic, neither running on this machine's CPU.
+
+    `exec` is the non-interactive mode, the same shape as `claude --print`. The
+    prompt is a positional argument here — Codex has no stdin prompt mode — so
+    it is passed as argv, never through a shell.
+    """
+    return run_cmd(["codex", "exec", "--skip-git-repo-check", prompt],
+                   timeout=timeout)
+
+
 def ask_hermes(prompt, emit, timeout=300):
     return run_cmd(["hermes", "-z", prompt], timeout=timeout)
 
@@ -290,6 +311,8 @@ def _run(agent, prompt, images, files, emit, q, job_id, t0):
             text = ask_hermes(prompt, emit)
         elif agent == "openclaw":
             text = ask_openclaw(prompt, emit)
+        elif agent == "codex":
+            text = ask_codex(prompt, emit)
         else:
             text = f"[unknown agent {agent}]"
     except Exception as e:

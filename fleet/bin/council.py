@@ -488,6 +488,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
     noop = lambda *a: None
     if agent == "claude":
         return chat.ask_claude(prompt, [], noop, timeout=TURN_TIMEOUT)
+    if agent == "codex":
+        return chat.ask_codex(prompt, noop, timeout=TURN_TIMEOUT)
     if agent == "hermes":
         return chat.ask_hermes(prompt, noop, timeout=TURN_TIMEOUT)
     if agent == "openclaw":

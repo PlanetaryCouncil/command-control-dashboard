@@ -5,6 +5,7 @@
     "every_seconds": 86400,
     "agents": [
       "claude",
+      "codex",
       "hermes",
       "openclaw"
     ],
@@ -31,6 +32,7 @@
     "every_seconds": 10800,
     "agents": [
       "claude",
+      "codex",
       "hermes",
       "openclaw"
     ],
@@ -50,6 +52,7 @@
     "every_seconds": 3600,
     "agents": [
       "claude",
+      "codex",
       "hermes",
       "openclaw"
     ],
