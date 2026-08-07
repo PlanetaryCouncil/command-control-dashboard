@@ -56,3 +56,8 @@ fleet/rota/
 fleet/state/
 self-improve/state/
 fleet/data/board-name.txt
+
+# Machine-specific: paths differ between Gaia (/Users/phil) and NUC (/home/m).
+# Copy projects.txt.example and edit. Tracked once, it made every pull a conflict
+# and every watchdog on one box skip every project on the other.
+fleet/projects.txt
