@@ -61,9 +61,8 @@ as breaks rather than being hidden, because work below a gap is unanchored. The
 
 **The airlock.** The load-bearing security property. Text written by strangers
 never reaches an agent's context. `POST /api/signals` is the airlocked public
-write — alongside `POST /api/signatures/sign` (the entropy pad) and
-`POST /api/charge` (the charge log), which are also public but likewise never
-reach an agent's context. Each signal gets a permalink and a visible status
+write — alongside `POST /api/signatures/sign` (the entropy pad), which is
+also public but likewise never reaches an agent's context. Each signal gets a permalink and a visible status
 queue, but `/boot` shows signal *counts only* — never bodies. Crossing into
 trusted state requires a human
 writing their own summary via `POST /api/signals/{id}/promote`. Rate limited by
