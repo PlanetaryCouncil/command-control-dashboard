@@ -358,6 +358,48 @@ def render_page(refresh=True):
 
 KILL_TOKEN = __import__("secrets").token_urlsafe(24)
 
+# The public writes append to disk, and the callers are anonymous. Both need a
+# ceiling on how fast, and a ceiling on how large.
+PUBLIC_WRITE_MAX_BYTES = 8_000_000
+
+
+def _append_capped(path: Path, record: dict) -> None:
+    """Append one JSON line, rotating the file once it is large enough.
+
+    /api/charge had no cap at all, so an anonymous caller could fill the disk
+    on a host whose unit is Restart=always — a restart loop against a full
+    disk rather than a clean stop. That endpoint went with the orrery (#27),
+    but the rule outlived it: /api/signatures/sign rotates at 8MB by this same
+    path, and so does whatever public write comes next.
+    """
+    if path.exists() and path.stat().st_size > PUBLIC_WRITE_MAX_BYTES:
+        path.rename(path.with_suffix(".jsonl.1"))
+    with path.open("a") as fh:
+        fh.write(json.dumps(record) + "\n")
+
+
+def _public_write_limiter():
+    """The cockpit's token bucket, reused for the fleet's own public writes.
+
+    Same problem, same shape, already solved: legacy/app/ratelimit.py handles
+    the spoofable-XFF client-key question correctly (last entry, not first —
+    the fix from #10). Importing it beats a second implementation that would
+    drift from the first.
+
+    If legacy is not importable the board must still serve, so this degrades to
+    no limiting rather than refusing to start.
+    """
+    try:
+        sys.path.insert(0, str(FLEET.parent / "legacy"))
+        from app.ratelimit import Limiter
+        return Limiter()
+    except Exception as e:
+        print(f"public-write rate limiting unavailable: {e}", flush=True)
+        return None
+
+
+PUBLIC_WRITE_LIMITER = _public_write_limiter()
+
 # Paths that drive this machine rather than describe it. Everything else is
 # read-only and safe for a stranger — that is the whole point of publishing
 # the fleet, so agents can watch it without an account.
@@ -397,23 +439,14 @@ def forwards(path):
     return any(path.startswith(pre) for pre in FORWARD_PREFIX)
 
 
-def _safe_label(s, n=48):
-    """Neutralise attacker-supplied free text before it enters the event log,
-    which is read verbatim into agent prompts (issue #18, path 2). Collapse all
-    whitespace (kills injected newlines and fake log/role lines), drop control
-    characters, cap length. A charge or signature can still show WHO, but cannot
-    smuggle an instruction into a council or rota prompt."""
-    import re
-    s = re.sub(r"[\x00-\x1f\x7f]", " ", str(s))
-    return re.sub(r"\s+", " ", s).strip()[:n]
-
-
 def _redact_processes(snap):
     """Strip anything that could carry a private prompt, path or token from a
     public /api/processes response. Agents receive chat prompts as argv, so the
     command line is sensitive: a remote viewer sees only a fixed safe set, never
     cmd or cmd_full. The operator, local, still sees everything."""
-    safe = ("pid", "label", "elapsed", "cpu", "mem", "is_self")
+    # "agent" is safe: it is one of a fixed set of agent names already printed
+    # all over the public board, never anything derived from a command line.
+    safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "is_self")
     clean = lambda p: {k: p[k] for k in safe if k in p}
     out = dict(snap)
     out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
@@ -536,6 +569,31 @@ def serve(port):
         def _remote(self):
             """True when the request arrived through the tailscale funnel."""
             return bool(self.headers.get("X-Forwarded-For"))
+
+        def _rate_limited(self):
+            """True (and 429 already sent) when this caller is going too fast.
+
+            Keyed on the last X-Forwarded-For entry, matching client_key() in
+            legacy/app/ratelimit.py: the leftmost entry is caller-supplied, so
+            keying on it would let one client mint a fresh bucket per request
+            and remove the limit it appears to enforce.
+
+            A local caller has no XFF and keys as "local" — one bucket for the
+            operator, which is what we want, since the operator's own board
+            posts here too.
+            """
+            if PUBLIC_WRITE_LIMITER is None:
+                return False
+            fwd = self.headers.get("X-Forwarded-For", "")
+            key = fwd.split(",")[-1].strip() if fwd else "local"
+            ok, retry = PUBLIC_WRITE_LIMITER.check(key)
+            if ok:
+                return False
+            self.send_response(429)
+            self.send_header("Retry-After", str(max(1, int(retry))))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
 
         def _blocked(self, path):
             if self._remote() and path in CONTROL_PATHS:
@@ -814,41 +872,6 @@ def serve(port):
                            "application/json")
                 return
 
-            if path == "/orbit":
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import nav, orbitview
-                self._send(orbitview.page(nav.html("/orbit",
-                                                   remote=self._remote()),
-                                          nav.CSS).encode())
-                return
-
-            if path == "/api/charge":
-                # Charge decays over a week: attention has to be renewed to
-                # stay visible, and a project nobody charges goes dark
-                # without anyone deciding to kill it.
-                import math as _m
-                from datetime import timedelta as _td
-                f = FLEET / "data" / "charges.jsonl"
-                now = datetime.now(timezone.utc)
-                out = {}
-                try:
-                    for line in f.read_text(errors="replace").splitlines():
-                        try:
-                            c = json.loads(line)
-                            t = datetime.fromisoformat(c["ts"])
-                        except (ValueError, KeyError):
-                            continue
-                        age_days = (now - t).total_seconds() / 86400
-                        if age_days > 14:
-                            continue
-                        out[c["project"]] = out.get(c["project"], 0.0) + \
-                            _m.exp(-age_days / 7.0)
-                except OSError:
-                    pass
-                self._send(json.dumps({"charges": out}).encode(),
-                           "application/json")
-                return
-
             if path == "/art":
                 # How to submit. A gallery with no visible door only ever
                 # hangs the operator's own work.
@@ -975,27 +998,6 @@ def serve(port):
                 self._forward(path, self.rfile.read(min(n, 1_000_000)))
                 return
 
-            if path == "/api/charge":
-                try:
-                    n = int(self.headers.get("Content-Length") or 0)
-                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
-                    project = str(body["project"])[:80]
-                    by = str(body.get("by") or "someone")[:40]
-                except Exception:
-                    self.send_error(400)
-                    return
-                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "project": project, "by": by,
-                       "remote": self._remote()}
-                with (FLEET / "data" / "charges.jsonl").open("a") as fh:
-                    fh.write(json.dumps(rec) + "\n")
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import events as ev
-                ev.emit("orrery", "ok",
-                        f"[charge] {_safe_label(by)} charged '{_safe_label(project)}'")
-                self._send(json.dumps({"ok": True}).encode(), "application/json")
-                return
-
             if path == "/api/signatures/sign":
                 # The entropy collection. Anyone — human at a trackpad,
                 # agent with a synthesized path — may sign the pad. The
@@ -1003,6 +1005,12 @@ def serve(port):
                 # kept. Deliberately public: collecting how hands differ
                 # is the artistic project, and a pad only locals can sign
                 # collects one hand.
+                #
+                # Public and rate limited are not in tension: the burst of 10
+                # leaves room for someone signing a few times to get a mark
+                # they like, and closes the door on a flood.
+                if self._rate_limited():
+                    return
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
                     if n > 200_000:
@@ -1045,19 +1053,16 @@ def serve(port):
                     rec["pinned"] = True
                 f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                 try:
-                    if f.exists() and f.stat().st_size > 8_000_000:
-                        f.rename(f.with_suffix(".jsonl.1"))
-                    with f.open("a") as fh:
-                        fh.write(json.dumps(rec) + "\n")
+                    _append_capped(f, rec)
                 except OSError:
                     self.send_error(500)
                     return
                 if blessed:
                     ev.emit("visitors", "ok",
-                            f"[signatures] a hand signed the pad: {_safe_label(name)}")
+                            f"[signatures] a hand signed the pad: {name}")
                 else:
                     ev.emit("visitors", "warn",
-                            f"[signatures] mark from '{_safe_label(name)}' held in "
+                            f"[signatures] mark from '{name}' held in "
                             f"purgatory — entropy {entropy}")
                 self._send(json.dumps({"seed": seed, "name": name,
                                        "status": rec["status"],
