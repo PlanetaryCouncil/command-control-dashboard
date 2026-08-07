@@ -22,6 +22,8 @@ fleet/static/*
 # to stay byte-identical to the copy the entropy pad runs or a human's mark and
 # an agent's stop being comparable.
 !fleet/static/signature.js
+# Also source: a written page about what the fleet did, not a vendored build.
+!fleet/static/progress.html
 fleet/council/
 
 # NOT hidden for secrecy — the rules live in app/triage.py and are public. This
