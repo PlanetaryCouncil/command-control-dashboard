@@ -29,6 +29,7 @@ Description=Fleet daily summary — the one message the operator reads
 [Service]
 Type=oneshot
 WorkingDirectory=$FLEET
+ExecStart=$PY $FLEET/bin/daily.py --publish
 ExecStart=$PY $FLEET/bin/daily.py --send
 EOF
   cat > "$UD/fleet-daily.timer" <<EOF
@@ -58,7 +59,7 @@ else
   <array>
     <string>$PY</string>
     <string>$FLEET/bin/daily.py</string>
-    <string>--send</string>
+    <string>--publish-and-send</string>
   </array>
   <key>WorkingDirectory</key><string>$FLEET</string>
   <key>StartCalendarInterval</key>
