@@ -271,22 +271,95 @@ def verify(built: dict) -> dict:
                   tests=tests_line, review=" ".join(str(review).split())[:300])
 
 
+def land(verified: dict) -> dict:
+    """Merge an approved branch into main and push it. No human in the loop.
+
+    Marsita, 2026-08-07: "fleet can merge... I'm not able to understand
+    subtle code nuance... I don't want to worry about infra / pr / code /
+    issues." A queue of approved branches waiting on someone who does not
+    read diffs is not review, it is a stall dressed as caution.
+
+    Three things stand between a branch and main, and all three are machine
+    checks rather than opinions:
+
+    1. It was verified — tests ran on the branch already merged with main,
+       and the reviewer said APPROVE.
+    2. It merges cleanly, no conflict.
+    3. **The suite passes again on the merge commit itself.** Two branches
+       can each be green and break each other; that is exactly the case a
+       per-branch verdict cannot see, and the only moment it is visible is
+       here, after the merge and before the push.
+
+    Any of those failing rolls main back to where it was. The branch keeps
+    its commits and its verdict, so nothing is lost — it simply did not land
+    this cycle.
+    """
+    branch = verified["branch"]
+    head_before = run(["git", "rev-parse", "HEAD"], cwd=REPO)[1].strip()
+
+    code, out = run(["git", "checkout", "main"], cwd=REPO)
+    if code != 0:
+        return record(stage="land", proposal_ts=verified["proposal_ts"],
+                      branch=branch, ok=False, detail=f"checkout: {out[-200:]}")
+
+    code, out = run(["git", "merge", "--no-ff", "--no-edit", branch], cwd=REPO)
+    if code != 0:
+        run(["git", "merge", "--abort"], cwd=REPO)
+        ev.emit("pipeline", "warn", f"[land] {branch}: conflicts with main")
+        return record(stage="land", proposal_ts=verified["proposal_ts"],
+                      branch=branch, ok=False, detail=f"conflict: {out[-200:]}")
+
+    merge_sha = run(["git", "rev-parse", "HEAD"], cwd=REPO)[1].strip()
+    code, out = run([str(venv_pytest()), "-q"], cwd=REPO, timeout=900)
+    if code != 0:
+        # The merge commit is the thing that failed, so the merge commit is
+        # what gets thrown away — not the branch, which is still good on its
+        # own and may land once whatever it collided with is fixed.
+        run(["git", "reset", "--hard", head_before], cwd=REPO)
+        tail = out.strip().splitlines()[-1] if out.strip() else "no output"
+        ev.emit("pipeline", "warn",
+                f"[land] {branch}: green alone, red merged — rolled back ({tail})")
+        return record(stage="land", proposal_ts=verified["proposal_ts"],
+                      branch=branch, ok=False, detail=f"merged tests: {tail}")
+
+    code, out = run(["git", "push", "origin", "main"], cwd=REPO, timeout=300)
+    if code != 0:
+        # Someone else moved main. Leave the merge locally; the next cycle
+        # re-tests against whatever landed and pushes then.
+        ev.emit("pipeline", "info",
+                f"[land] {branch}: merged locally, push deferred ({out[-120:]})")
+        return record(stage="land", proposal_ts=verified["proposal_ts"],
+                      branch=branch, ok=False, detail=f"push: {out[-200:]}")
+
+    ev.emit("pipeline", "ok", f"[land] {branch} merged to main and pushed")
+    return record(stage="land", proposal_ts=verified["proposal_ts"],
+                  branch=branch, ok=True, sha=merge_sha[:12])
+
+
 def write_worker() -> None:
     done = by_proposal()
+    landed = [r for r in done.values() if r.get("stage") == "land" and r.get("ok")]
+    stuck = [r for r in done.values() if r.get("stage") == "land" and not r.get("ok")]
     awaiting = [r for r in done.values()
                 if r.get("stage") == "verify" and r.get("ok")]
     rejected = [r for r in done.values()
                 if r.get("stage") == "verify" and not r.get("ok")]
-    # The alert carries its own remedy: naming a branch makes Marsita go
-    # reconstruct the command; pasting one line clears the queue.
-    summary = (" · ".join(f"{r['branch']} awaits your merge — "
-                          f"git merge --no-ff {r['branch']}" for r in awaiting)
-               or f"nothing awaiting ({len(rejected)} rejected, "
-                  f"{len(done)} proposals processed)")
+    # Approved branches land themselves now, so "awaiting" means the landing
+    # failed, not that someone forgot to merge. Only that is worth an alert —
+    # a green cycle should say what it did and then be quiet.
+    if stuck:
+        summary = " · ".join(f"{r['branch']} could not land: "
+                             f"{str(r.get('detail'))[:60]}" for r in stuck)
+    elif awaiting:
+        summary = " · ".join(f"{r['branch']} approved, not yet landed"
+                             for r in awaiting)
+    else:
+        summary = (f"{len(landed)} landed, {len(rejected)} rejected, "
+                   f"{len(done)} proposals processed")
     WORKER.parent.mkdir(exist_ok=True)
     WORKER.write_text(json.dumps({
         "worker": "pipeline", "kind": "pipeline",
-        "status": "alert" if awaiting else "pass",
+        "status": "alert" if (stuck or awaiting) else "pass",
         "last_run": now(), "summary": summary[:200],
     }, indent=2))
 
@@ -366,6 +439,12 @@ def _cycle() -> None:
         if (r.get("stage") == "verify" and not r.get("ok")
                 and r["proposal_ts"] not in revised):
             revise(r)
+    # Land what passed. This runs before building and before the build gate,
+    # so a machine that has handed compiling to its brother still merges the
+    # work it verified — the queue never depends on which box is compiling.
+    for r in list(by_proposal().values()):
+        if r.get("stage") == "verify" and r.get("ok"):
+            land(r)
     # Drain, don't sip. The rota files one proposal an hour and this ran
     # one every two — so the queue grew by half a proposal an hour,
     # forever, and 27 of them was 54 hours of work that would never
