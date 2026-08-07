@@ -112,6 +112,61 @@ def proposals_open() -> int:
         return len([r for r in rows if r.get("text")])
 
 
+def projects() -> list[dict]:
+    """The project list, with whichever ones the fleet actually watches.
+
+    projects.yaml is the operator's own list — what exists and what state it
+    is in. The watchdogs know something narrower but harder: whether the
+    tests ran and passed today. Joining them by name gives a project row that
+    says both "this is live" and "this was proved live an hour ago", which
+    neither source can say alone.
+
+    Parsed with a deliberately small reader rather than a YAML dependency:
+    this file's project block is a flat list of scalar fields, and adding a
+    third-party parser to the daily job to read it would be the tail wagging
+    the dog.
+    """
+    p = FLEET / "data" / "projects.yaml"
+    try:
+        lines = p.read_text().splitlines()
+    except OSError:
+        return []
+
+    out, cur, inside = [], None, False
+    for raw in lines:
+        if raw.startswith("projects:"):
+            inside = True
+            continue
+        if inside and raw and not raw[0].isspace():
+            break                       # next top-level key ends the block
+        if not inside:
+            continue
+        s = raw.strip()
+        if s.startswith("- name:"):
+            cur = {"name": s.split(":", 1)[1].strip()}
+            out.append(cur)
+        elif cur is not None and ":" in s and not s.startswith("#"):
+            k, v = s.split(":", 1)
+            k, v = k.strip(), v.split("#")[0].strip()
+            if k in ("status", "url", "tagline") and v:
+                cur[k] = v.strip('"')
+
+    # A watchdog result, where one exists, outranks the yaml's self-report.
+    checks = {}
+    for f in (FLEET / "workers").glob("*.json"):
+        try:
+            w = json.loads(f.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        checks[str(w.get("worker", "")).lower()] = {
+            "status": w.get("status"), "last_run": w.get("last_run")}
+    for pr in out:
+        key = pr["name"].lower().replace(" ", "-")
+        if key in checks:
+            pr["tests"] = checks[key]
+    return out
+
+
 def build_hosts() -> str:
     try:
         import buildgate
@@ -194,6 +249,7 @@ def data() -> dict:
         "could_not_land": stuck,
         "proposals_waiting": proposals_open(),
         "needs_you": workers_needing_you(),
+        "projects": projects(),
     }
 
 
