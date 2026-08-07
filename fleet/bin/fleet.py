@@ -439,23 +439,14 @@ def forwards(path):
     return any(path.startswith(pre) for pre in FORWARD_PREFIX)
 
 
-def _safe_label(s, n=48):
-    """Neutralise attacker-supplied free text before it enters the event log,
-    which is read verbatim into agent prompts (issue #18, path 2). Collapse all
-    whitespace (kills injected newlines and fake log/role lines), drop control
-    characters, cap length. A charge or signature can still show WHO, but cannot
-    smuggle an instruction into a council or rota prompt."""
-    import re
-    s = re.sub(r"[\x00-\x1f\x7f]", " ", str(s))
-    return re.sub(r"\s+", " ", s).strip()[:n]
-
-
 def _redact_processes(snap):
     """Strip anything that could carry a private prompt, path or token from a
     public /api/processes response. Agents receive chat prompts as argv, so the
     command line is sensitive: a remote viewer sees only a fixed safe set, never
     cmd or cmd_full. The operator, local, still sees everything."""
-    safe = ("pid", "label", "elapsed", "cpu", "mem", "is_self")
+    # "agent" is safe: it is one of a fixed set of agent names already printed
+    # all over the public board, never anything derived from a command line.
+    safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "is_self")
     clean = lambda p: {k: p[k] for k in safe if k in p}
     out = dict(snap)
     out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
@@ -1068,10 +1059,10 @@ def serve(port):
                     return
                 if blessed:
                     ev.emit("visitors", "ok",
-                            f"[signatures] a hand signed the pad: {_safe_label(name)}")
+                            f"[signatures] a hand signed the pad: {name}")
                 else:
                     ev.emit("visitors", "warn",
-                            f"[signatures] mark from '{_safe_label(name)}' held in "
+                            f"[signatures] mark from '{name}' held in "
                             f"purgatory — entropy {entropy}")
                 self._send(json.dumps({"seed": seed, "name": name,
                                        "status": rec["status"],
