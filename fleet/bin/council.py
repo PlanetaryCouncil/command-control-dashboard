@@ -114,6 +114,10 @@ def already_asked(limit: int = 6) -> list:
             p = json.loads(line)
         except ValueError:
             continue
+        # A turn that narrated the prompt back is filed `unusable` by rota.py.
+        # It is not something anyone proposed, so it does not get a slot here.
+        if p.get("outcome") == "unusable":
+            continue
         text = (p.get("text") or "").lstrip("█").strip()
         first = next((s.strip() for s in text.splitlines()
                       if s.strip() and not s.strip().startswith("#")), "")
@@ -203,6 +207,8 @@ def proposal_ledger(limit: int = 20, gist_len: int = 240) -> list:
         try:
             p = json.loads(line)
         except ValueError:
+            continue
+        if p.get("outcome") == "unusable":
             continue
         pid = str(p.get("ts", ""))[:16]
         rec = latest.get(covered.get(pid, pid))
