@@ -402,7 +402,9 @@ def _redact_processes(snap):
     public /api/processes response. Agents receive chat prompts as argv, so the
     command line is sensitive: a remote viewer sees only a fixed safe set, never
     cmd or cmd_full. The operator, local, still sees everything."""
-    safe = ("pid", "label", "elapsed", "cpu", "mem", "is_self")
+    # "agent" is safe: it is one of a fixed set of agent names already printed
+    # all over the public board, never anything derived from a command line.
+    safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "is_self")
     clean = lambda p: {k: p[k] for k in safe if k in p}
     out = dict(snap)
     out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
