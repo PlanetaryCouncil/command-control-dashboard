@@ -102,6 +102,39 @@ def prompt_for(agent: str, board: dict) -> str:
     ])
 
 
+NARRATION = (
+    "the message seems to be",
+    "the text you provided appears to be",
+    "the text appears to be",
+    "here is the reformatted text",
+    "here's the reformatted text",
+    "what appears to be a discord",
+    "the format you requested is",
+    "this appears to be a log",
+    "it appears to be a log",
+    "i'll answer the three questions based on the provided text",
+    "based on the provided text, i'll answer",
+)
+
+
+def narrated(out: str) -> bool:
+    """True when the turn describes the prompt instead of answering it.
+
+    On 2026-08-07 three of the six entries on the board were the model
+    reading the prompt back — "the message seems to be an invitation for
+    discussion", "here is the reformatted text from what appears to be a
+    Discord proposal". They exit clean, so nothing catches them the way the
+    errored-turn check catches `[error]`, and each one takes a board slot a
+    human and the next agent have to read past. Filed `unusable`, they stay
+    in the ledger as evidence and stay off the board.
+
+    Deliberately narrow: only the opening of the turn is examined, because a
+    real proposal may well *quote* the board further down.
+    """
+    head = " ".join(out.split())[:300].lower()
+    return any(p in head for p in NARRATION)
+
+
 def ask(agent: str, prompt: str, session: str) -> str:
     noop = lambda *a: None
     if agent == "claude":
@@ -179,6 +212,7 @@ def main() -> int:
     # learn, where a timeout was recorded as the agent's answer.
     failed = out.strip().startswith(("[timed out", "[error", "[unknown agent"))
     nothing = "NOTHING TO ADD" in out.upper() and len(out.strip()) < 400
+    unusable = not failed and not nothing and narrated(out)
 
     record = {
         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -188,7 +222,8 @@ def main() -> int:
         # every convergence looked like one model repeating itself.
         "vendor": vendors.vendor(agent), "model": vendors.model(agent),
         "seconds": secs,
-        "outcome": "error" if failed else ("nothing" if nothing else "proposed"),
+        "outcome": ("error" if failed else "nothing" if nothing
+                    else "unusable" if unusable else "proposed"),
         "load_at_start": round(load1, 2),
         "text": " ".join(out.split()),
     }
@@ -203,6 +238,10 @@ def main() -> int:
 
     if failed:
         ev.emit(agent, "warn", f"[rota] turn failed after {secs}s: {out.strip()[:80]}")
+    elif unusable:
+        ev.emit(agent, "warn",
+                f"[rota] unusable turn after {secs}s — narrated the prompt back: "
+                f"{record['text'][:80]}")
     elif nothing:
         ev.emit(agent, "ok", f"[rota] nothing to add ({secs}s)")
     else:
