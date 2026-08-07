@@ -116,6 +116,24 @@ def slug(text: str) -> str:
     return s or "proposal"
 
 
+def branch_name(prop: dict) -> str:
+    """rota/<date>-<hhmm>-<slug> — the time keeps same-day proposals apart.
+
+    Two agents filing near-identical titles on one day used to collide on a
+    single branch, so a rejection of one read as a rejection of all.
+    """
+    ts = str(prop.get("ts", ""))
+    hhmm = re.sub(r"[^0-9]", "", ts[11:16])[:4]
+    stamp = f"{ts[:10]}-{hhmm}" if hhmm else ts[:10]
+    return f"rota/{stamp}-{slug(prop['text'])}"
+
+
+def branch_exists(branch: str) -> bool:
+    code, _ = run(["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+                  cwd=REPO)
+    return code == 0
+
+
 def run(cmd, cwd=None, timeout=300, stdin_text=None):
     try:
         r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
@@ -128,12 +146,16 @@ def run(cmd, cwd=None, timeout=300, stdin_text=None):
 
 
 def build(prop: dict) -> dict:
-    branch = f"rota/{prop['ts'][:10]}-{slug(prop['text'])}"
+    branch = branch_name(prop)
     wt = WORKTREES / branch.replace("/", "-")
+    if branch_exists(branch):
+        # never build a second proposal onto someone else's branch
+        return record(stage="build", proposal_ts=prop["ts"], branch=branch,
+                      ok=False, detail=f"branch {branch} already exists — refusing to reuse it")
     WORKTREES.mkdir(exist_ok=True)
     code, out = run(["git", "worktree", "add", "-b", branch, str(wt), "main"],
                     cwd=REPO)
-    if code != 0 and "already exists" not in out:
+    if code != 0:
         return record(stage="build", proposal_ts=prop["ts"], branch=branch,
                       ok=False, detail=out[-300:])
 
