@@ -48,7 +48,29 @@ MAX_PER_CYCLE = 12
 BUILD_TIMEOUT = 900
 DIFF_CLIP = 6000
 
+
+def venv_pytest() -> Path:
+    """The pytest that actually exists on THIS machine.
+
+    `.venv` was hardcoded, which was true on the Mac and false on the NUC:
+    that box's `.venv` is python 3.14, which has no pytest and no coincurve
+    wheel, so its 3.11 environment lives in `.venv311`. On 2026-08-07 all four
+    builds of the night succeeded and all four verifications failed on
+    "pytest does not exist" — the builder agents even said so in their
+    reports, having tried every alternate invocation and been refused by the
+    permission rules. The work was fine. The path was wrong.
+
+    Preference order, first hit wins; falls back to `.venv` so the failure
+    message still names the conventional location.
+    """
+    for name in (".venv", ".venv311", ".venv312", ".venv313"):
+        p = REPO / name / "bin" / "pytest"
+        if p.exists():
+            return p
+    return REPO / ".venv" / "bin" / "pytest"
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buildgate     # noqa: E402
 import chat          # noqa: E402
 import events as ev  # noqa: E402
 
@@ -124,8 +146,9 @@ Implement the smallest working version of this proposal from the fleet's rota:
 {str(prop['text'])[:1500]}
 --- END ---
 
-Rules: touch only what the proposal needs. Run `.venv/bin/pytest -q` (the
-venv is at {REPO}/.venv) and make it pass. Commit everything with a clear
+Rules: touch only what the proposal needs. Run `{venv_pytest()} -q` — that
+exact path, it is this machine's environment and the only one the permission
+rules allow — and make it pass. Commit everything with a clear
 message. Do NOT push. Do NOT merge. Do NOT touch other branches. If the
 proposal is not implementable as code, commit nothing and say why in one
 line starting with SKIP:."""
@@ -136,8 +159,8 @@ line starting with SKIP:."""
                      "--allowedTools",
                      "Bash(git add:*)", "Bash(git commit:*)",
                      "Bash(git status:*)", "Bash(git diff:*)",
-                     "Bash(git log:*)", f"Bash({REPO}/.venv/bin/pytest:*)",
-                     "Bash(.venv/bin/pytest:*)",
+                     "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
+                     "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)",
                      "WebSearch", "WebFetch"],
                     cwd=wt, timeout=BUILD_TIMEOUT, stdin_text=prompt)
     committed = run(["git", "log", "--oneline", "main..HEAD"], cwd=wt)[1].strip()
@@ -182,8 +205,8 @@ commit nothing and say why in one line starting with SKIP:."""
                      "--allowedTools",
                      "Bash(git add:*)", "Bash(git commit:*)",
                      "Bash(git status:*)", "Bash(git diff:*)",
-                     "Bash(git log:*)", f"Bash({REPO}/.venv/bin/pytest:*)",
-                     "Bash(.venv/bin/pytest:*)", "WebSearch", "WebFetch"],
+                     "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
+                     "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)", "WebSearch", "WebFetch"],
                     cwd=wt, timeout=BUILD_TIMEOUT, stdin_text=prompt)
     after = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
     ok = code == 0 and after != before
@@ -221,8 +244,7 @@ def verify(built: dict) -> dict:
                       branch=branch, ok=False, tests="not run",
                       review=f"REJECT conflicts with main: {out[-200:]}")
 
-    code, out = run([str(REPO / ".venv" / "bin" / "pytest"), "-q"],
-                    cwd=wt, timeout=600)
+    code, out = run([str(venv_pytest()), "-q"], cwd=wt, timeout=600)
     tests_ok = code == 0
     tests_line = out.strip().splitlines()[-1] if out.strip() else "no output"
 
@@ -353,6 +375,16 @@ def _cycle() -> None:
     # Only build what triage picked. An unreviewed proposal is a
     # suggestion, not a work order — the same mistake in miniature that
     # built a project out of an idea earlier today.
+    # Verifying and revising happen above regardless: a machine that has
+    # handed building to its faster brother still finishes what it started
+    # and still judges the work. Only the compiling moves.
+    if not buildgate.enabled():
+        g = buildgate.read()
+        ev.emit("pipeline", "info",
+                f"[pipeline] building is off on {g.get('host')} — "
+                f"{g.get('reason') or 'set from the board'}")
+        write_worker()
+        return
     items = _picked_items()
     if not items:
         ev.emit("pipeline", "info",

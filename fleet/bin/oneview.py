@@ -238,6 +238,19 @@ tr.self td{color:var(--muted);}
 #kill:disabled{opacity:.4;cursor:not-allowed;animation:none;}
 #killnote{font-family:var(--mono);font-size:9px;color:var(--muted);}
 
+/* ---------- build gate ----------
+   Deliberately quiet next to the kill switch. Killing is an emergency and
+   looks like one; handing the compiling to the other machine is an ordinary
+   Tuesday, and a second red button would teach the eye to ignore red. */
+.buildgate{margin:6px 7px 0;display:flex;align-items:center;gap:8px;}
+#bgate{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;padding:5px 11px;border-radius:4px;cursor:pointer;
+  border:1px solid var(--border);background:var(--raised);color:var(--ink-2);}
+#bgate[data-on="1"]{border-color:var(--good);color:var(--good);}
+#bgate:disabled{opacity:.4;cursor:not-allowed;}
+#bgatenote{font-family:var(--mono);font-size:9px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
 /* ---------- post to the board, from the board ----------
    Leaving a message used to mean opening the other dashboard. One row, pinned
    under the stream it posts into. */
@@ -994,6 +1007,41 @@ $("#kill").addEventListener("click", async () => {
   b.disabled = false; poll();
 });
 
+/* ---------------- build gate ----------------------------------------------
+   Every machine in the fleet can do every job. This says which one SHOULD do
+   the compiling, and it is per-machine state, so the laptop can hand building
+   to the NUC and keep proposing, testing and reviewing. No confirmation step:
+   unlike the kill switch, the wrong answer here costs one cycle. */
+function paintGate(g){
+  const b = $("#bgate");
+  b.dataset.on = g.enabled ? "1" : "0";
+  b.textContent = "build: " + (g.enabled ? "on" : "off");
+  $("#bgatenote").textContent = g.enabled
+    ? (g.host || "this machine") + " builds its own picks"
+    : (g.host || "this machine") + " proposes, tests, reviews — no build";
+  b.title = g.ts ? `set ${g.ts} by ${g.by || "?"}`
+                 : "default — building is on until turned off";
+}
+async function loadGate(){
+  try { paintGate(await (await fetch("api/build-gate",{cache:"no-store"})).json()); }
+  catch(e){ $("#bgatenote").textContent = "gate unreadable"; }
+}
+$("#bgate").addEventListener("click", async () => {
+  const b = $("#bgate");
+  b.disabled = true;
+  try {
+    killToken ??= (await (await fetch("api/kill-token")).json()).token;
+    const want = b.dataset.on !== "1";
+    const d = await (await fetch("api/build-gate",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:killToken, enabled:want})})).json();
+    if (d.error) $("#bgatenote").textContent = "refused: " + d.error;
+    else paintGate(d);
+  } catch(e){ $("#bgatenote").textContent = "failed: " + e.message; }
+  b.disabled = false;
+});
+loadGate();
+
 /* ---------------- terminal drawer, opened only on request ------------------ */
 async function toggleTerm(){
   const d = $("#drawer"), btn = $("#termbtn");
@@ -1533,6 +1581,10 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
           <thead><tr><th>pid</th><th>what</th><th>cpu</th><th>mem</th><th>up</th></tr></thead>
           <tbody id="procbody"></tbody>
         </table>
+      </div>
+      <div class="buildgate">
+        <button id="bgate" data-on="1">build: on</button>
+        <span id="bgatenote"></span>
       </div>
       <div class="kill">
         <button id="kill" data-armed="0">kill fleet work</button>
