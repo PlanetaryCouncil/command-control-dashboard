@@ -415,6 +415,7 @@ PUBLIC_WRITE_LIMITER = _public_write_limiter()
 CONTROL_PATHS = frozenset({
     "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
     "/api/kill", "/api/kill-token", "/api/paste-image", "/api/convene",
+    "/api/build-gate",
 })
 
 
@@ -906,6 +907,19 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/api/build-gate":
+                # Local only, read included — it is in CONTROL_PATHS, so a
+                # remote caller gets 404 for both verbs. Whether this box is
+                # currently compiling is a fact about the operator's machines,
+                # and the switch beside it is a control; keeping the pair
+                # together is simpler to reason about than a public read and
+                # a private write.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import buildgate
+                self._send(json.dumps(buildgate.read()).encode(),
+                           "application/json")
+                return
+
             if path == "/terminal":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import nav, termview
@@ -1178,6 +1192,32 @@ def serve(port):
                             f"fleet process(es): "
                             + ", ".join(sorted({k['label'] for k in res['killed']})))
                 self._send(json.dumps(res).encode(), "application/json")
+                return
+
+            if path == "/api/build-gate":
+                # Same token as the kill switch: this is a control that
+                # changes what the machine does on its own schedule, so a
+                # cross-origin page must not be able to reach for it.
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                except Exception:
+                    self.send_error(400)
+                    return
+                if body.get("token") != KILL_TOKEN:
+                    self._send(json.dumps({"error": "bad or missing token"}).encode(),
+                               "application/json")
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import buildgate, events as ev
+                rec = buildgate.set_enabled(bool(body.get("enabled")),
+                                            by="board",
+                                            reason=str(body.get("reason") or "")[:120])
+                ev.emit("fleet", "ok",
+                        f"[build] {rec['host']} will "
+                        + ("build again" if rec["enabled"] else
+                           "stop building — proposing, testing and reviewing continue"))
+                self._send(json.dumps(rec).encode(), "application/json")
                 return
 
             if path != "/chat/send":
