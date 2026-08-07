@@ -56,6 +56,28 @@ def test_a_fleet_in_step_shows_no_attention_line():
     assert "stalemark" not in html
 
 
+def test_a_stale_worker_stops_claiming_pass():
+    """The green pill was the whole problem: a worker that has not run in half a
+    day is not passing, whatever its last run said."""
+    ws = [dict(w) for w in WORKERS]
+    fleetboard.render_body(ws)
+    by_name = {w["worker"]: w["status"] for w in ws}
+    assert by_name["agent-comms"] == "warn"
+    assert by_name["visitors"] == "pass"
+
+
+def test_a_loud_status_is_not_softened_by_staleness():
+    ws = [dict(w, status="fail") if w["worker"] == "agent-comms" else dict(w)
+          for w in WORKERS]
+    fleetboard.render_body(ws)
+    assert {w["worker"]: w["status"] for w in ws}["agent-comms"] == "fail"
+
+
+def test_the_stale_worker_is_not_counted_healthy():
+    html = fleetboard.render_body([dict(w) for w in WORKERS])
+    assert '<div class="v">2</div><div class="label">Healthy' in html
+
+
 def test_staleness_is_relative_to_the_fleet_not_the_clock():
     """A laptop asleep all weekend ages every check together; that is not one
     worker's fault and must not light the board up."""
