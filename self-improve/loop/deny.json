@@ -7,7 +7,6 @@
       "Read(~/.aws/**)",
       "Read(**/.env)",
       "Read(**/credentials*)",
-
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/settings.local.json)",
       "Edit(~/.claude/backups/**)",
@@ -16,7 +15,15 @@
       "Edit(~/.zshrc)",
       "Edit(~/.zprofile)",
       "Edit(~/Library/LaunchAgents/**)",
-
+      "Edit(~/.config/systemd/user/**)",
+      "Write(~/.config/systemd/user/**)",
+      "Edit(~/.bashrc)",
+      "Edit(~/.bash_profile)",
+      "Edit(~/.profile)",
+      "Edit(~/.config/fleet/**)",
+      "Read(~/.config/fleet/**)",
+      "Bash(systemctl *)",
+      "Bash(loginctl *)",
       "Bash(rm -rf *)",
       "Bash(sudo *)",
       "Bash(curl *)",
@@ -26,7 +33,6 @@
       "Bash(launchctl *)",
       "Bash(crontab *)",
       "Bash(npm publish *)",
-
       "WebFetch",
       "WebSearch"
     ]
