@@ -66,6 +66,20 @@ def stale_hours(workers):
             if (newest - t).total_seconds() > STALE_AFTER_S}
 
 
+def warn_stale(workers, lags):
+    """A worker that has not run is not passing.
+
+    The board already knew a check was hours behind the fleet, but said so only
+    in a grey footnote beside a green "pass" pill — so agents kept re-noticing
+    the same staleness in prose. Downgrade the green ones to "warn" so the
+    status field itself carries it. fail/alert keep their louder status.
+    """
+    for w in workers:
+        if w.get("worker") in lags and w.get("status") == "pass":
+            w["status"] = "warn"
+    return workers
+
+
 def load_self_improve():
     """The self-improvement loop predates the fleet, so adapt its state here
     rather than making it write a second status file it doesn't otherwise need."""
@@ -198,6 +212,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
 .stripe{width:3px;flex:none;background:var(--muted);}
 .stripe.pass{background:var(--good);} .stripe.fail{background:var(--crit);}
 .stripe.alert{background:var(--crit);} .stripe.skip{background:var(--hold);}
+.stripe.warn{background:var(--hold);}
 .body{padding:17px 20px;flex:1;min-width:0;}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px;}
 .wname{font-family:var(--mono);font-size:14.5px;font-weight:600;letter-spacing:-.01em;}
@@ -210,7 +225,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
   padding:3px 8px;border-radius:5px;}
 .pill.pass{background:var(--good-soft);color:var(--good);}
 .pill.fail,.pill.alert{background:var(--crit-soft);color:var(--crit);}
-.pill.skip,.pill.idle{background:var(--hold-soft);color:var(--hold);}
+.pill.skip,.pill.idle,.pill.warn{background:var(--hold-soft);color:var(--hold);}
 .glyph{font-size:11px;line-height:1;}
 .summary{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:7px 0 0;}
 .note{font-size:13px;color:var(--muted);margin:6px 0 0;}
@@ -237,13 +252,15 @@ def render_body(workers):
     import nav
     nav_html = nav.html('/')
     lags = stale_hours(workers)
+    warn_stale(workers, lags)
     if not workers:
         cards = '<div class="empty">No workers reporting yet.</div>'
     else:
         parts = []
         for w in workers:
             st = w.get("status", "idle")
-            glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;"}.get(st, "&#8226;")
+            glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;",
+                     "warn": "&#9888;"}.get(st, "&#8226;")
             import meter
             metrics = ""
             passed = w.get("tests_passed")
