@@ -1,8 +1,14 @@
-"""Every "awaits your merge" alert carries the paste-able command.
+"""What the pipeline card says now that branches land themselves.
 
-The pipeline sat in alert with "rota/... awaits your merge" while unmerged
-branches accumulated one per night. Naming a branch makes the human go
-reconstruct the command; the alert should hand them the one line to paste.
+Previously the card handed the operator a paste-able `git merge --no-ff …`,
+because approved branches piled up waiting for a human. As of 2026-08-07 the
+pipeline merges its own approved work, so that command is not an aid — it is
+an instruction to do a job that already ran. Marsita: "fleet can merge... I
+don't want to worry about infra / pr / code / issues."
+
+So the contract flipped. Approved-and-landed is quiet. The card only raises
+its voice when landing FAILED, because that is the one state a human might
+have to care about.
 """
 
 import importlib.util
@@ -28,31 +34,47 @@ def isolated_state(tmp_path, monkeypatch):
     return tmp_path
 
 
-def write_verify(tmp_path, branch, ok):
+def write_row(tmp_path, **row):
+    row.setdefault("proposal_ts", row.get("branch"))
+    row.setdefault("ts", "2026-08-07T14:42:29+00:00")
     with (tmp_path / "pipeline.jsonl").open("a") as fh:
-        fh.write(json.dumps({"stage": "verify", "proposal_ts": branch,
-                             "branch": branch, "ok": ok,
-                             "ts": "2026-08-04T14:42:29+00:00"}) + "\n")
+        fh.write(json.dumps(row) + "\n")
 
 
-def test_the_alert_includes_the_git_merge_line(isolated_state):
-    write_verify(isolated_state, BRANCH, ok=True)
+def test_landed_work_is_quiet(isolated_state):
+    """A cycle that merged its own work is a good day, not an alert."""
+    write_row(isolated_state, stage="land", branch=BRANCH, ok=True)
+    pipeline.write_worker()
+    card = json.loads(pipeline.WORKER.read_text())
+    assert card["status"] == "pass"
+    assert "git merge" not in card["summary"]
+    assert "landed" in card["summary"]
+
+
+def test_failed_landing_raises_the_alarm(isolated_state):
+    """The one state worth a human's attention: it passed review and still
+    could not reach main."""
+    write_row(isolated_state, stage="land", branch=BRANCH, ok=False,
+              detail="merged tests: 1 failed")
     pipeline.write_worker()
     card = json.loads(pipeline.WORKER.read_text())
     assert card["status"] == "alert"
-    assert f"git merge --no-ff {BRANCH}" in card["summary"]
+    assert "could not land" in card["summary"]
+    assert BRANCH in card["summary"]
 
 
-def test_the_command_survives_the_summary_cap(isolated_state):
-    """A truncated command is worse than none — it pastes and fails."""
-    write_verify(isolated_state, BRANCH, ok=True)
+def test_approved_but_not_yet_landed_is_flagged(isolated_state):
+    """Approved with no landing record means the merge never ran. Under the
+    old design this was normal and permanent; now it means something stopped."""
+    write_row(isolated_state, stage="verify", branch=BRANCH, ok=True)
     pipeline.write_worker()
     card = json.loads(pipeline.WORKER.read_text())
-    assert card["summary"].endswith(BRANCH)
+    assert card["status"] == "alert"
+    assert "not yet landed" in card["summary"]
 
 
-def test_nothing_awaiting_offers_no_command(isolated_state):
-    write_verify(isolated_state, BRANCH, ok=False)
+def test_rejected_work_is_not_an_alert(isolated_state):
+    write_row(isolated_state, stage="verify", branch=BRANCH, ok=False)
     pipeline.write_worker()
     card = json.loads(pipeline.WORKER.read_text())
     assert card["status"] == "pass"
