@@ -89,6 +89,59 @@ with the thing that outlives them. Distribution is trust, and trust is slow.
 
 ---
 
+## Emoji signature — BIP39 for authorship
+
+*Frozen 2026-08-08. Prompted by wanting publishing marks richer than one bird.*
+
+A short sequence of emoji as a visible mark of authorship. Each emoji carries
+bits the way a BIP39 word does, so the sequence is readable, memorable, and
+checkable by eye.
+
+`signature.py` already holds the hard half: a signature there is a SHA-256 seed
+over the accumulated shape of what an agent has actually done — "not a name
+badge". The emoji string is a *rendering* of a seed like that. The work is in
+the encoding, not in inventing the identity.
+
+**Say fingerprint, not signature.** A nostr signature is 64 bytes. At 11 bits
+per symbol — a 2048-emoji vocabulary, BIP39's size — that is 47 emoji. Nobody
+reads 47 emoji. So this cannot carry a signature; it carries a *truncated hash
+of one*. Four to six emoji is 44–66 bits: plenty to catch corruption or a
+careless edit, and enough to compare against the signed original at a glance.
+
+What it can honestly claim: *this text matches the event signed by that key.*
+What it cannot: unforgeability on its own. Anyone can copy an emoji string. It
+means something only when someone can look up the signed original and recompute
+— which is exactly what nostr-as-origin makes possible, and what a screenshot
+does not.
+
+**Vocabulary constraints, all learned the hard way by others:**
+
+- Single codepoint only. No ZWJ sequences (👨‍👩‍👧 is one glyph, several
+  codepoints, and platforms disagree on how many).
+- No skin-tone modifiers or variation selectors — the same mark would encode
+  differently depending on who typed it.
+- No regional indicators; pairs of them silently become flags.
+- Normalise before decoding, and reject anything outside the vocabulary rather
+  than guessing.
+- BIP39 words are chosen to be unambiguous in the first four letters. The emoji
+  analogue is *visual* distance: no two in the vocabulary may be confusable at
+  16px on a phone. That list has to be curated by eye, once, and then frozen —
+  changing it later invalidates every mark already published.
+
+**Platforms will mangle it.** Some strip emoji, some normalise them, some
+truncate mid-sequence. A mark that fails to survive syndication must read as
+"could not verify", never as "forged".
+
+**Do not absorb the flamingo into it.** They do different jobs. 🦩 is a boolean
+— a human did not press send — and `deadman.py` depends on testing it with a
+substring check that cannot itself fail. The emoji signature is an identity and
+integrity claim, variable by author and content. Merge them and a liveness
+check that must keep working on an untended machine starts depending on a
+decoder, a vocabulary version, and a normalisation step. Keep the boolean
+stupid. Let the fingerprint be clever.
+
+---
+
 ## Notes carried over from building the personal switch
 
 Small, expensive-to-relearn:
