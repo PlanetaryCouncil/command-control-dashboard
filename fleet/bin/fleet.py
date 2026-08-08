@@ -953,6 +953,18 @@ def serve(port):
                                        nav.CSS).encode())
                 return
 
+            if path == "/faces":
+                # Judging happens by looking. Local only, like the pad's
+                # purgatory — curation is the operator's hand.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, facesview
+                self._send(facesview.page(nav.html("/faces", remote=False),
+                                          nav.CSS).encode())
+                return
+
             if path == "/signatures":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import nav, sigview
