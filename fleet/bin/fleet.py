@@ -463,8 +463,21 @@ def serve(port):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", cache)
+            # The board is already public via the funnel; CORS only lets a
+            # browser on another origin read what curl can already fetch.
+            # This is what lets the GitHub-Pages selfie gallery talk to us.
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            # CORS preflight for cross-origin POSTs (the selfie gallery).
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "86400")
+            self.end_headers()
 
         def _forward(self, path, body=None):
             """Pass a request to the cockpit and return its answer verbatim.
@@ -626,6 +639,26 @@ def serve(port):
                     self._send(f.read_bytes(), "application/json")
                 except OSError:
                     self._send(b'{"levels": []}', "application/json")
+                return
+
+            if path == "/api/selfies":
+                # The public gallery feed. Same medium as the machines'
+                # self-portraits: 80 columns of characters, a block stamp,
+                # a name. Newest first. Read-and-return, no gate.
+                f = Path(os.environ.get(
+                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                out = []
+                try:
+                    for line in f.read_text(errors="replace").splitlines():
+                        try:
+                            out.append(json.loads(line))
+                        except ValueError:
+                            continue
+                except OSError:
+                    pass
+                out.reverse()
+                self._send(json.dumps(out[:500]).encode(),
+                           "application/json")
                 return
 
             if path == "/api/marks":
@@ -983,6 +1016,51 @@ def serve(port):
                 ev.emit("orrery", "ok",
                         f"[charge] {by} charged '{project}'")
                 self._send(json.dumps({"ok": True}).encode(), "application/json")
+                return
+
+            if path == "/api/selfies":
+                # A face, in 80 columns, arriving from the gallery. The
+                # photograph never existed here — only the text does. We
+                # keep the art, the caption and the block stamp it carried.
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 200_000:
+                        self.send_error(413)
+                        return
+                    body = json.loads(self.rfile.read(n).decode())
+                    art = str(body.get("art") or "")
+                    if not (20 <= len(art) <= 40_000):
+                        raise ValueError("art 20..40000 chars")
+                    who = str(body.get("who") or "anonymous").strip()[:40] \
+                        or "anonymous"
+                    kind = body.get("kind")
+                    kind = kind if kind in ("ascii", "photo") else "ascii"
+                    stamp = body.get("stamp")
+                    stamp = stamp if isinstance(stamp, dict) else {}
+                except Exception:
+                    self.send_error(400)
+                    return
+                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                       "who": who, "kind": kind,
+                       "stamp": stamp, "art": art,
+                       "remote": self._remote()}
+                f = Path(os.environ.get(
+                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                try:
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    if f.exists() and f.stat().st_size > 8_000_000:
+                        f.rename(f.with_suffix(".jsonl.1"))
+                    with f.open("a") as fh:
+                        fh.write(json.dumps(rec) + "\n")
+                except OSError:
+                    self.send_error(500)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                ev.emit("visitors", "ok",
+                        f"[selfies] a face joined the gallery: {who}")
+                self._send(json.dumps({"ok": True, "who": who}).encode(),
+                           "application/json")
                 return
 
             if path == "/api/signatures/sign":
