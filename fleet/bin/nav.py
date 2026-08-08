@@ -22,6 +22,7 @@ PAGES = [
     ("/", "fleet"),
     ("/intro", "intro"),
     ("/hi", "send a message"),
+    ("https://planetarycouncil.github.io/selfie-gallery/", "send a selfie"),
     ("/chat", "chat"),
 ]
 
@@ -74,7 +75,9 @@ def html(current: str = "", remote: bool = False) -> str:
     for href, label in PAGES:
         if remote and href in CONTROL:
             continue
-        if href == current:
+        if href.startswith("http"):
+            out.append(f'<a href="{href}" target="_blank" rel="noopener">{label}</a>')
+        elif href == current:
             out.append(f'<a href="{href}" aria-current="page">{label}</a>')
         else:
             out.append(f'<a href="{href}">{label}</a>')
