@@ -704,13 +704,19 @@ def serve(port):
                 # a name. Newest first. Read-and-return, no gate.
                 f = Path(os.environ.get(
                     "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                # A damned face is already gone from the file; a face in
+                # purgatory is still here but not for the public. The
+                # operator, local, sees everything including what is held.
+                mine = not self._remote()
                 out = []
                 try:
                     for line in f.read_text(errors="replace").splitlines():
                         try:
-                            out.append(json.loads(line))
+                            d = json.loads(line)
                         except ValueError:
                             continue
+                        if mine or d.get("status") != "purgatory":
+                            out.append(d)
                 except OSError:
                     pass
                 out.reverse()
@@ -1102,12 +1108,24 @@ def serve(port):
                     kind = kind if kind in ("ascii", "photo") else "ascii"
                     stamp = body.get("stamp")
                     stamp = stamp if isinstance(stamp, dict) else {}
+                    # The declaration. Absurd on its face, and the absurdity
+                    # is the point — but it is also the consent record, so
+                    # it is required and it is kept.
+                    if not body.get("legal"):
+                        raise ValueError("undeclared face")
                 except Exception:
                     self.send_error(400)
                     return
+                import hashlib
+                seed = hashlib.sha256(art.encode()).hexdigest()
                 rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "who": who, "kind": kind,
+                       "who": who, "kind": kind, "seed": seed,
                        "stamp": stamp, "art": art,
+                       # Public by default: a gallery that hides its faces
+                       # until an operator wakes up is not a public gallery.
+                       # Purgatory exists for what the operator later damns.
+                       "legal_declared": True,
+                       "status": "blessed",
                        "remote": self._remote()}
                 f = Path(os.environ.get(
                     "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
@@ -1124,7 +1142,56 @@ def serve(port):
                 import events as ev
                 ev.emit("visitors", "ok",
                         f"[selfies] a face joined the gallery: {who}")
-                self._send(json.dumps({"ok": True, "who": who}).encode(),
+                self._send(json.dumps({"ok": True, "who": who,
+                                       "seed": seed}).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/selfies/judge":
+                # Same exits as the pad's purgatory, same rule: curation is
+                # the operator's hand, so local only. `damn` takes a face
+                # off the wall for good; `purgatory` merely hides it.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                    seed, verdict = body["seed"], body["verdict"]
+                    assert verdict in ("bless", "damn", "purgatory")
+                except Exception:
+                    self.send_error(400)
+                    return
+                f = Path(os.environ.get(
+                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                out, hit = [], False
+                try:
+                    lines = f.read_text(errors="replace").splitlines()
+                except OSError:
+                    lines = []
+                for line in lines:
+                    try:
+                        d = json.loads(line)
+                    except ValueError:
+                        continue
+                    if d.get("seed") == seed:
+                        hit = True
+                        if verdict == "damn":
+                            continue      # damned faces leave the book
+                        d["status"] = ("blessed" if verdict == "bless"
+                                       else "purgatory")
+                    out.append(json.dumps(d))
+                try:
+                    f.write_text("\n".join(out) + ("\n" if out else ""))
+                except OSError:
+                    self.send_error(500)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                if hit:
+                    ev.emit("visitors", "info",
+                            f"[selfies] operator {verdict}ed {seed[:12]}…")
+                self._send(json.dumps({"ok": hit, "verdict": verdict}).encode(),
                            "application/json")
                 return
 
