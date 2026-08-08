@@ -397,6 +397,15 @@ def forwards(path):
     return any(path.startswith(pre) for pre in FORWARD_PREFIX)
 
 
+# Flood control for the public write endpoints (the pad and the gallery).
+# In-memory and per-process: a restart forgives everyone, which is the
+# right trade for a wall whose whole point is that strangers can mark it.
+RATE = {}
+RATE_WINDOW = 600.0   # ten minutes
+RATE_BURST = 5        # per visitor, per window
+RATE_GLOBAL = 60      # everyone together, per window
+
+
 def _redact_processes(snap):
     """Strip anything that could carry a private prompt, path or token from a
     public /api/processes response. Agents receive chat prompts as argv, so the
@@ -543,6 +552,54 @@ def serve(port):
             if self._remote() and path in CONTROL_PATHS:
                 self.send_error(404)
                 return True
+            return False
+
+        def _caller(self):
+            """Best-effort identity of a remote writer, for rate limiting.
+
+            X-Forwarded-For is set by the funnel and is the closest thing to
+            a visitor identity we have. It is spoofable in principle, but the
+            funnel appends the real peer, so the last hop is the honest one.
+            """
+            fwd = self.headers.get("X-Forwarded-For") or ""
+            peer = self.client_address[0] if self.client_address else "?"
+            return fwd.split(",")[-1].strip() or peer
+
+        def _flooding(self, bucket):
+            """A public pad needs a queue discipline, not a lock.
+
+            The operator (local) is never limited — they cannot spam their
+            own wall. A remote hand gets BURST writes in WINDOW seconds,
+            and the wall as a whole gets GLOBAL in the same window, so one
+            determined visitor cannot drown out the room and a botnet of
+            many cannot either. 429 with Retry-After; nothing is stored.
+            """
+            if not self._remote():
+                return False
+            import time
+            now = time.monotonic()
+            hits = RATE.setdefault(bucket, {})
+            for who, stamps in list(hits.items()):
+                fresh = [t for t in stamps if now - t < RATE_WINDOW]
+                if fresh:
+                    hits[who] = fresh
+                else:
+                    del hits[who]
+            me = self._caller()
+            mine = hits.get(me, [])
+            everyone = sum(len(v) for v in hits.values())
+            if len(mine) >= RATE_BURST or everyone >= RATE_GLOBAL:
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Retry-After", str(int(RATE_WINDOW)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                body = json.dumps({"error": "slow down",
+                                   "retry_after": int(RATE_WINDOW)}).encode()
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return True
+            hits.setdefault(me, []).append(now)
             return False
 
         def do_GET(self):
@@ -1022,6 +1079,8 @@ def serve(port):
                 # A face, in 80 columns, arriving from the gallery. The
                 # photograph never existed here — only the text does. We
                 # keep the art, the caption and the block stamp it carried.
+                if self._flooding("selfies"):
+                    return
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
                     if n > 200_000:
@@ -1031,6 +1090,12 @@ def serve(port):
                     art = str(body.get("art") or "")
                     if not (20 <= len(art) <= 40_000):
                         raise ValueError("art 20..40000 chars")
+                    # A face has variety in it. An empty grid, a solid wall
+                    # of one block, or a lens cap does not — refuse those
+                    # rather than hang them.
+                    ink = [c for c in art if not c.isspace()]
+                    if len(ink) < 40 or len(set(ink)) < 2:
+                        raise ValueError("not a face")
                     who = str(body.get("who") or "anonymous").strip()[:40] \
                         or "anonymous"
                     kind = body.get("kind")
@@ -1070,6 +1135,8 @@ def serve(port):
                 # kept. Deliberately public: collecting how hands differ
                 # is the artistic project, and a pad only locals can sign
                 # collects one hand.
+                if self._flooding("signatures"):
+                    return
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
                     if n > 200_000:
