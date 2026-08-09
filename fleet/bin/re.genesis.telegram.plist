@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>re.genesis.telegram</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/phil/projects/command-control-dashboard/.venv/bin/python3</string>
+        <string>/Users/phil/projects/command-control-dashboard/fleet/bin/telegram.py</string>
+        <string>listen</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/phil/projects/command-control-dashboard</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/Users/phil/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>/Users/phil</string>
+    </dict>
+
+    <!-- Long-polling, so this is a permanent process, not a schedule. It must
+         come back on its own: waking up to a dead line is the exact failure
+         this job exists to prevent. Throttle so a missing token config loops
+         once a minute instead of spinning. -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>60</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/telegram.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/telegram.err.log</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+    <key>LowPriorityIO</key>
+    <true/>
+</dict>
+</plist>
