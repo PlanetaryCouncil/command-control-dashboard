@@ -12,7 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        # The fleet runs 3.14; 3.11 was removed from the NUC entirely,
+        # which is what killed .venv311. Test what we ship on.
+        python-version: ["3.12", "3.14"]
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +29,10 @@ jobs:
           # Runtime deps come from pyproject; the test tools are explicit so CI
           # does not depend on a PEP-735 --group flag being available.
           pip install .
-          pip install pytest httpx
+          # httpx2, not httpx: starlette.testclient moved, and with the old one
+          # every http test fails at collection rather than at assert. That bug
+          # sat here unnoticed because this workflow had never run.
+          pip install pytest httpx2
 
       - name: Run the full test suite
         run: pytest -q

@@ -1,3 +1,9 @@
+# Declared explicitly so `pip install .` does not depend on pip's
+# legacy fallback, which is what CI was quietly relying on.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "command-control-dashboard"
 version = "0.1.0"

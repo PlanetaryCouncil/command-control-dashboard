@@ -1,4 +1,9 @@
-.venv/
+# Any venv, not just the one we happened to name first. `.venv311` was
+# committed once - 2260 files - and git tracked its lib/ without its bin/, so
+# restoring it produced a virtualenv with libraries and no interpreter. Six
+# services died with 203/EXEC before anyone worked that out. Half a virtualenv
+# in version control is worse than none.
+.venv*/
 __pycache__/
 *.pyc
 .pytest_cache/
