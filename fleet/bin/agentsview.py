@@ -17,6 +17,11 @@ AGENTS = {
     # next free slot in the validated palette.
     "claude": ("\U0001F9E0", "#9085e9", "#4a3aa7",
                "reasons about the fleet in council and carries relay hops"),
+    # Registered on arrival rather than after the fact: claude ran unregistered
+    # for weeks and rendered as the fleet's own neutral gear, which made it look
+    # like infrastructure instead of a voice. Slate, the next free slot.
+    "grok": ("\U0001F52D", "#5b6b7c", "#8fa3b8",
+             "cloud agent with a tool loop; reasons and searches"),
     "self-improve": ("\U0001F501", "#3987e5", "#2a78d6",
                      "reads its own transcripts, proposes tooling"),
     "hermes": ("\U0001FAB6", "#d95926", "#eb6834",
