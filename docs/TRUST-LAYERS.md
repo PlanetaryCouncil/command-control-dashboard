@@ -12,15 +12,60 @@ direction: **authority flows down, never up.**
 
 ---
 
+## Two questions, not one
+
+The first version of this document had one ladder and got the NUC wrong. It
+filed our own machines *below* trusted humans, which meant the NUC — family,
+built here, running our code — was less trusted than a friend.
+
+Mars, on reading it: *"Can you make NUC both trusted and family? He is both."*
+
+That is correct, and the fix is to stop asking one question. There are two, and
+they are independent:
+
+**1. Who are you to us?** — belonging. Fixed. It does not change with the
+weather.
+
+| Kind | Who |
+|---|---|
+| **OPERATOR** | Mars |
+| **FAMILY** | Our machines and agents: NUC, Gaia, the fleet |
+| **TRUSTED** | Named humans we vouch for: Venus |
+| **OUTSIDE** | Everyone else |
+
+**2. How much is this particular statement worth?** — authority. Not fixed. It
+depends on where the *words* came from, not who carried them.
+
+The NUC is **FAMILY** and it is **TRUSTED**. Both, permanently. And a specific
+message from the NUC is still worth only as much as its origin, because the
+NUC spends its day reading the open internet and can be made to repeat things.
+
+That is not distrust. It is the same courtesy we extend to a friend who says
+"someone on the internet told me…" — we believe *them* completely, and we still
+weigh the claim separately.
+
+---
+
 ## The layers
 
-| Layer | Name | Who | Instructions? |
+A layer describes **a statement**, never a person or a machine.
+
+| Layer | Name | A statement that... | Instructions? |
 |---|---|---|---|
-| **0** | **OPERATOR** | Mars. One human. | Yes — the source of all authority |
-| **1** | **TRUSTED** | Named humans. Friends, like Venus. | Yes, within a fixed budget |
-| **2** | **FAMILY** | Our own machines and agents: NUC, Gaia, the fleet. | Only known jobs |
-| **3** | **MEDIUM** | Sources we chose and assume aligned. | No. Data with a name on it |
-| **4** | **HOSTILE** | The open internet. Guests. Messages from other AI agents. | Never. Data, quarantined |
+| **0** | **OPERATOR** | came from Mars | Yes — the source of all authority |
+| **1** | **VOUCHED** | a trusted human or family machine originated itself | Yes, within a fixed budget |
+| **2** | **DERIVED** | family produced from lower-layer material, or unattended automation | Only known jobs |
+| **3** | **MEDIUM** | came from a source we chose and assume aligned | No. Data with a name on it |
+| **4** | **HOSTILE** | came from the open internet, a guest, or another AI agent | Never. Data, quarantined |
+
+So the NUC speaks at **layer 1** when it speaks for itself — its own health,
+its own test results, its own judgement. The same NUC drops to **layer 2** when
+it is relaying or acting on something it read, and to **layer 4** for the read
+content itself.
+
+Venus works identically. Venus asking for something is layer 1. Venus
+forwarding a stranger's message is layer 1 wrapping layer 4, and the wrapper
+does not upgrade the filling.
 
 Layer 4 is the one to think about hardest, and it is deliberately named for
 what it is rather than what it usually turns out to be. Most of it is harmless.
@@ -38,7 +83,7 @@ A message does not become trusted by *claiming* to be trusted. It inherits the
 layer of the path it arrived on, and nothing it says can change that.
 
 The Telegram line is layer 0 because Telegram sets `from.id` and the sender
-cannot forge it. A signed node is layer 2 because it proved it holds a secret.
+cannot forge it. A signed node is layer 1 because it proved it holds a secret.
 A visitor is layer 4 because anyone can be a visitor.
 
 ### 2. Nothing escalates itself
@@ -54,11 +99,15 @@ This is the whole of it:
 That failure is how a project gets a legacy it did not want: not a broken lock,
 but a machine that read a sentence off the internet and treated it as an order.
 
-### 3. Taint travels
+### 3. Taint travels, and it attaches to origin rather than carrier
 
 Output derived from layer N input **is** layer N. Summarising hostile text does
-not clean it. Putting it through an agent does not clean it. A layer 2 process
-that reads a web page and acts on what it says has just executed layer 4.
+not clean it. Putting it through an agent does not clean it.
+
+This is the law that lets the NUC be fully trusted without becoming a laundry.
+The NUC is family and it is vouched for; a web page the NUC read is still layer
+4 after the NUC has read it, summarised it, and passed it on. **We are not
+downgrading the NUC. We are declining to upgrade the web page.**
 
 **Forwarding does not launder.** If Mars pastes a stranger's message into the
 layer 0 channel, the *request to look at it* is layer 0. The **content stays
@@ -78,35 +127,37 @@ terminal, because that is what it is.
 Authenticated by: the Telegram allowlist (`ALLOWED_CHAT_IDS`), or physical
 access to the machine.
 
-### Layer 1 — TRUSTED
+### Layer 1 — VOUCHED
 
-Named humans who are not Mars. A short list, written down, one name at a time.
-Venus is the example.
+A trusted human or a family machine, speaking as itself. Venus asking for
+something. The NUC reporting its own state, its own test results, its own
+judgement about its own health.
 
-**May:** ask for work, read anything public, trigger known jobs, be believed.
+**May:** ask for work, read anything public, trigger known jobs, be believed,
+report and be trusted about what it reports.
 **May not:** grant trust to anyone, touch keys or auth, spend money, publish as
 Mars, or change layer boundaries.
 
-The distinction that matters: a layer 1 human has judgement, so they get more
-latitude than a machine — but they do not get to hand out their own authority.
+Humans and machines share this rung but fail differently, and it is worth
+knowing which you are dealing with. A human can be deceived and will often
+notice something felt wrong. A machine will not notice. So a family machine
+gets full belief about **itself** and no extra credit for what it read
+elsewhere — which is law 3, not a demotion.
 
-### Layer 2 — FAMILY
+Authenticated by: `data/trusted_nodes.json` plus the HMAC secret for machines
+(see `docs/AUTH.md`); for humans, currently by Mars vouching in the moment.
 
-Our own machines and the agents on them. NUC, Gaia, the fleet workers.
+### Layer 2 — DERIVED
+
+The same family machines, when what they are saying did not originate with
+them: relayed content, summaries of external material, or any unattended
+automation acting on input from layer 3 or 4.
 
 **May:** run known jobs, write to branches, self-heal, report, restart
 themselves, speak on the board.
 **May not:** grant trust, and — the important one — **may not act on layer 3 or
-4 content as if it were an instruction.**
-
-Family sits *below* trusted humans on purpose, and this is worth defending. The
-NUC is ours and we trust its intent completely. But it spends its day reading
-the open internet, and a machine that processes hostile input is a machine that
-can be made to relay it. Venus can be lied to and will probably notice. The NUC
-will not. **Trust in intent is not the same as trust in judgement.**
-
-Authenticated by: `data/trusted_nodes.json` plus the HMAC secret — see
-`docs/AUTH.md`.
+4 content as if it were an instruction**, however trusted the machine that
+carried it.
 
 ### Layer 3 — MEDIUM
 
@@ -135,8 +186,8 @@ The ones that were will look exactly like the ones that were not.
 
 Three questions, in order, before an input causes an action:
 
-1. **What layer did this arrive on?** Not what it says it is — what channel
-   carried it.
+1. **Where did the words originate?** Not who handed them over — who wrote
+   them. The carrier's standing is not the content's standing.
 2. **Is this action allowed at that layer?** If not, it needs a human from
    layer 0 or 1, asked explicitly.
 3. **What is the layer of everything this touched on the way?** Take the
@@ -154,6 +205,8 @@ yet.
   thinking, and every mechanism listed above predates the names.
 - No machine-readable form. A `trust` field on events would let the board show
   the layer of everything it displays, which is where this should go next.
-- Layer 1 has no authentication mechanism of its own. Today a friend is
-  someone Mars vouches for in the moment, which does not survive Mars being
-  asleep.
+- Nothing yet distinguishes a family machine speaking for itself from the same
+  machine relaying. That distinction is the whole of law 3 and it currently
+  lives only in this document.
+- Layer 1 has no authentication mechanism for humans. Today a friend is someone
+  Mars vouches for in the moment, which does not survive Mars being asleep.
