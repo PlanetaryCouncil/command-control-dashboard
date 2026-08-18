@@ -1,0 +1,117 @@
+{
+  "_comment": [
+    "Template for the operator dead-man switch. Copy to",
+    "~/.config/fleet/deadman.json and chmod 600 — the real file names your",
+    "contacts and holds an SMTP password, and this repo is public.",
+    "",
+    "Stages fire in ascending after_hours order, once each, and reset when you",
+    "run `deadman.py alive`. Write every body yourself: these are the words",
+    "someone reads when you cannot be reached, and no agent should be",
+    "composing them."
+  ],
+
+  "smtp": {
+    "_comment": "Gmail: use an app password, not your account password.",
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "user": "you@example.com",
+    "password": "APP-PASSWORD-HERE",
+    "from": "you@example.com"
+  },
+
+  "_life_signals": [
+    "Checked by `check --corroborate` before anything is sent. If one of",
+    "these is fresher than the silence, the clock moves back to that moment",
+    "and the ladder is re-evaluated from there.",
+    "",
+    "ONLY LIST THINGS A HUMAN CAUSES. This fleet writes events.jsonl around",
+    "the clock from fleet/codex/hermes, so treating the event log as proof of",
+    "life would build a switch that can never fire — worse than none, because",
+    "you would trust it. Machine activity proves the machine is up. Nothing",
+    "more.",
+    "",
+    "The git signal is the weak one: an agent committing as you is",
+    "indistinguishable from you. Only list repos nothing automated commits to",
+    "under your name.",
+    "",
+    "Empty by default. An unconfigured switch escalates on the clock alone,",
+    "which is the safe direction to be wrong in."
+  ],
+
+  "life_signals": [
+    {
+      "label": "nostr",
+      "kind": "nostr",
+      "npub": "npub1REPLACE-WITH-YOUR-PERSONAL-NPUB",
+      "_note": [
+        "Your PERSONAL npub, not the fleet's key in ~/.config/fleet/nostr.nsec.",
+        "The fleet posts on a schedule; that would prove the cron job is alive.",
+        "",
+        "Needs the venv interpreter — relay reads use websocket-client, which",
+        "the system python does not have. See the cron line in the README."
+      ]
+    },
+    {
+      "label": "shell history",
+      "kind": "file",
+      "path": "~/.bash_history",
+      "_note": "written when an interactive shell exits, not live during one"
+    },
+    {
+      "label": "git commits by me",
+      "kind": "git",
+      "path": "~/ccd",
+      "author": "you@example.com"
+    }
+  ],
+
+  "_thresholds": [
+    "Calibrated to an operator who does not go more than a week without",
+    "giving notice. A week of quiet is therefore normal and must stay silent;",
+    "the ladder starts only once silence has become genuinely unusual.",
+    "",
+    "Resist tightening these. A switch that fires during an ordinary quiet",
+    "stretch teaches everyone on the list to ignore it, and it is the same",
+    "list you need to believe the one real message."
+  ],
+
+  "stages": [
+    {
+      "_comment": [
+        "5 days: you only, on your own phone. Nobody else hears this. It is a",
+        "reminder that the switch exists and is counting, while there is still",
+        "plenty of room to reset it."
+      ],
+      "after_hours": 120,
+      "channel": "telegram",
+      "to": "YOUR-TELEGRAM-CHAT-ID",
+      "subject": "check-in overdue",
+      "body": "No check-in for 5 days. Run: deadman.py alive"
+    },
+    {
+      "_comment": [
+        "8 days: past your own stated normal, so the first human hears it.",
+        "Your deputy, not your family — this is still far more likely to be a",
+        "lost phone than an emergency, and it should reach someone who can",
+        "check cheaply."
+      ],
+      "after_hours": 192,
+      "channel": "email",
+      "to": "deputy@example.com",
+      "subject": "No check-in from <name> for 8 days",
+      "body": "REPLACE THIS. Say who you are, that this is an automated message from <name>'s own machine, that <name> does not normally go more than a week without notice, when they were last heard from, and exactly what you want checked first."
+    },
+    {
+      "_comment": [
+        "12 days: family. Written for someone who does not know what this",
+        "system is and is about to be frightened by it — say so in the first",
+        "line. Four days after the deputy, so there was time to stand it down."
+      ],
+      "after_hours": 288,
+      "channel": "email",
+      "to": "REPLACE-WITH-REAL-ADDRESS",
+      "subject": "REPLACE THIS",
+      "body": "REPLACE THIS ENTIRELY. Suggested shape: this is an automated message set up in advance by <name>, sent by their own computer; it sends only after 12 days with no check-in; it does not mean something has happened; here is who has already been contacted, who to call, and what is known about the travel plan."
+    }
+  ]
+}

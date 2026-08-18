@@ -14,7 +14,9 @@ dependencies = [
 [dependency-groups]
 dev = [
   "pytest>=8.3.0",
-  "httpx>=0.28.0",
+  # starlette.testclient requires httpx2; the old httpx pin made every
+  # http test fail at collection rather than at assert.
+  "httpx2>=0.28.0",
 ]
 
 [tool.pytest.ini_options]
