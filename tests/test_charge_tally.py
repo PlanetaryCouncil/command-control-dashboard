@@ -84,3 +84,47 @@ def test_the_hand_is_not_a_recoverable_address():
     enumerate. The salt is what stops the tally being a visitor log."""
     assert fleetboard.CHARGE_SALT
     assert len(fleetboard.CHARGE_SALT) >= 16
+
+
+# ---------------------------------------------------------------- the board
+
+import types
+
+
+def test_the_board_shows_both_numbers_when_they_disagree(charges, monkeypatch):
+    """Ten charges from one hand must not read as ten people."""
+    monkeypatch.setitem(sys.modules, "council",
+                        types.SimpleNamespace(open_branches=lambda: []))
+    write(charges, [{"project": "orrery", "hand": "aaaa"} for _ in range(10)])
+    html = fleetboard.render_body([])
+    assert "Charged:" in html
+    assert "orrery" in html
+    assert "<i>&middot;1 hands</i>" in html   # the disagreement, spelled out
+
+
+def test_the_board_stays_quiet_when_every_charge_is_a_person(charges,
+                                                             monkeypatch):
+    monkeypatch.setitem(sys.modules, "council",
+                        types.SimpleNamespace(open_branches=lambda: []))
+    write(charges, [{"project": "orrery", "hand": f"h{i}"} for i in range(4)])
+    html = fleetboard.render_body([])
+    assert "orrery" in html
+    # The count is still in the tooltip; what must be absent is the visible
+    # second number, which exists only to say "these are not distinct people".
+    assert "<i>" not in html
+
+
+def test_no_charges_means_no_strip(charges, monkeypatch):
+    monkeypatch.setitem(sys.modules, "council",
+                        types.SimpleNamespace(open_branches=lambda: []))
+    charges.write_text("")
+    assert "Charged:" not in fleetboard.render_body([])
+
+
+def test_a_visitor_cannot_inject_html_through_a_project_name(charges,
+                                                             monkeypatch):
+    monkeypatch.setitem(sys.modules, "council",
+                        types.SimpleNamespace(open_branches=lambda: []))
+    write(charges, [{"project": "<script>alert(1)</script>", "hand": "a"}])
+    html = fleetboard.render_body([])
+    assert "<script>alert(1)</script>" not in html
