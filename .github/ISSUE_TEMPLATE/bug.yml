@@ -1,0 +1,33 @@
+name: Something is broken
+description: A thing does not work, or works in a way that surprised you
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No form is going to be right for every bug. Skip anything that does not
+        apply — a half-filled issue beats a missing one.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, and what it did back. Paste the raw output if you have it; it is worth more than a description of the output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: false
+
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Which machine, which Python, which branch — whatever you know.
+      placeholder: "NUC, python 3.14, main"
+    validations:
+      required: false
