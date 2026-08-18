@@ -48,6 +48,16 @@ def ago(iso):
 # weekend ages every check together instead of flagging the whole fleet.
 STALE_AFTER_S = 6 * 3600
 
+# Six hours behind is "someone should look". Twenty-four is different in kind:
+# on 2026-08-18 the nuc card read `pass` with a last_run from the 6th, twelve
+# days green, because a worker that stops reporting keeps its last status
+# forever. Green meant "the last check passed", not "the machine is alive", and
+# those two diverged for a week and a half while the operator was abroad.
+#
+# So silence eventually reads as failure rather than success. A check this far
+# behind is not a stale answer, it is no answer.
+DEAD_AFTER_S = 24 * 3600
+
 
 def stale_hours(workers):
     """worker name -> whole hours behind the freshest last_run, when far behind."""
@@ -71,12 +81,19 @@ def warn_stale(workers, lags):
 
     The board already knew a check was hours behind the fleet, but said so only
     in a grey footnote beside a green "pass" pill — so agents kept re-noticing
-    the same staleness in prose. Downgrade the green ones to "warn" so the
-    status field itself carries it. fail/alert keep their louder status.
+    the same staleness in prose. Downgrade the green ones so the status field
+    itself carries it. fail/alert keep their louder status.
+
+    Two tiers, because "a bit behind" and "gone" are different claims:
+    `warn` past six hours, `stale` past a day. Only `stale` is red, so the
+    colour keeps meaning something.
     """
     for w in workers:
-        if w.get("worker") in lags and w.get("status") == "pass":
-            w["status"] = "warn"
+        lag_h = lags.get(w.get("worker"))
+        if lag_h is None or w.get("status") != "pass":
+            continue
+        w["stale_hours"] = lag_h
+        w["status"] = "stale" if lag_h * 3600 >= DEAD_AFTER_S else "warn"
     return workers
 
 
@@ -136,15 +153,28 @@ def load_workers():
             w = json.loads(p.read_text())
         except (OSError, json.JSONDecodeError):
             continue
+        # A json file in here that is not a worker report is somebody else's
+        # data, not a broken worker. Skip it: one stray file used to take the
+        # whole board down with a KeyError at sort time.
+        if not isinstance(w, dict) or not w.get("worker"):
+            continue
         w.setdefault("kind", "watchdog")
         w["metrics"] = [("passed", w.get("tests_passed", 0)),
                         ("failed", w.get("tests_failed", 0)),
                         ("seconds", w.get("duration_s", 0))]
         w["note"] = ""
         out.append(w)
-    # Anything needing attention sorts to the top.
-    rank = {"fail": 0, "alert": 1, "skip": 2, "pass": 3, "idle": 4}
-    return sorted(out, key=lambda w: (rank.get(w.get("status"), 5), w["worker"]))
+
+    # Downgrade here rather than in the renderer. /workers.json used to serve
+    # the undowngraded status, so the html page said "warn" while the json the
+    # council reads said "pass" — and the council believed the json.
+    warn_stale(out, stale_hours(out))
+
+    # Anything needing attention sorts to the top. `stale` sits with the
+    # failures: a check that has not run in a day is not a minor note.
+    rank = {"fail": 0, "stale": 1, "alert": 2, "warn": 3,
+            "skip": 4, "pass": 5, "idle": 6}
+    return sorted(out, key=lambda w: (rank.get(w.get("status"), 7), w["worker"]))
 
 
 CSS = """
@@ -212,7 +242,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
 .stripe{width:3px;flex:none;background:var(--muted);}
 .stripe.pass{background:var(--good);} .stripe.fail{background:var(--crit);}
 .stripe.alert{background:var(--crit);} .stripe.skip{background:var(--hold);}
-.stripe.warn{background:var(--hold);}
+.stripe.warn{background:var(--hold);} .stripe.stale{background:var(--crit);}
 .body{padding:17px 20px;flex:1;min-width:0;}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px;}
 .wname{font-family:var(--mono);font-size:14.5px;font-weight:600;letter-spacing:-.01em;}
@@ -224,7 +254,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
   font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   padding:3px 8px;border-radius:5px;}
 .pill.pass{background:var(--good-soft);color:var(--good);}
-.pill.fail,.pill.alert{background:var(--crit-soft);color:var(--crit);}
+.pill.fail,.pill.alert,.pill.stale{background:var(--crit-soft);color:var(--crit);}
 .pill.skip,.pill.idle,.pill.warn{background:var(--hold-soft);color:var(--hold);}
 .glyph{font-size:11px;line-height:1;}
 .summary{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:7px 0 0;}
@@ -252,6 +282,9 @@ def render_body(workers):
     import nav
     nav_html = nav.html('/')
     lags = stale_hours(workers)
+    # Idempotent - it only downgrades `pass`, so a list already passed through
+    # load_workers is untouched here. Called in both places because render_body
+    # is also handed worker lists that never went through load_workers.
     warn_stale(workers, lags)
     if not workers:
         cards = '<div class="empty">No workers reporting yet.</div>'
@@ -260,7 +293,7 @@ def render_body(workers):
         for w in workers:
             st = w.get("status", "idle")
             glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;",
-                     "warn": "&#9888;"}.get(st, "&#8226;")
+                     "warn": "&#9888;", "stale": "&#8987;"}.get(st, "&#8226;")
             import meter
             metrics = ""
             passed = w.get("tests_passed")
@@ -310,7 +343,8 @@ def render_body(workers):
         cards = "".join(parts)
 
     healthy = sum(1 for w in workers if w.get("status") == "pass")
-    attention = sum(1 for w in workers if w.get("status") in ("fail", "alert"))
+    attention = sum(1 for w in workers
+                    if w.get("status") in ("fail", "alert", "stale"))
 
     # One sentence for the human, above the cards: the few things that need
     # Marsita, not the machine chatter. Same idea as council.board_state()'s
@@ -324,7 +358,7 @@ def render_body(workers):
     if branches:
         needs.append(f"{len(branches)} unmerged branches")
     needs += [f'{w.get("worker")} {w.get("status")}'
-              for w in workers if w.get("status") in ("fail", "alert")]
+              for w in workers if w.get("status") in ("fail", "alert", "stale")]
     needs += [f"{name} stale {h}h" for name, h in sorted(lags.items())]
     needs_html = (f'<div class="attention">Needs attention: '
                   f'{esc(" · ".join(needs))}</div>' if needs else "")
