@@ -331,6 +331,11 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
 .attention{margin:0 0 14px;font-family:var(--mono);font-size:12px;
   color:var(--hold);}
 .stalemark{color:var(--hold);}
+.charges{margin:0 0 14px;font-family:var(--mono);font-size:11.5px;
+  color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.charge{background:var(--good-soft);color:var(--good);border-radius:999px;
+  padding:2px 9px;white-space:nowrap;}
+.charge i{font-style:normal;opacity:.65;}
 .empty{color:var(--muted);font-style:italic;padding:26px 0;}
 .foot{margin-top:26px;padding-top:15px;border-top:1px solid var(--border);
   font-family:var(--mono);font-size:10.5px;color:var(--muted);
@@ -424,6 +429,26 @@ def render_body(workers):
     needs_html = (f'<div class="attention">Needs attention: '
                   f'{esc(" · ".join(needs))}</div>' if needs else "")
 
+    # Charges, from strangers with no account, pointing at what matters. Both
+    # numbers are shown on purpose: charging is deliberately open, so `hands`
+    # is the only thing that separates ten people from one person ten times.
+    # Nobody is blocked - the reader is just told which one they are seeing.
+    charge_html = ""
+    try:
+        tally = charge_tally()
+    except Exception:
+        tally = {}
+    if tally:
+        pills = "".join(
+            f'<span class="charge" title="{esc(str(t["hands"]))} distinct '
+            f'{"hand" if t["hands"] == 1 else "hands"}">'
+            f'<b>{esc(name)}</b> {t["charges"]}'
+            + (f' <i>&middot;{t["hands"]} hands</i>'
+               if t["charges"] != t["hands"] else "")
+            + '</span>'
+            for name, t in list(tally.items())[:8])
+        charge_html = f'<div class="charges">Charged: {pills}</div>' 
+
     return f"""
 <div class="wrap">
   <div class="top">
@@ -440,6 +465,7 @@ def render_body(workers):
   </div>
 
   {needs_html}
+  {charge_html}
 
   <div class="cards">{cards}</div>
 
@@ -1310,8 +1336,7 @@ def serve(port):
                     ink = [c for c in art if not c.isspace()]
                     if len(ink) < 40 or len(set(ink)) < 2:
                         raise ValueError("not a face")
-                    who = str(body.get("who") or "anonymous").strip()[:40] \
-                        or "anonymous"
+                    who = _clean(body.get("who"), 40) or "anonymous"
                     kind = body.get("kind")
                     kind = kind if kind in ("ascii", "photo") else "ascii"
                     stamp = body.get("stamp")
@@ -1349,7 +1374,9 @@ def serve(port):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev
                 ev.emit("visitors", "ok",
-                        f"[selfies] a face joined the gallery: {who}")
+                        f"[selfies] a face joined the gallery: {who!r}",
+                        origin="visitor" if self._remote() else "operator",
+                        layer=4 if self._remote() else 0)
                 self._send(json.dumps({"ok": True, "who": who,
                                        "seed": seed}).encode(),
                            "application/json")
@@ -1430,8 +1457,7 @@ def serve(port):
                             "y": round(float(p["y"]), 4),
                             "t": round(float(p["t"]), 1)}
                            for p in pts[::step]]
-                    name = str(body.get("name") or "anonymous").strip()[:40] \
-                        or "anonymous"
+                    name = _clean(body.get("name"), 40) or "anonymous"
                     kind = body.get("kind")
                     kind = kind if kind in ("human", "agent") else "human"
                 except Exception:
@@ -1464,11 +1490,15 @@ def serve(port):
                     return
                 if blessed:
                     ev.emit("visitors", "ok",
-                            f"[signatures] a hand signed the pad: {name}")
+                            f"[signatures] a hand signed the pad: {name!r}",
+                            origin="visitor" if self._remote() else "operator",
+                            layer=4 if self._remote() else 0)
                 else:
                     ev.emit("visitors", "warn",
-                            f"[signatures] mark from '{name}' held in "
-                            f"purgatory — entropy {entropy}")
+                            f"[signatures] mark from {name!r} held in "
+                            f"purgatory — entropy {entropy}",
+                            origin="visitor" if self._remote() else "operator",
+                            layer=4 if self._remote() else 0)
                 self._send(json.dumps({"seed": seed, "name": name,
                                        "status": rec["status"],
                                        "entropy": entropy}).encode(),
