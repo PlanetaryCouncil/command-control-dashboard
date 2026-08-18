@@ -50,6 +50,7 @@ AGENTS = {
     "claude":   ("Claude Code (handles images)", False),
     "hermes":   ("Hermes", False),
     "openclaw": ("OpenClaw", False),
+    "grok":     ("Grok (xAI, cloud, has a tool loop)", False),
 }
 
 JOBS = {}          # job_id -> {queue, agents, done}
@@ -234,6 +235,26 @@ def ask_claude(prompt, files, emit, timeout=600):
                     "--add-dir", str(FLEET)], timeout=timeout, stdin_text=prompt)
 
 
+def ask_grok(prompt, files, emit, timeout=600):
+    """One Grok turn, headless.
+
+    `-p` is the single-turn mode, the same shape as `claude --print`, and the
+    prompt goes as an argument because grok has no variadic option to swallow
+    it. `--output-format plain` is the default but is stated anyway: the other
+    formats are NDJSON, and a silent change of default would arrive here as an
+    agent that suddenly answers in JSON.
+
+    No permission mode is passed, so it stays on `default` - grok reads and
+    reasons for the fleet, and nothing here needs it to edit anything. An agent
+    joins the fleet able to speak before it joins able to act.
+    """
+    if files:
+        prompt += ("\n\nAttached files (read them from these paths):\n"
+                   + "\n".join(str(f) for f in files))
+    return run_cmd(["grok", "-p", prompt, "--output-format", "plain"],
+                   timeout=timeout)
+
+
 def ask_hermes(prompt, emit, timeout=300):
     return run_cmd(["hermes", "-z", prompt], timeout=timeout)
 
@@ -300,6 +321,8 @@ def _run(agent, prompt, images, files, emit, q, job_id, t0):
             text = ask_hermes(prompt, emit)
         elif agent == "openclaw":
             text = ask_openclaw(prompt, emit)
+        elif agent == "grok":
+            text = ask_grok(prompt, files, emit)
         else:
             text = f"[unknown agent {agent}]"
     except Exception as e:
