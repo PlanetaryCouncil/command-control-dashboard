@@ -1,0 +1,16 @@
+name: hello
+
+# A deliberately trivial workflow. Every run in this repo had ended in
+# startup_failure with zero jobs, and the question was whether that is the CI
+# file or the account. If this one also fails to start, nothing in
+# .github/workflows is at fault and the answer is in billing or org policy.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  hello:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "actions can start"
