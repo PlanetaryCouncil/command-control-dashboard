@@ -28,7 +28,18 @@ def test_ping_caps_the_call_at_ninety_seconds(monkeypatch, tmp_path):
     localvoice.ping()
 
     assert seen["timeout"] == localvoice.PING_TIMEOUT
-    assert localvoice.PING_TIMEOUT == 90
+
+    # Raised from 90 to 240 on 2026-08-18. The original 90 was aimed at a model
+    # dribbling tokens forever, and it still is - but it also caught the honest
+    # case, because a cold llama3.2:1b needs ~75s just to load its weights on a
+    # box already deep in swap. For eight days the board said "did not answer"
+    # about a model that was answering, slowly. A health check that calls a slow
+    # load a death is worse than no check.
+    #
+    # The cap stays well under the ten-minute hang this file was written for,
+    # and the wall-clock deadline below is what actually enforces it.
+    assert localvoice.PING_TIMEOUT == 240
+    assert localvoice.PING_TIMEOUT < 300, "must still fail fast, not hang"
 
 
 def test_wall_clock_deadline_is_honoured(monkeypatch):
