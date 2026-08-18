@@ -46,6 +46,17 @@ EXTERNAL_PATTERNS = [
     (r"uvicorn app\.main:app", "cockpit"),
 ]
 
+# Which agent a process belongs to. An agent IS a process — the board used to
+# show the two as separate lists, so the same fact ("openclaw is up") appeared
+# twice with no line drawn between them. Attributing the process here lets one
+# pane render an agent with its own processes underneath it.
+PROC_AGENT = {
+    "Hermes gateway": "hermes",
+    "Hermes worker": "hermes",
+    "OpenClaw gateway": "openclaw",
+    "Ollama": "ollama",
+}
+
 
 def _ps():
     try:
@@ -98,7 +109,8 @@ def snapshot():
             continue
         # The shell wrapper launchd uses shows up alongside the real process;
         # both are genuine, so keep them rather than guessing which matters.
-        item = {"pid": r["pid"], "label": label, "elapsed": r["elapsed"],
+        item = {"pid": r["pid"], "label": label, "agent": PROC_AGENT.get(label),
+                "elapsed": r["elapsed"],
                 "cpu": r["cpu"], "mem": r["mem"],
                 "cmd": r["cmd"][:160],
                 # Untruncated, for matching: a 160-char display cap once ate

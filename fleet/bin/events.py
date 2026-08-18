@@ -23,8 +23,27 @@ MAX_BYTES = 4_000_000          # ~20k events; rotate rather than grow forever
 
 LEVELS = {"info", "ok", "warn", "error", "needs_you"}
 
+# docs/TRUST-LAYERS.md, made machine-readable. A layer describes the STATEMENT,
+# never the agent that carried it: the nuc is family and trusted, and a web page
+# it read aloud is still layer 4 afterwards.
+LAYERS = {
+    0: "operator",   # Mars
+    1: "vouched",    # a trusted human or family machine, speaking as itself
+    2: "derived",    # family, repeating or acting on lower-layer material
+    3: "medium",     # a source we chose and assume aligned
+    4: "hostile",    # open internet, guests, other agents
+}
+DEFAULT_LAYER = 2    # unsaid means derived: a machine talking about work it did
 
-def emit(agent, level, message, **extra):
+
+def emit(agent, level, message, origin=None, layer=None, **extra):
+    """Record one event.
+
+    `origin` is where the WORDS came from, which is not always the agent that
+    emitted them. A worker reporting its own test results is its own origin;
+    a worker quoting a web page names that page, and the event is layer 4 no
+    matter how trusted the worker is.
+    """
     if level not in LEVELS:
         level = "info"
     # Terminal furniture is contagious: on 2026-08-04 openclaw opened a rota
@@ -40,6 +59,19 @@ def emit(agent, level, message, **extra):
         "msg": str(message)[:400],
     }
     rec.update(extra)
+
+    # After the update, never before. `extra` is often built from material the
+    # caller did not write, and a payload that could set its own layer would be
+    # a payload that promotes itself - which is the one thing the model forbids.
+    # Anything unparseable lands on the floor, not on the ceiling.
+    try:
+        lay = DEFAULT_LAYER if layer is None else int(layer)
+    except (TypeError, ValueError):
+        lay = 4
+    rec["layer"] = lay if lay in LAYERS else 4
+    rec["trust"] = LAYERS[rec["layer"]]
+    rec["origin"] = str(origin if origin is not None else agent)[:80]
+
     try:
         if LOG.exists() and LOG.stat().st_size > MAX_BYTES:
             LOG.rename(LOG.with_suffix(".jsonl.1"))

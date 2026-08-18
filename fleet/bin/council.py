@@ -27,6 +27,7 @@ nothing.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
@@ -113,6 +114,10 @@ def already_asked(limit: int = 6) -> list:
         try:
             p = json.loads(line)
         except ValueError:
+            continue
+        # A turn that narrated the prompt back is filed `unusable` by rota.py.
+        # It is not something anyone proposed, so it does not get a slot here.
+        if p.get("outcome") == "unusable":
             continue
         text = (p.get("text") or "").lstrip("█").strip()
         first = next((s.strip() for s in text.splitlines()
@@ -203,6 +208,8 @@ def proposal_ledger(limit: int = 20, gist_len: int = 240) -> list:
         try:
             p = json.loads(line)
         except ValueError:
+            continue
+        if p.get("outcome") == "unusable":
             continue
         pid = str(p.get("ts", ""))[:16]
         rec = latest.get(covered.get(pid, pid))
@@ -332,6 +339,52 @@ def _airlock(s, n: int = 130) -> str:
     return re.sub(r"\s+", " ", s).strip()[:n]
 
 
+ASK_FILE = FLEET / "data" / "council-question.md"
+ASK_MAX = 1200
+
+
+def operator_question() -> str:
+    """The one thing in the prompt that outranks the board.
+
+    2026-08-07: the operator put a decision on the board — merge a deny-list
+    fix before the self-improve loop runs unattended at 03:00 — convened the
+    council, and none of the three agents mentioned it. They were not ignoring
+    him. The prompt said "pick ONE line from the state above", the question was
+    one log line among sixty, and three models picked three other lines. The
+    council had no notion of being *asked* anything.
+
+    So a question from the operator lives in its own file, is rendered above
+    the board, and the instruction block makes answering it the turn's job.
+    Everything else in the prompt is data the agent may range over; this is the
+    single element with standing.
+
+    Deliberately a local file, not a public write. The airlock rule is
+    unchanged: strangers' text is DATA and reaches agents only as quoted
+    material. This channel is the operator's, which is exactly why it may
+    carry an instruction — and why nothing reachable from the funnel writes it.
+    """
+    try:
+        q = ASK_FILE.read_text(errors="replace").strip()
+    except OSError:
+        return ""
+    # Truncated rather than dropped: a question too long to fit is still the
+    # most important thing on the page.
+    return q[:ASK_MAX]
+
+
+def clear_question() -> None:
+    """Answered questions must not linger.
+
+    A stale question is worse than none: the council would keep answering last
+    week's decision with this week's board, and the operator would read
+    agreement where there was only an echo.
+    """
+    try:
+        ASK_FILE.unlink()
+    except OSError:
+        pass
+
+
 def board_state() -> dict:
     """Everything an agent can see, gathered without spawning anything."""
     workers = []
@@ -403,6 +456,49 @@ def board_state() -> dict:
         "recent_events": [_airlock(f"{e.get('ts','')[11:19]} {e.get('agent')}: {e.get('msg','')}")
                           for e in recent[-25:]],
     }
+
+
+def board_fingerprint(state: dict) -> str:
+    """A hash of the board fields that would change what a council says.
+
+    Six proposals landed in 63 minutes on 2026-08-07 (13:00 to 14:03) and three
+    of them restated the same two points, because across that hour the board's
+    substance did not move: `pipeline` sat in `alert` with the same merge queue,
+    `command-control-dashboard` reported the same "341 passed", `visitors` the
+    same line. The rota kept firing and every turn saw the same picture.
+
+    So: worker identity/status/summary/alert_since, and how many proposals are
+    open. Deliberately NOT included — `last_run` stamps, event counts, the
+    recent-events tail. Those tick every few minutes without the situation
+    having changed, which is precisely the churn this gate exists to ignore.
+    """
+    material = {
+        "workers": sorted(
+            (w.get("worker"), w.get("status"), w.get("summary"),
+             w.get("alert_since"))
+            for w in state.get("workers", [])
+        ),
+        "open_proposals": len(state.get("already_proposed", [])),
+        "unmerged_branches": sorted(
+            b.get("branch") if isinstance(b, dict) else str(b)
+            for b in state.get("unmerged_branches", [])
+        ),
+    }
+    blob = json.dumps(material, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode()).hexdigest()[:16]
+
+
+def last_fingerprint() -> str | None:
+    try:
+        return (FLEET / "council" / "board.sha").read_text().strip() or None
+    except OSError:
+        return None
+
+
+def save_fingerprint(fp: str) -> None:
+    path = FLEET / "council" / "board.sha"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(fp + "\n")
 
 
 def transcript(limit: int = 12, max_age_hours: float = 6.0) -> list[dict]:
@@ -526,7 +622,18 @@ def build_prompt(agent: str, state: dict, prior: list[dict]) -> str:
         # cannot echo as a heading, one worked example of the shape
         # wanted, and the ask at the end where a completion model is
         # actually looking.
-        return f"""Here is the state of a small fleet of agents on one laptop.
+        ask = operator_question()
+        # For the small model the question goes FIRST and the instruction
+        # repeats it at the end, because a completion model answers what it
+        # read last and remembers what it read first.
+        ask_head = (f"The operator asked you this: {' '.join(ask.split())[:400]}\n\n"
+                    if ask else "")
+        ask_tail = ("Answer the operator's question above in your first "
+                    "sentence, then say why. " if ask else
+                    "Pick ONE line from the state above —\n"
+                    "a worker, or something that just happened — and say what is wrong with it\n"
+                    "and what would fix it. Quote the number or name you are talking about.\n")
+        return f"""{ask_head}Here is the state of a small fleet of agents on one laptop.
 
 Workers right now: {'; '.join(l.lstrip('- ') for l in brief_workers.splitlines())}
 
@@ -534,17 +641,29 @@ Things that just happened: {'; '.join(l.lstrip('- ') for l in brief_events.split
 
 Points other agents already made (do not repeat these): {'; '.join(l.lstrip('- ') for l in brief_said.splitlines())}
 
-{own_line}Now write your answer. Pick ONE line from the state above —
-a worker, or something that just happened — and say what is wrong with it
-and what would fix it. Quote the number or name you are talking about.
-Two sentences, under 60 words. Do not describe a bakery, a shop, or any
+{own_line}Now write your answer. {ask_tail}Two sentences, under 60 words. Do not describe a bakery, a shop, or any
 example; write only about this fleet. If nothing above is worth
 mentioning, reply with exactly: NOTHING TO ADD"""
+
+    ask = operator_question()
+    ask_block = (f"""
+THE OPERATOR ASKED THIS COUNCIL A QUESTION. It outranks everything below.
+Answer it directly, in your first sentence, before any other observation.
+If you disagree with the premise, say so and why — that is answering it.
+Saying nothing about it is not.
+
+  {ask}
+""" if ask else "")
+    ask_rule = ("1. Answer the operator's question first. Then, if you have room, ground a\n"
+                "   further observation in something visible below.\n"
+                if ask else
+                "1. Ground it in something visible above — a status, an event, a pattern in the\n"
+                "   log. An observation you cannot point at is worthless here.\n")
 
     return f"""You are {agent}, one of several AI agents that run unattended on this
 machine as a fleet. You are taking a turn in a council whose only subject is
 improving the workflow you all operate inside.
-
+{ask_block}
 CURRENT STATE OF THE FLEET
 Workers: {json.dumps(state['workers'], indent=1)}
 Event levels in the last 60 events: {json.dumps(state['event_levels'])}
@@ -564,9 +683,7 @@ YOUR TURN
 
 Say one thing that would make this fleet work better. Rules:
 
-1. Ground it in something visible above — a status, an event, a pattern in the
-   log. An observation you cannot point at is worthless here.
-2. Do not repeat a point another agent has already made. Build on it, disagree
+{ask_rule}2. Do not repeat a point another agent has already made. Build on it, disagree
    with it, or move on.
 3. Prefer the smallest change that removes a real friction over a large
    redesign.
@@ -582,12 +699,25 @@ Reply in at most 120 words. Do not run commands. Do not edit files. This is a
 discussion; a human decides what happens next."""
 
 
-def run(agents: list[str], rounds: int, dry_run: bool = False) -> dict:
+def run(agents: list[str], rounds: int, dry_run: bool = False,
+        force: bool = False) -> dict:
     run_id = str(int(time.time()))
     # A council of one cannot coordinate; convening it only emits noise.
     if len(agents) < 2:
         print(f"council needs at least two participants, got {len(agents)}")
         return {"run": run_id, "turns": [], "adjourned": "too few participants"}
+
+    # Rule 2 — checking is free, acting is not — applied to the council itself.
+    # The rota still fires on schedule; it just does not spend three agent turns
+    # re-describing a board that has not moved since the last one. `--force`
+    # overrides, and the fingerprint only advances when a turn actually runs, so
+    # a skipped council leaves the next one free to speak the moment anything
+    # changes.
+    fingerprint = board_fingerprint(board_state())
+    if not (dry_run or force) and fingerprint == last_fingerprint():
+        ev.emit("fleet", "info", "[council] board unchanged — skipped")
+        print("board unchanged — skipped")
+        return {"run": run_id, "turns": [], "adjourned": "board unchanged"}
     # Council turns and plus-one relays both spawn agents. When they overlapped,
     # a lap that normally takes ~21s took 33s and another never completed. They
     # now share the relay lock so only one agent-spawning job runs at a time.
@@ -602,6 +732,8 @@ def run(agents: list[str], rounds: int, dry_run: bool = False) -> dict:
             pass
     lock.parent.mkdir(parents=True, exist_ok=True)
     lock.write_text(str(__import__("os").getpid()))
+
+    save_fingerprint(fingerprint)
 
     ev.emit("fleet", "info",
             f"[council] convened — {', '.join(agents)}, up to {rounds} rounds")
@@ -697,13 +829,41 @@ def main():
     ap.add_argument("--rounds", type=int, default=2)
     ap.add_argument("--dry-run", action="store_true",
                     help="print the prompts without spending a turn")
+    ap.add_argument("--force", action="store_true",
+                    help="convene even if the board has not changed")
     ap.add_argument("--out")
+    ap.add_argument("--ask", metavar="TEXT",
+                    help="set the operator's question and convene; '-' reads stdin")
+    ap.add_argument("--clear-ask", action="store_true",
+                    help="drop the pending question without convening")
+    ap.add_argument("--show-ask", action="store_true",
+                    help="print the pending question, if any")
     a = ap.parse_args()
 
+    if a.show_ask:
+        print(operator_question() or "(no question pending)")
+        return 0
+    if a.clear_ask:
+        clear_question()
+        print("question cleared")
+        return 0
+    if a.ask:
+        text = sys.stdin.read() if a.ask == "-" else a.ask
+        ASK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        ASK_FILE.write_text(text.strip() + "\n")
+        print(f"question set ({len(text.strip())} chars) — convening")
+
     res = run([x.strip() for x in a.agents.split(",") if x.strip()],
-              a.rounds, dry_run=a.dry_run)
+              a.rounds, dry_run=a.dry_run, force=a.force)
     if a.dry_run:
         return 0
+
+    # The question is cleared once it has been put to a full council, answered
+    # or not. Leaving it would make every later council answer a decision the
+    # operator has already moved past, and agreement-by-echo reads exactly
+    # like agreement.
+    if operator_question() and res.get("turns"):
+        clear_question()
 
     for t in res["turns"]:
         mark = "—" if t["nothing"] else "•"

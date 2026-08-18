@@ -48,6 +48,16 @@ def ago(iso):
 # weekend ages every check together instead of flagging the whole fleet.
 STALE_AFTER_S = 6 * 3600
 
+# Six hours behind is "someone should look". Twenty-four is different in kind:
+# on 2026-08-18 the nuc card read `pass` with a last_run from the 6th, twelve
+# days green, because a worker that stops reporting keeps its last status
+# forever. Green meant "the last check passed", not "the machine is alive", and
+# those two diverged for a week and a half while the operator was abroad.
+#
+# So silence eventually reads as failure rather than success. A check this far
+# behind is not a stale answer, it is no answer.
+DEAD_AFTER_S = 24 * 3600
+
 
 def stale_hours(workers):
     """worker name -> whole hours behind the freshest last_run, when far behind."""
@@ -64,6 +74,27 @@ def stale_hours(workers):
     return {name: int((newest - t).total_seconds() // 3600)
             for name, t in stamps.items()
             if (newest - t).total_seconds() > STALE_AFTER_S}
+
+
+def warn_stale(workers, lags):
+    """A worker that has not run is not passing.
+
+    The board already knew a check was hours behind the fleet, but said so only
+    in a grey footnote beside a green "pass" pill — so agents kept re-noticing
+    the same staleness in prose. Downgrade the green ones so the status field
+    itself carries it. fail/alert keep their louder status.
+
+    Two tiers, because "a bit behind" and "gone" are different claims:
+    `warn` past six hours, `stale` past a day. Only `stale` is red, so the
+    colour keeps meaning something.
+    """
+    for w in workers:
+        lag_h = lags.get(w.get("worker"))
+        if lag_h is None or w.get("status") != "pass":
+            continue
+        w["stale_hours"] = lag_h
+        w["status"] = "stale" if lag_h * 3600 >= DEAD_AFTER_S else "warn"
+    return workers
 
 
 def load_self_improve():
@@ -122,15 +153,28 @@ def load_workers():
             w = json.loads(p.read_text())
         except (OSError, json.JSONDecodeError):
             continue
+        # A json file in here that is not a worker report is somebody else's
+        # data, not a broken worker. Skip it: one stray file used to take the
+        # whole board down with a KeyError at sort time.
+        if not isinstance(w, dict) or not w.get("worker"):
+            continue
         w.setdefault("kind", "watchdog")
         w["metrics"] = [("passed", w.get("tests_passed", 0)),
                         ("failed", w.get("tests_failed", 0)),
                         ("seconds", w.get("duration_s", 0))]
         w["note"] = ""
         out.append(w)
-    # Anything needing attention sorts to the top.
-    rank = {"fail": 0, "alert": 1, "skip": 2, "pass": 3, "idle": 4}
-    return sorted(out, key=lambda w: (rank.get(w.get("status"), 5), w["worker"]))
+
+    # Downgrade here rather than in the renderer. /workers.json used to serve
+    # the undowngraded status, so the html page said "warn" while the json the
+    # council reads said "pass" — and the council believed the json.
+    warn_stale(out, stale_hours(out))
+
+    # Anything needing attention sorts to the top. `stale` sits with the
+    # failures: a check that has not run in a day is not a minor note.
+    rank = {"fail": 0, "stale": 1, "alert": 2, "warn": 3,
+            "skip": 4, "pass": 5, "idle": 6}
+    return sorted(out, key=lambda w: (rank.get(w.get("status"), 7), w["worker"]))
 
 
 CSS = """
@@ -198,6 +242,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
 .stripe{width:3px;flex:none;background:var(--muted);}
 .stripe.pass{background:var(--good);} .stripe.fail{background:var(--crit);}
 .stripe.alert{background:var(--crit);} .stripe.skip{background:var(--hold);}
+.stripe.warn{background:var(--hold);} .stripe.stale{background:var(--crit);}
 .body{padding:17px 20px;flex:1;min-width:0;}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px;}
 .wname{font-family:var(--mono);font-size:14.5px;font-weight:600;letter-spacing:-.01em;}
@@ -209,8 +254,8 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
   font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
   padding:3px 8px;border-radius:5px;}
 .pill.pass{background:var(--good-soft);color:var(--good);}
-.pill.fail,.pill.alert{background:var(--crit-soft);color:var(--crit);}
-.pill.skip,.pill.idle{background:var(--hold-soft);color:var(--hold);}
+.pill.fail,.pill.alert,.pill.stale{background:var(--crit-soft);color:var(--crit);}
+.pill.skip,.pill.idle,.pill.warn{background:var(--hold-soft);color:var(--hold);}
 .glyph{font-size:11px;line-height:1;}
 .summary{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:7px 0 0;}
 .note{font-size:13px;color:var(--muted);margin:6px 0 0;}
@@ -237,13 +282,18 @@ def render_body(workers):
     import nav
     nav_html = nav.html('/')
     lags = stale_hours(workers)
+    # Idempotent - it only downgrades `pass`, so a list already passed through
+    # load_workers is untouched here. Called in both places because render_body
+    # is also handed worker lists that never went through load_workers.
+    warn_stale(workers, lags)
     if not workers:
         cards = '<div class="empty">No workers reporting yet.</div>'
     else:
         parts = []
         for w in workers:
             st = w.get("status", "idle")
-            glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;"}.get(st, "&#8226;")
+            glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;",
+                     "warn": "&#9888;", "stale": "&#8987;"}.get(st, "&#8226;")
             import meter
             metrics = ""
             passed = w.get("tests_passed")
@@ -293,7 +343,8 @@ def render_body(workers):
         cards = "".join(parts)
 
     healthy = sum(1 for w in workers if w.get("status") == "pass")
-    attention = sum(1 for w in workers if w.get("status") in ("fail", "alert"))
+    attention = sum(1 for w in workers
+                    if w.get("status") in ("fail", "alert", "stale"))
 
     # One sentence for the human, above the cards: the few things that need
     # Marsita, not the machine chatter. Same idea as council.board_state()'s
@@ -307,7 +358,7 @@ def render_body(workers):
     if branches:
         needs.append(f"{len(branches)} unmerged branches")
     needs += [f'{w.get("worker")} {w.get("status")}'
-              for w in workers if w.get("status") in ("fail", "alert")]
+              for w in workers if w.get("status") in ("fail", "alert", "stale")]
     needs += [f"{name} stale {h}h" for name, h in sorted(lags.items())]
     needs_html = (f'<div class="attention">Needs attention: '
                   f'{esc(" · ".join(needs))}</div>' if needs else "")
@@ -358,6 +409,48 @@ def render_page(refresh=True):
 
 KILL_TOKEN = __import__("secrets").token_urlsafe(24)
 
+# The public writes append to disk, and the callers are anonymous. Both need a
+# ceiling on how fast, and a ceiling on how large.
+PUBLIC_WRITE_MAX_BYTES = 8_000_000
+
+
+def _append_capped(path: Path, record: dict) -> None:
+    """Append one JSON line, rotating the file once it is large enough.
+
+    /api/charge had no cap at all, so an anonymous caller could fill the disk
+    on a host whose unit is Restart=always — a restart loop against a full
+    disk rather than a clean stop. That endpoint went with the orrery (#27),
+    but the rule outlived it: /api/signatures/sign rotates at 8MB by this same
+    path, and so does whatever public write comes next.
+    """
+    if path.exists() and path.stat().st_size > PUBLIC_WRITE_MAX_BYTES:
+        path.rename(path.with_suffix(".jsonl.1"))
+    with path.open("a") as fh:
+        fh.write(json.dumps(record) + "\n")
+
+
+def _public_write_limiter():
+    """The cockpit's token bucket, reused for the fleet's own public writes.
+
+    Same problem, same shape, already solved: legacy/app/ratelimit.py handles
+    the spoofable-XFF client-key question correctly (last entry, not first —
+    the fix from #10). Importing it beats a second implementation that would
+    drift from the first.
+
+    If legacy is not importable the board must still serve, so this degrades to
+    no limiting rather than refusing to start.
+    """
+    try:
+        sys.path.insert(0, str(FLEET.parent / "legacy"))
+        from app.ratelimit import Limiter
+        return Limiter()
+    except Exception as e:
+        print(f"public-write rate limiting unavailable: {e}", flush=True)
+        return None
+
+
+PUBLIC_WRITE_LIMITER = _public_write_limiter()
+
 # Paths that drive this machine rather than describe it. Everything else is
 # read-only and safe for a stranger — that is the whole point of publishing
 # the fleet, so agents can watch it without an account.
@@ -373,6 +466,7 @@ KILL_TOKEN = __import__("secrets").token_urlsafe(24)
 CONTROL_PATHS = frozenset({
     "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
     "/api/kill", "/api/kill-token", "/api/paste-image", "/api/convene",
+    "/api/build-gate",
 })
 
 
@@ -411,7 +505,9 @@ def _redact_processes(snap):
     public /api/processes response. Agents receive chat prompts as argv, so the
     command line is sensitive: a remote viewer sees only a fixed safe set, never
     cmd or cmd_full. The operator, local, still sees everything."""
-    safe = ("pid", "label", "elapsed", "cpu", "mem", "is_self")
+    # "agent" is safe: it is one of a fixed set of agent names already printed
+    # all over the public board, never anything derived from a command line.
+    safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "is_self")
     clean = lambda p: {k: p[k] for k in safe if k in p}
     out = dict(snap)
     out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
@@ -547,6 +643,31 @@ def serve(port):
         def _remote(self):
             """True when the request arrived through the tailscale funnel."""
             return bool(self.headers.get("X-Forwarded-For"))
+
+        def _rate_limited(self):
+            """True (and 429 already sent) when this caller is going too fast.
+
+            Keyed on the last X-Forwarded-For entry, matching client_key() in
+            legacy/app/ratelimit.py: the leftmost entry is caller-supplied, so
+            keying on it would let one client mint a fresh bucket per request
+            and remove the limit it appears to enforce.
+
+            A local caller has no XFF and keys as "local" — one bucket for the
+            operator, which is what we want, since the operator's own board
+            posts here too.
+            """
+            if PUBLIC_WRITE_LIMITER is None:
+                return False
+            fwd = self.headers.get("X-Forwarded-For", "")
+            key = fwd.split(",")[-1].strip() if fwd else "local"
+            ok, retry = PUBLIC_WRITE_LIMITER.check(key)
+            if ok:
+                return False
+            self.send_response(429)
+            self.send_header("Retry-After", str(max(1, int(retry))))
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return True
 
         def _blocked(self, path):
             if self._remote() and path in CONTROL_PATHS:
@@ -899,41 +1020,6 @@ def serve(port):
                            "application/json")
                 return
 
-            if path == "/orbit":
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import nav, orbitview
-                self._send(orbitview.page(nav.html("/orbit",
-                                                   remote=self._remote()),
-                                          nav.CSS).encode())
-                return
-
-            if path == "/api/charge":
-                # Charge decays over a week: attention has to be renewed to
-                # stay visible, and a project nobody charges goes dark
-                # without anyone deciding to kill it.
-                import math as _m
-                from datetime import timedelta as _td
-                f = FLEET / "data" / "charges.jsonl"
-                now = datetime.now(timezone.utc)
-                out = {}
-                try:
-                    for line in f.read_text(errors="replace").splitlines():
-                        try:
-                            c = json.loads(line)
-                            t = datetime.fromisoformat(c["ts"])
-                        except (ValueError, KeyError):
-                            continue
-                        age_days = (now - t).total_seconds() / 86400
-                        if age_days > 14:
-                            continue
-                        out[c["project"]] = out.get(c["project"], 0.0) + \
-                            _m.exp(-age_days / 7.0)
-                except OSError:
-                    pass
-                self._send(json.dumps({"charges": out}).encode(),
-                           "application/json")
-                return
-
             if path == "/art":
                 # How to submit. A gallery with no visible door only ever
                 # hangs the operator's own work.
@@ -977,6 +1063,19 @@ def serve(port):
                 # Same-origin fetch can read this; a hostile page on another
                 # origin cannot, which is what stops a drive-by kill request.
                 self._send(json.dumps({"token": KILL_TOKEN}).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/build-gate":
+                # Local only, read included — it is in CONTROL_PATHS, so a
+                # remote caller gets 404 for both verbs. Whether this box is
+                # currently compiling is a fact about the operator's machines,
+                # and the switch beside it is a control; keeping the pair
+                # together is simpler to reason about than a public read and
+                # a private write.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import buildgate
+                self._send(json.dumps(buildgate.read()).encode(),
                            "application/json")
                 return
 
@@ -1214,7 +1313,11 @@ def serve(port):
                 # kept. Deliberately public: collecting how hands differ
                 # is the artistic project, and a pad only locals can sign
                 # collects one hand.
-                if self._flooding("signatures"):
+                #
+                # Public and rate limited are not in tension: the burst of 10
+                # leaves room for someone signing a few times to get a mark
+                # they like, and closes the door on a flood.
+                if self._rate_limited():
                     return
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
@@ -1258,10 +1361,7 @@ def serve(port):
                     rec["pinned"] = True
                 f = Path(os.environ.get("FLEET_SIGNATURES", FLEET / "data" / "signatures-collected.jsonl"))
                 try:
-                    if f.exists() and f.stat().st_size > 8_000_000:
-                        f.rename(f.with_suffix(".jsonl.1"))
-                    with f.open("a") as fh:
-                        fh.write(json.dumps(rec) + "\n")
+                    _append_capped(f, rec)
                 except OSError:
                     self.send_error(500)
                     return
@@ -1386,6 +1486,32 @@ def serve(port):
                             f"fleet process(es): "
                             + ", ".join(sorted({k['label'] for k in res['killed']})))
                 self._send(json.dumps(res).encode(), "application/json")
+                return
+
+            if path == "/api/build-gate":
+                # Same token as the kill switch: this is a control that
+                # changes what the machine does on its own schedule, so a
+                # cross-origin page must not be able to reach for it.
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                except Exception:
+                    self.send_error(400)
+                    return
+                if body.get("token") != KILL_TOKEN:
+                    self._send(json.dumps({"error": "bad or missing token"}).encode(),
+                               "application/json")
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import buildgate, events as ev
+                rec = buildgate.set_enabled(bool(body.get("enabled")),
+                                            by="board",
+                                            reason=str(body.get("reason") or "")[:120])
+                ev.emit("fleet", "ok",
+                        f"[build] {rec['host']} will "
+                        + ("build again" if rec["enabled"] else
+                           "stop building — proposing, testing and reviewing continue"))
+                self._send(json.dumps(rec).encode(), "application/json")
                 return
 
             if path != "/chat/send":

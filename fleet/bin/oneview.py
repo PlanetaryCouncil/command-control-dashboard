@@ -169,6 +169,17 @@ body{margin:0;background:var(--ground);color:var(--ink);
 .agent .st.warn,.agent .st.skip{color:var(--warning);}
 .agent .last{font-size:10px;color:var(--muted);margin-top:1px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* Inside the merged pane the card is a heading over its own process rows, so
+   the left edge carries the agent's colour and the rows indent under it. */
+#procs .agrp td{padding:0;border-bottom:0;background:var(--raised);}
+#procs .agrp .agent{border-bottom:0;border-left:2px solid var(--agent,transparent);
+  padding:3px 7px;}
+#procs .cgrp td{padding:4px 7px 2px;border-bottom:0;background:var(--raised);}
+#procs .cgrp .cap{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);}
+#procs tbody td:first-child{padding-left:14px;}
+#procs .agrp td:first-child{padding-left:0;}
+#procs .cgrp td:first-child{padding-left:7px;}
 
 /* ---------- stream ---------- */
 #stream .body{display:flex;flex-direction:column-reverse;}
@@ -226,6 +237,19 @@ tr.self td{color:var(--muted);}
 #kill[data-armed="1"]{animation:puls .9s ease-in-out infinite;}
 #kill:disabled{opacity:.4;cursor:not-allowed;animation:none;}
 #killnote{font-family:var(--mono);font-size:9px;color:var(--muted);}
+
+/* ---------- build gate ----------
+   Deliberately quiet next to the kill switch. Killing is an emergency and
+   looks like one; handing the compiling to the other machine is an ordinary
+   Tuesday, and a second red button would teach the eye to ignore red. */
+.buildgate{margin:6px 7px 0;display:flex;align-items:center;gap:8px;}
+#bgate{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.09em;
+  text-transform:uppercase;padding:5px 11px;border-radius:4px;cursor:pointer;
+  border:1px solid var(--border);background:var(--raised);color:var(--ink-2);}
+#bgate[data-on="1"]{border-color:var(--good);color:var(--good);}
+#bgate:disabled{opacity:.4;cursor:not-allowed;}
+#bgatenote{font-family:var(--mono);font-size:9px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
 /* ---------- post to the board, from the board ----------
    Leaving a message used to mean opening the other dashboard. One row, pinned
@@ -289,8 +313,8 @@ canvas.mark:hover{opacity:1;}
    A list of goals is a poster. What makes it accountable is the review date
    sitting next to each one, and the word OVERDUE when it has passed — the week
    goal was due 2026-07-27 and nothing on any screen said so. */
-/* The pane is drag-resizable (gripV above it) so the body must scroll
-   rather than push the artwork off the column. */
+/* Goals take the whole column now that agents live with the processes they
+   are, so the body must scroll rather than push the artwork off the column. */
 #goals .body{padding:0;overflow-y:auto;min-height:0;}
 /* One height per row, whatever the goal's length. Ragged rows made the
    chain read as a list of unrelated notes; two lines each, clipped with
@@ -373,32 +397,35 @@ function meter(value, max, opts={}){
 }
 
 /* ---------------- agents -------------------------------------------------- */
+/* An agent IS a process. The board used to carry an agents pane on the left and
+   a processes pane on the right, both saying "openclaw is up" in different
+   words, with nothing tying a row to the agent that owned it. One pane now: the
+   agent is the heading, its processes are the rows beneath it. The left column
+   is goals — the thing the fleet is FOR — rather than a second copy of this. */
 const lastMsg = new Map();
-function renderAgents(workers){
-  $("#agents").dataset.state = "ready";
-  const box = $("#agents .body");
-  box.replaceChildren();
-  for (const w of workers){
-    const d = document.createElement("div");
-    d.className = "agent";
-    d.style.setProperty("--agent", hue(w.worker));
-    const top = document.createElement("div"); top.className = "top";
-    const nm = document.createElement("span"); nm.className = "nm";
-    nm.textContent = emoji(w.worker) + " " + w.worker;
-    const st = document.createElement("span"); st.className = "st " + (w.status||"");
-    st.textContent = w.status || "";
-    top.append(nm, st);
-    if (Number.isInteger(w.tests_passed) && (w.tests_passed + (w.tests_failed||0)) > 0){
-      top.append(meter(w.tests_passed, w.tests_passed + w.tests_failed,
-        {tone: w.tests_failed ? "critical" : "good", w: 48,
-         exact: `${w.tests_passed} of ${w.tests_passed + w.tests_failed} passed`}));
-    }
-    const last = document.createElement("div"); last.className = "last";
-    last.textContent = lastMsg.get(w.worker) || w.summary || "";
-    d.append(top, last);
-    box.appendChild(d);
+let WORKERS = [];
+function renderAgents(workers){ WORKERS = workers; }
+
+/* The agent's own line, as a full-width row above the processes it owns. */
+function agentCard(w){
+  const d = document.createElement("div");
+  d.className = "agent";
+  d.style.setProperty("--agent", hue(w.worker));
+  const top = document.createElement("div"); top.className = "top";
+  const nm = document.createElement("span"); nm.className = "nm";
+  nm.textContent = emoji(w.worker) + " " + w.worker;
+  const st = document.createElement("span"); st.className = "st " + (w.status||"");
+  st.textContent = w.status || "";
+  top.append(nm, st);
+  if (Number.isInteger(w.tests_passed) && (w.tests_passed + (w.tests_failed||0)) > 0){
+    top.append(meter(w.tests_passed, w.tests_passed + w.tests_failed,
+      {tone: w.tests_failed ? "critical" : "good", w: 48,
+       exact: `${w.tests_passed} of ${w.tests_passed + w.tests_failed} passed`}));
   }
-  $("#agents .n").textContent = workers.length;
+  const last = document.createElement("div"); last.className = "last";
+  last.textContent = lastMsg.get(w.worker) || w.summary || "";
+  d.append(top, last);
+  return d;
 }
 
 /* ---------------- stream -------------------------------------------------- */
@@ -750,26 +777,58 @@ function renderProcs(s){
   const tb = $("#procbody");
   tb.replaceChildren();
   const rows = [...s.fleet, ...s.external];
-  if (!rows.length){
-    const tr=document.createElement("tr"), td=document.createElement("td");
-    td.colSpan=5; td.className="empty"; td.textContent="// nothing running";
-    tr.appendChild(td); tb.appendChild(tr); return;
-  }
-  for (const p of rows){
-    const own = s.fleet.includes(p);
+  const own = new Set(s.fleet);
+
+  const procRow = p => {
     const tr = document.createElement("tr");
     if (p.is_self) tr.className = "self";
     const cell = (txt,cls) => { const td=document.createElement("td");
       if(cls) td.className=cls; td.textContent=txt; return td; };
     const wrap = node => { const td=document.createElement("td"); td.appendChild(node); return td; };
     tr.append(cell(p.pid,"n"));
-    tr.append(cell(p.label + (p.is_self?"  (this)":"") + (own?"":"  ·ext"), "w"));
+    tr.append(cell(p.label + (p.is_self?"  (this)":"") + (own.has(p)?"":"  ·ext"), "w"));
     tr.append(wrap(meter(p.cpu,100,{suffix:"% cpu"})));
     tr.append(wrap(meter(p.mem,100,{suffix:"% mem"})));
     tr.append(wrap(meter(elapsedSeconds(p.elapsed),86400,{tone:"info",exact:p.elapsed+" uptime"})));
-    tb.appendChild(tr);
+    return tr;
+  };
+  // A full-width row carrying either an agent's card or a plain group caption.
+  const spanRow = (node, cls) => {
+    const tr = document.createElement("tr"); tr.className = cls;
+    const td = document.createElement("td"); td.colSpan = 5;
+    td.appendChild(node); tr.appendChild(td); return tr;
+  };
+  const caption = txt => { const s=document.createElement("span");
+    s.className="cap"; s.textContent=txt; return s; };
+
+  // Agents first, each followed by its own processes. An agent with nothing
+  // running still gets a line — "hermes has no process" is the whole point of
+  // looking, and hiding the agent would hide the answer.
+  for (const w of WORKERS){
+    tb.appendChild(spanRow(agentCard(w), "agrp"));
+    const mine = rows.filter(p => p.agent === w.worker);
+    if (mine.length) mine.forEach(p => tb.appendChild(procRow(p)));
+    else {
+      const tr=document.createElement("tr"), td=document.createElement("td");
+      td.colSpan=5; td.className="empty"; td.textContent="// no process";
+      tr.appendChild(td); tb.appendChild(tr);
+    }
   }
-  $("#procs .n").textContent = s.killable + " killable";
+  // Everything the fleet runs that is work rather than an agent: test sweeps,
+  // the board itself, the cockpit.
+  const loose = rows.filter(p => !p.agent);
+  if (loose.length){
+    tb.appendChild(spanRow(caption("fleet work"), "cgrp"));
+    loose.forEach(p => tb.appendChild(procRow(p)));
+  }
+  if (!WORKERS.length && !rows.length){
+    const tr=document.createElement("tr"), td=document.createElement("td");
+    td.colSpan=5; td.className="empty"; td.textContent="// nothing running";
+    tr.appendChild(td); tb.appendChild(tr);
+  }
+  $("#procs .n").textContent =
+    WORKERS.length + " agents · " + rows.length + " procs · "
+    + s.killable + " killable";
   const kb = $("#kill");
   kb.disabled = s.killable === 0;
   // A greyed button with no reason next to it is a question, and Marsita asked
@@ -948,6 +1007,41 @@ $("#kill").addEventListener("click", async () => {
   b.disabled = false; poll();
 });
 
+/* ---------------- build gate ----------------------------------------------
+   Every machine in the fleet can do every job. This says which one SHOULD do
+   the compiling, and it is per-machine state, so the laptop can hand building
+   to the NUC and keep proposing, testing and reviewing. No confirmation step:
+   unlike the kill switch, the wrong answer here costs one cycle. */
+function paintGate(g){
+  const b = $("#bgate");
+  b.dataset.on = g.enabled ? "1" : "0";
+  b.textContent = "build: " + (g.enabled ? "on" : "off");
+  $("#bgatenote").textContent = g.enabled
+    ? (g.host || "this machine") + " builds its own picks"
+    : (g.host || "this machine") + " proposes, tests, reviews — no build";
+  b.title = g.ts ? `set ${g.ts} by ${g.by || "?"}`
+                 : "default — building is on until turned off";
+}
+async function loadGate(){
+  try { paintGate(await (await fetch("api/build-gate",{cache:"no-store"})).json()); }
+  catch(e){ $("#bgatenote").textContent = "gate unreadable"; }
+}
+$("#bgate").addEventListener("click", async () => {
+  const b = $("#bgate");
+  b.disabled = true;
+  try {
+    killToken ??= (await (await fetch("api/kill-token")).json()).token;
+    const want = b.dataset.on !== "1";
+    const d = await (await fetch("api/build-gate",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({token:killToken, enabled:want})})).json();
+    if (d.error) $("#bgatenote").textContent = "refused: " + d.error;
+    else paintGate(d);
+  } catch(e){ $("#bgatenote").textContent = "failed: " + e.message; }
+  b.disabled = false;
+});
+loadGate();
+
 /* ---------------- terminal drawer, opened only on request ------------------ */
 async function toggleTerm(){
   const d = $("#drawer"), btn = $("#termbtn");
@@ -1118,7 +1212,7 @@ async function poll(){
     // Only panes that have never rendered flip to the error state. Once a pane
     // holds real data, a failed refresh leaves it standing — stale numbers with
     // a stale clock beside them beat replacing them with an apology.
-    for (const id of ["#agents","#procs"])
+    for (const id of ["#procs"])
       if ($(id).dataset.state === "loading") $(id).dataset.state = "error";
   }
 }
@@ -1174,8 +1268,6 @@ try {
   const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null");
   if (saved) {
     if (saved.l && saved.r) setWidths(saved.l, saved.r);
-    if (saved.hGoals) document.documentElement.style
-      .setProperty("--hGoals", saved.hGoals + "px");
     if (saved.hArt) document.documentElement.style
       .setProperty("--hArt", saved.hArt + "px");
   }
@@ -1251,7 +1343,6 @@ function dragGripV(grip, varName, key, fallback){
 
 dragGrip($("#gripL"), "L");
 dragGrip($("#gripR"), "R");
-dragGripV($("#gripV"), "--hGoals", "hGoals", 180);
 dragGripV($("#gripA"), "--hArt", "hArt", 240);
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
@@ -1329,6 +1420,24 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
 <script>if(!localStorage.getItem('welcomed'))document.getElementById('welcome').style.display='flex';</script>"""
 
 
+def _for_script(json_text: str) -> str:
+    """Make a JSON string safe to paste into a <script> element.
+
+    json.dumps escapes quotes and backslashes but not `/`, so an event whose
+    text contains `</script>` ends the script element and everything after it
+    is parsed as HTML. Event text is not ours: /api/signatures/sign lets any
+    funnelled caller write into the event log, and the board that renders it
+    is the page carrying KILL_TOKEN.
+
+    `<`, `>` and `&` have no meaning inside a JSON string literal, so escaping
+    them to \\uXXXX changes nothing a JSON parser sees while leaving the HTML
+    tokenizer with nothing to find.
+    """
+    return (json_text.replace("&", "\\u0026")
+                     .replace("<", "\\u003c")
+                     .replace(">", "\\u003e"))
+
+
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import nav
     import os, socket
@@ -1344,9 +1453,9 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
             return ""
     board_name = (os.environ.get("FLEET_NAME") or _name_file()
                   or socket.gethostname().split(".")[0] or "FLEET").upper()
-    js = (JS.replace("__AGENTS__", agents_json)
-            .replace("__SEED__", seed_json)
-            .replace("__TOKEN__", repr(token).replace("'", '"')))
+    js = (JS.replace("__AGENTS__", _for_script(agents_json))
+            .replace("__SEED__", _for_script(seed_json))
+            .replace("__TOKEN__", _for_script(repr(token).replace("'", '"'))))
     return f"""<!doctype html>
 <!--
 
@@ -1402,15 +1511,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
 <div id="grid">
   <div class="col">
-    <section class="pane" id="agents" style="flex:1" data-state="loading">
-      <h2>agents <span class="n"></span></h2>
-      <div class="body"></div>
-      <div class="load"><i></i><span class="msg"></span></div>
-    </section>
-
-    <div class="griph" id="gripV"></div>
-
-    <section class="pane" id="goals" style="flex:0 0 var(--hGoals,180px)" data-state="loading">
+    <section class="pane" id="goals" style="flex:1" data-state="loading">
       <h2>goals &mdash; the chain <span class="n"></span></h2>
       <div class="body"></div>
       <div class="load"><i></i><span class="msg"></span></div>
@@ -1473,13 +1574,17 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
   <div class="col">
     <section class="pane" id="procs" style="flex:1" data-state="loading">
-      <h2>processes <span class="n"></span></h2>
+      <h2>agents &amp; processes <span class="n"></span></h2>
       <div class="load"><i></i><span class="msg"></span></div>
       <div class="body">
         <table>
           <thead><tr><th>pid</th><th>what</th><th>cpu</th><th>mem</th><th>up</th></tr></thead>
           <tbody id="procbody"></tbody>
         </table>
+      </div>
+      <div class="buildgate">
+        <button id="bgate" data-on="1">build: on</button>
+        <span id="bgatenote"></span>
       </div>
       <div class="kill">
         <button id="kill" data-armed="0">kill fleet work</button>

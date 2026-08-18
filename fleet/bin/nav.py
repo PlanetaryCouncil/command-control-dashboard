@@ -15,9 +15,11 @@ stay where they belong on their own page — this is navigation only.
 # are simply not worth a permanent slot in front of you.
 # Two. The terminal is a drawer on the dashboard, not a destination — having
 # both a CONSOLE button and a TERMINAL tab was the same word twice.
-# The orrery (/orbit) is off the nav from 2026-08-05 — "looks amateur".
-# The route still resolves; it is a sketch, not a room, until the drawing
-# is worth the idea.
+# The orrery (/orbit) came off the nav on 2026-08-05 — "looks amateur" — and
+# was deleted on 2026-08-06. Orbital distance looked like it meant something
+# and was derived from charge alone, so two projects sitting near each other
+# said nothing about each other. A replacement that lays projects out by how
+# they actually relate is parked in the freezer-of-ideas repo.
 PAGES = [
     ("/", "fleet"),
     ("/intro", "intro"),

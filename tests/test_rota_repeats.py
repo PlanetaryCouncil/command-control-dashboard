@@ -22,8 +22,14 @@ def test_the_prompt_tells_agents_to_check_already_proposed_first():
     assert "NOTHING TO ADD" in prompt
 
 
-def test_the_overlap_rule_comes_before_the_other_rules():
-    """An agent that reads rules top-down should hit the dedup gate first."""
+def test_naming_a_project_comes_before_the_other_rules():
+    """An agent reading rules top-down should hit the two gates that matter
+    first: name a project, and do not repeat what was already proposed.
+
+    Reordered 2026-08-07 when the questions were: the old first rule was
+    "be specific", which a turn about the fleet can satisfy perfectly while
+    still being a turn about the fleet."""
     prompt = rota.prompt_for("claude", {})
     rules = prompt[prompt.index("Rules:"):]
-    assert rules.index("already_proposed") < rules.index("Be specific")
+    assert rules.index("Name the project") < rules.index("already_proposed")
+    assert rules.index("already_proposed") < rules.index("NOTHING TO ADD")

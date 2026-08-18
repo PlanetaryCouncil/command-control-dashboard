@@ -22,8 +22,8 @@ splits **public reads** from **local-only writes/control**. The security model
 that matters most:
 
 - The public surface is intended to be read-only plus a small set of clearly
-  public write endpoints (`POST /api/signals`, `POST /api/signatures/sign`,
-  `POST /api/charge`). Everything else — terminal, chat dispatch, kill switch,
+  public write endpoints (`POST /api/signals`, `POST /api/signatures/sign`).
+  Everything else — terminal, chat dispatch, kill switch,
   approvals, handoffs — must be reachable **only** by a local caller.
 - The trust boundary is the fleet front door (`fleet/bin/fleet.py`): it decides
   local vs remote and sanitises `X-Forwarded-For` before forwarding to the
