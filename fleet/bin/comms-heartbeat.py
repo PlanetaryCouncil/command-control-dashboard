@@ -27,6 +27,37 @@ import breaker        # noqa: E402
 import events as ev   # noqa: E402
 import plusone        # noqa: E402
 
+def last_signal(worker_file):
+    """When this check last actually completed, whatever it is doing now.
+
+    A worker that is busy or thinking has not stopped existing; it just has
+    nothing new to say yet. Carrying the previous timestamp forward keeps the
+    staleness maths honest - if the deferral goes on for two days, the card
+    still ages into red, because two days of "too busy to check" is a real
+    problem even though no single deferral was.
+    """
+    try:
+        return json.loads(worker_file.read_text()).get("last_run")
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def say(worker_file, name, status, summary, target):
+    """Publish a state that is not a result: busy, thinking, deferred.
+
+    The board used to show `fail` for a check the system had deliberately
+    declined to run, which is the same lie a stale green tells, only inverted.
+    """
+    worker_file.parent.mkdir(parents=True, exist_ok=True)
+    worker_file.write_text(json.dumps({
+        "worker": name, "kind": "heartbeat", "target": target,
+        "last_run": last_signal(worker_file),
+        "status": status, "summary": summary,
+        "detail": "", "digest": None,
+        "tests_passed": 0, "tests_failed": 0, "duration_s": 0.0,
+    }, indent=2))
+
+
 def worker_path(name):
     return FLEET / "workers" / f"{name}.json"
 
@@ -85,6 +116,11 @@ def main():
                 f"[relay] deferred — load {load1:.1f} over {max_load:.0f} on "
                 f"{os.cpu_count()} cores; a timeout here would be the machine, "
                 f"not the agents")
+        say(WORKER, a.name, "busy",
+            f"deferred — load {load1:.1f} over {max_load:.0f} on "
+            f"{os.cpu_count()} cores; a timeout now would measure the machine, "
+            f"not the agents",
+            "plus-one relay · waiting for a quiet moment")
         print(f"{a.name}: load {load1:.1f} > {max_load}; deferring")
         lock.unlink(missing_ok=True)
         return 0
@@ -114,6 +150,14 @@ def main():
         print(f"{a.name}: breaker tripped; skipping")
         lock.unlink(missing_ok=True)
         return 0
+
+    # The relay takes minutes. Without this the card showed the previous run's
+    # result the whole time it was working, so a check in progress was
+    # indistinguishable from a check that had not started.
+    say(WORKER, a.name, "thinking",
+        f"relaying now — {len(agents)} agents, {a.laps} lap(s); "
+        f"this takes a few minutes",
+        "plus-one relay · in flight")
 
     started = time.time()
 
