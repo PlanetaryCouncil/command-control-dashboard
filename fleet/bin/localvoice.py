@@ -23,6 +23,7 @@ Cost: one question, ~60 tokens out, about 80 seconds, once every 24 hours.
 """
 
 import json
+import os
 import random
 import sys
 import time
@@ -41,7 +42,18 @@ LEDGER = FLEET / "data" / "localvoice.jsonl"
 # 25.3s; 2026-08-07 it blocked for 607.1s, holding two of four cores and its
 # share of 8GB against the rest of the fleet. Past ~90s the answer has stopped
 # being useful and only the RAM matters, so we give up and mark alert.
-PING_TIMEOUT = 90
+# A cold model on this laptop is mostly disk, not compute: llama3.2:1b needs
+# ~75s to answer its first question of the day because ollama loads the weights
+# with --no-mmap and the box is already 1.5GB into swap. 90s left almost no
+# margin, so the check was reporting a slow load as a dead model — which is the
+# specific lie a health check must not tell.
+PING_TIMEOUT = 240
+
+# Default to the small model. qwen2.5:3b was the original choice and it can no
+# longer load here at all: the runner sat at 67MB resident and 12% cpu with a
+# load average of 3.6, which is thrash, not work. The NUC keeps the bigger
+# models; this box only has to prove a self-hosted voice still answers.
+DEFAULT_MODEL = "llama3.2:1b"
 
 # Short, answerable, and different each day — so a stuck cache or a dead
 # model shows up as a wrong or missing answer rather than a repeat.
@@ -60,13 +72,14 @@ def ping():
     q = random.choice(QUESTIONS)
     noop = lambda *a, **k: None
     t0 = time.time()
-    answer = chat.ask_ollama(chat.OLLAMA_MODEL, q, [], noop, num_predict=80,
+    model = os.environ.get("FLEET_OLLAMA_MODEL") or DEFAULT_MODEL
+    answer = chat.ask_ollama(model, q, [], noop, num_predict=80,
                              timeout=PING_TIMEOUT)
     secs = round(time.time() - t0, 1)
     ok = bool(answer) and not answer.startswith("[") and len(answer) > 20
 
     rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-           "model": chat.OLLAMA_MODEL, "question": q,
+           "model": model, "question": q,
            "seconds": secs, "ok": ok,
            "answer": " ".join(str(answer).split())[:300]}
     LEDGER.parent.mkdir(exist_ok=True)
@@ -81,14 +94,14 @@ def ping():
         "worker": "localvoice", "kind": "backup",
         "status": "pass" if ok else "alert",
         "last_run": rec["ts"],
-        "summary": (f"{chat.OLLAMA_MODEL} answered in {secs}s — the offline "
+        "summary": (f"{model} answered in {secs}s — the offline "
                     f"fallback is alive" if ok
-                    else f"{chat.OLLAMA_MODEL} did not answer ({secs}s)"),
+                    else f"{model} did not answer ({secs}s)"),
         "duration_s": secs,
     }, indent=2) + "\n")
 
     ev.emit("localvoice", "ok" if ok else "warn",
-            f"[local] {chat.OLLAMA_MODEL} {'answered' if ok else 'failed'} "
+            f"[local] {model} {'answered' if ok else 'failed'} "
             f"in {secs}s — the offline fallback is "
             f"{'alive' if ok else 'NOT responding'}")
     print(f"{secs}s ok={ok}: {rec['answer'][:120]}")
