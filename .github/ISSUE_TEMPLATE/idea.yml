@@ -1,0 +1,26 @@
+name: An idea
+description: Something this should do, or should stop doing
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ideas are welcome even when they are half-formed. If it turns out to be
+        for later rather than now, it goes in the freezer (`docs/FREEZER.md`)
+        rather than the bin.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What do you want
+      description: In your own words. No need to propose an implementation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: What is it for
+      description: The problem behind the idea. This is the part that usually changes what gets built.
+    validations:
+      required: false
