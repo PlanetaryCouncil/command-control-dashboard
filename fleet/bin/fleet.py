@@ -491,6 +491,15 @@ def forwards(path):
     return any(path.startswith(pre) for pre in FORWARD_PREFIX)
 
 
+# Flood control for the public write endpoints (the pad and the gallery).
+# In-memory and per-process: a restart forgives everyone, which is the
+# right trade for a wall whose whole point is that strangers can mark it.
+RATE = {}
+RATE_WINDOW = 600.0   # ten minutes
+RATE_BURST = 5        # per visitor, per window
+RATE_GLOBAL = 60      # everyone together, per window
+
+
 def _redact_processes(snap):
     """Strip anything that could carry a private prompt, path or token from a
     public /api/processes response. Agents receive chat prompts as argv, so the
@@ -559,8 +568,21 @@ def serve(port):
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", cache)
+            # The board is already public via the funnel; CORS only lets a
+            # browser on another origin read what curl can already fetch.
+            # This is what lets the GitHub-Pages selfie gallery talk to us.
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(body)
+
+        def do_OPTIONS(self):
+            # CORS preflight for cross-origin POSTs (the selfie gallery).
+            self.send_response(204)
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Max-Age", "86400")
+            self.end_headers()
 
         def _forward(self, path, body=None):
             """Pass a request to the cockpit and return its answer verbatim.
@@ -651,6 +673,54 @@ def serve(port):
             if self._remote() and path in CONTROL_PATHS:
                 self.send_error(404)
                 return True
+            return False
+
+        def _caller(self):
+            """Best-effort identity of a remote writer, for rate limiting.
+
+            X-Forwarded-For is set by the funnel and is the closest thing to
+            a visitor identity we have. It is spoofable in principle, but the
+            funnel appends the real peer, so the last hop is the honest one.
+            """
+            fwd = self.headers.get("X-Forwarded-For") or ""
+            peer = self.client_address[0] if self.client_address else "?"
+            return fwd.split(",")[-1].strip() or peer
+
+        def _flooding(self, bucket):
+            """A public pad needs a queue discipline, not a lock.
+
+            The operator (local) is never limited — they cannot spam their
+            own wall. A remote hand gets BURST writes in WINDOW seconds,
+            and the wall as a whole gets GLOBAL in the same window, so one
+            determined visitor cannot drown out the room and a botnet of
+            many cannot either. 429 with Retry-After; nothing is stored.
+            """
+            if not self._remote():
+                return False
+            import time
+            now = time.monotonic()
+            hits = RATE.setdefault(bucket, {})
+            for who, stamps in list(hits.items()):
+                fresh = [t for t in stamps if now - t < RATE_WINDOW]
+                if fresh:
+                    hits[who] = fresh
+                else:
+                    del hits[who]
+            me = self._caller()
+            mine = hits.get(me, [])
+            everyone = sum(len(v) for v in hits.values())
+            if len(mine) >= RATE_BURST or everyone >= RATE_GLOBAL:
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Retry-After", str(int(RATE_WINDOW)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                body = json.dumps({"error": "slow down",
+                                   "retry_after": int(RATE_WINDOW)}).encode()
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return True
+            hits.setdefault(me, []).append(now)
             return False
 
         def do_GET(self):
@@ -747,6 +817,32 @@ def serve(port):
                     self._send(f.read_bytes(), "application/json")
                 except OSError:
                     self._send(b'{"levels": []}', "application/json")
+                return
+
+            if path == "/api/selfies":
+                # The public gallery feed. Same medium as the machines'
+                # self-portraits: 80 columns of characters, a block stamp,
+                # a name. Newest first. Read-and-return, no gate.
+                f = Path(os.environ.get(
+                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                # A damned face is already gone from the file; a face in
+                # purgatory is still here but not for the public. The
+                # operator, local, sees everything including what is held.
+                mine = not self._remote()
+                out = []
+                try:
+                    for line in f.read_text(errors="replace").splitlines():
+                        try:
+                            d = json.loads(line)
+                        except ValueError:
+                            continue
+                        if mine or d.get("status") != "purgatory":
+                            out.append(d)
+                except OSError:
+                    pass
+                out.reverse()
+                self._send(json.dumps(out[:500]).encode(),
+                           "application/json")
                 return
 
             if path == "/api/marks":
@@ -943,6 +1039,18 @@ def serve(port):
                                        nav.CSS).encode())
                 return
 
+            if path == "/faces":
+                # Judging happens by looking. Local only, like the pad's
+                # purgatory — curation is the operator's hand.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, facesview
+                self._send(facesview.page(nav.html("/faces", remote=False),
+                                          nav.CSS).encode())
+                return
+
             if path == "/signatures":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import nav, sigview
@@ -1061,6 +1169,141 @@ def serve(port):
             if forwards(path):
                 n = int(self.headers.get("Content-Length") or 0)
                 self._forward(path, self.rfile.read(min(n, 1_000_000)))
+                return
+
+            if path == "/api/charge":
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                    project = str(body["project"])[:80]
+                    by = str(body.get("by") or "someone")[:40]
+                except Exception:
+                    self.send_error(400)
+                    return
+                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                       "project": project, "by": by,
+                       "remote": self._remote()}
+                with (FLEET / "data" / "charges.jsonl").open("a") as fh:
+                    fh.write(json.dumps(rec) + "\n")
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                ev.emit("orrery", "ok",
+                        f"[charge] {by} charged '{project}'")
+                self._send(json.dumps({"ok": True}).encode(), "application/json")
+                return
+
+            if path == "/api/selfies":
+                # A face, in 80 columns, arriving from the gallery. The
+                # photograph never existed here — only the text does. We
+                # keep the art, the caption and the block stamp it carried.
+                if self._flooding("selfies"):
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 200_000:
+                        self.send_error(413)
+                        return
+                    body = json.loads(self.rfile.read(n).decode())
+                    art = str(body.get("art") or "")
+                    if not (20 <= len(art) <= 40_000):
+                        raise ValueError("art 20..40000 chars")
+                    # A face has variety in it. An empty grid, a solid wall
+                    # of one block, or a lens cap does not — refuse those
+                    # rather than hang them.
+                    ink = [c for c in art if not c.isspace()]
+                    if len(ink) < 40 or len(set(ink)) < 2:
+                        raise ValueError("not a face")
+                    who = str(body.get("who") or "anonymous").strip()[:40] \
+                        or "anonymous"
+                    kind = body.get("kind")
+                    kind = kind if kind in ("ascii", "photo") else "ascii"
+                    stamp = body.get("stamp")
+                    stamp = stamp if isinstance(stamp, dict) else {}
+                    # The declaration. Absurd on its face, and the absurdity
+                    # is the point — but it is also the consent record, so
+                    # it is required and it is kept.
+                    if not body.get("legal"):
+                        raise ValueError("undeclared face")
+                except Exception:
+                    self.send_error(400)
+                    return
+                import hashlib
+                seed = hashlib.sha256(art.encode()).hexdigest()
+                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                       "who": who, "kind": kind, "seed": seed,
+                       "stamp": stamp, "art": art,
+                       # Public by default: a gallery that hides its faces
+                       # until an operator wakes up is not a public gallery.
+                       # Purgatory exists for what the operator later damns.
+                       "legal_declared": True,
+                       "status": "blessed",
+                       "remote": self._remote()}
+                f = Path(os.environ.get(
+                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                try:
+                    f.parent.mkdir(parents=True, exist_ok=True)
+                    if f.exists() and f.stat().st_size > 8_000_000:
+                        f.rename(f.with_suffix(".jsonl.1"))
+                    with f.open("a") as fh:
+                        fh.write(json.dumps(rec) + "\n")
+                except OSError:
+                    self.send_error(500)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                ev.emit("visitors", "ok",
+                        f"[selfies] a face joined the gallery: {who}")
+                self._send(json.dumps({"ok": True, "who": who,
+                                       "seed": seed}).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/selfies/judge":
+                # Same exits as the pad's purgatory, same rule: curation is
+                # the operator's hand, so local only. `damn` takes a face
+                # off the wall for good; `purgatory` merely hides it.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                    seed, verdict = body["seed"], body["verdict"]
+                    assert verdict in ("bless", "damn", "purgatory")
+                except Exception:
+                    self.send_error(400)
+                    return
+                f = Path(os.environ.get(
+                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+                out, hit = [], False
+                try:
+                    lines = f.read_text(errors="replace").splitlines()
+                except OSError:
+                    lines = []
+                for line in lines:
+                    try:
+                        d = json.loads(line)
+                    except ValueError:
+                        continue
+                    if d.get("seed") == seed:
+                        hit = True
+                        if verdict == "damn":
+                            continue      # damned faces leave the book
+                        d["status"] = ("blessed" if verdict == "bless"
+                                       else "purgatory")
+                    out.append(json.dumps(d))
+                try:
+                    f.write_text("\n".join(out) + ("\n" if out else ""))
+                except OSError:
+                    self.send_error(500)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import events as ev
+                if hit:
+                    ev.emit("visitors", "info",
+                            f"[selfies] operator {verdict}ed {seed[:12]}…")
+                self._send(json.dumps({"ok": hit, "verdict": verdict}).encode(),
+                           "application/json")
                 return
 
             if path == "/api/signatures/sign":
