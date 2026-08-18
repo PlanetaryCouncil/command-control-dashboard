@@ -8,6 +8,7 @@ Each worker drops a JSON status file in workers/; this reads whatever is there,
 so adding a worker to the board means adding a worker, not editing this file.
 """
 
+import hashlib
 import html
 import json
 import os
@@ -19,6 +20,66 @@ from pathlib import Path
 
 FLEET = Path(__file__).resolve().parent.parent
 WORKERS = FLEET / "workers"
+CHARGES = FLEET / "data" / "charges.jsonl"
+
+# Per-install, so the same visitor is one hand here and an unrelated one
+# somewhere else. Regenerated if absent; losing it only resets the counting.
+def _charge_salt():
+    p = FLEET / "data" / ".charge-salt"
+    try:
+        return p.read_text().strip()
+    except OSError:
+        import secrets
+        salt = secrets.token_hex(16)
+        try:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(salt)
+        except OSError:
+            pass
+        return salt
+
+
+CHARGE_SALT = _charge_salt()
+
+
+def _clean(v, limit):
+    """Visitor text, made safe to store and to show.
+
+    Control characters and newlines come out because one line in the event log
+    must stay one line - a newline here is a caller writing a second, forged
+    event underneath their own.
+    """
+    return re.sub(r"[\x00-\x1f\x7f]", " ", str(v or ""))[:limit].strip()
+
+
+def charge_tally():
+    """Charges per project, with unique hands beside the raw count.
+
+    Nothing read this file before now: the button wrote and no surface showed
+    it, so a feature about visible enthusiasm was invisible. The gap between
+    `charges` and `hands` is the spam signal, left for a human to read rather
+    than acted on automatically.
+    """
+    out = {}
+    try:
+        lines = CHARGES.read_text(errors="replace").splitlines()
+    except OSError:
+        return {}
+    for line in lines:
+        try:
+            r = json.loads(line)
+        except ValueError:
+            continue
+        name = r.get("project")
+        if not name:
+            continue
+        t = out.setdefault(name, {"charges": 0, "hands": set(), "last": None})
+        t["charges"] += 1
+        t["hands"].add(r.get("hand") or r.get("by") or "?")
+        if not t["last"] or str(r.get("ts")) > t["last"]:
+            t["last"] = r.get("ts")
+    return {k: {"charges": v["charges"], "hands": len(v["hands"]), "last": v["last"]}
+            for k, v in sorted(out.items(), key=lambda kv: -kv[1]["charges"])}
 SELF_IMPROVE = FLEET.parent / "self-improve"
 
 
@@ -807,6 +868,11 @@ def serve(port):
                 self._send(json.dumps(snap).encode(), "application/json")
                 return
 
+            if path == "/api/charge":
+                self._send(json.dumps(charge_tally()).encode(),
+                           "application/json")
+                return
+
             if path == "/api/horizons":
                 # The cockpit owns this file; the fleet reads it. Reading a
                 # sibling's JSON is cheaper and more honest than an HTTP hop to
@@ -1172,23 +1238,54 @@ def serve(port):
                 return
 
             if path == "/api/charge":
+                # Anyone may charge a project, as often as they like. That is
+                # deliberate: a charge is a stranger with no account pointing at
+                # what matters, and putting a turnstile in front of it would
+                # collect fewer honest points than it blocks dishonest ones.
+                #
+                # Spam is handled by counting rather than by refusing. Every
+                # record carries a hashed caller, so GET /api/charge can report
+                # unique hands beside raw charges and a flood shows up as one
+                # number diverging from the other. Visible beats prevented.
                 try:
                     n = int(self.headers.get("Content-Length") or 0)
                     body = json.loads(self.rfile.read(min(n, 4096)).decode())
-                    project = str(body["project"])[:80]
-                    by = str(body.get("by") or "someone")[:40]
+                    project = _clean(body["project"], 80)
+                    by = _clean(body.get("by"), 40) or "someone"
                 except Exception:
                     self.send_error(400)
                     return
+
+                # Salted per install and truncated: enough to tell two hands
+                # apart, not enough to work back to an address. An unsalted
+                # hash of an IP is an IP, because the space is small enough to
+                # enumerate over a weekend.
+                hand = hashlib.sha256(
+                    (CHARGE_SALT + self._caller()).encode()).hexdigest()[:16]
+
                 rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "project": project, "by": by,
+                       "project": project, "by": by, "hand": hand,
                        "remote": self._remote()}
-                with (FLEET / "data" / "charges.jsonl").open("a") as fh:
-                    fh.write(json.dumps(rec) + "\n")
+                try:
+                    CHARGES.parent.mkdir(parents=True, exist_ok=True)
+                    with CHARGES.open("a") as fh:
+                        fh.write(json.dumps(rec) + "\n")
+                except OSError:
+                    self.send_error(500)
+                    return
+
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev
+                # layer 4, and named as such. `by` is whatever the caller typed,
+                # and this line lands in events.jsonl, which council.py feeds to
+                # the agents sixty at a time. Unlabelled, that is a stranger
+                # writing into the context our own agents reason from. The text
+                # is kept because it is the point of the feature; the label is
+                # what stops it being taken as fact.
                 ev.emit("orrery", "ok",
-                        f"[charge] {by} charged '{project}'")
+                        f"[charge] {project} charged, signed {by!r}",
+                        origin="visitor" if self._remote() else "operator",
+                        layer=4 if self._remote() else 0)
                 self._send(json.dumps({"ok": True}).encode(), "application/json")
                 return
 

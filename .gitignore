@@ -61,3 +61,8 @@ fleet/rota/
 fleet/state/
 self-improve/state/
 fleet/data/board-name.txt
+
+# Per-install salt for the charge tally. Not a credential, but committing it
+# would make the hashed hands comparable across installs, which is exactly what
+# the salt exists to prevent.
+fleet/data/.charge-salt
