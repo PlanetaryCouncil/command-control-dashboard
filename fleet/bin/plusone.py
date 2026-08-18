@@ -45,6 +45,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
     if agent == "openclaw":
         return chat.ask_openclaw(prompt, noop, session=session,
                                  timeout=TURN_TIMEOUT)
+    if agent == "grok":
+        return chat.ask_grok(prompt, [], noop, timeout=TURN_TIMEOUT)
     return f"[unknown agent {agent}]"
 
 
