@@ -7,20 +7,20 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/phil/projects/command-control-dashboard/.venv/bin/python3</string>
-        <string>/Users/phil/projects/command-control-dashboard/fleet/bin/telegram.py</string>
+        <string>/path/to/command-control-dashboard/.venv/bin/python3</string>
+        <string>/path/to/command-control-dashboard/fleet/bin/telegram.py</string>
         <string>listen</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/phil/projects/command-control-dashboard</string>
+    <string>/path/to/command-control-dashboard</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/phil/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/YOU/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>HOME</key>
-        <string>/Users/phil</string>
+        <string>/Users/YOU</string>
     </dict>
 
     <!-- Long-polling, so this is a permanent process, not a schedule. It must
@@ -35,9 +35,9 @@
     <integer>60</integer>
 
     <key>StandardOutPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/telegram.out.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/telegram.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/telegram.err.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/telegram.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

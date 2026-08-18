@@ -9,14 +9,14 @@
     <array>
         <!-- The project venv, not system python: the legacy cockpit now runs
              in-process and needs uvicorn + fastapi. -->
-        <string>/Users/phil/projects/command-control-dashboard/.venv/bin/python3</string>
-        <string>/Users/phil/projects/command-control-dashboard/fleet/bin/fleet.py</string>
+        <string>/path/to/command-control-dashboard/.venv/bin/python3</string>
+        <string>/path/to/command-control-dashboard/fleet/bin/fleet.py</string>
         <string>serve</string>
         <string>8787</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet</string>
+    <string>/path/to/command-control-dashboard/fleet</string>
 
     <!-- launchd's default PATH misses ~/.local/bin and the node prefix, so
          chat subprocesses (claude, hermes, openclaw) would fail with ENOENT. -->
@@ -25,11 +25,11 @@
         <!-- Private state, deliberately outside the public repo: the
              guest book's home-IP prefixes and the raw signature paths. -->
         <key>FLEET_HOMIES</key>
-        <string>/Users/phil/.config/fleet/homies.txt</string>
+        <string>/Users/YOU/.config/fleet/homies.txt</string>
         <key>FLEET_SIGNATURES</key>
-        <string>/Users/phil/.config/fleet/signatures-collected.jsonl</string>
+        <string>/Users/YOU/.config/fleet/signatures-collected.jsonl</string>
         <key>PATH</key>
-        <string>/Users/phil/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/YOU/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 
     <!-- Always on: start at login, restart if it ever exits. -->
@@ -39,9 +39,9 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/server.out.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/server.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/server.err.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/server.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

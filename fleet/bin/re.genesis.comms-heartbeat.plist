@@ -8,16 +8,16 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/python3</string>
-        <string>/Users/phil/projects/command-control-dashboard/fleet/bin/comms-heartbeat.py</string>
+        <string>/path/to/command-control-dashboard/fleet/bin/comms-heartbeat.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet</string>
+    <string>/path/to/command-control-dashboard/fleet</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/phil/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/YOU/.local/bin:/usr/local/opt/node@22/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 
     <!-- Hourly at :30, deliberately offset from the watchdog sweep so two
@@ -31,9 +31,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/comms-heartbeat.out.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/comms-heartbeat.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/comms-heartbeat.err.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/comms-heartbeat.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

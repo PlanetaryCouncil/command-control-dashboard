@@ -341,10 +341,13 @@ def start_job(message, agents, attachments):
 
     # Images need a model that can see. Local vision was too slow on this
     # machine, so Claude is the vision path; adding it beats dropping the image.
-    if images and "claude" not in agents:
-        agents = list(agents) + ["claude"]
+    requested = [a for a in (agents or []) if a in AGENTS]
+    if images and "claude" not in requested:
+        requested = list(requested) + ["claude"]
 
-    agents = [a for a in agents if a in AGENTS] or ["ollama"]
+    agents = [a for a in requested if _agent_ready(a)]
+    if not agents:
+        return {"error": "none of the requested agents are ready", "agents": []}
     job_id = uuid.uuid4().hex[:12]
     with JOBS_LOCK:
         JOBS[job_id] = {"queue": queue.Queue(), "remaining": len(agents),
@@ -387,9 +390,21 @@ def available():
     except Exception:
         have = set()
     for name, (label, _vision) in AGENTS.items():
-        if name == "ollama":
-            ok = any(m.startswith(OLLAMA_MODEL.split(":")[0]) for m in have)
-        else:
-            ok = True
+        ok = _agent_ready(name, have)
         out.append({"name": name, "label": label, "ready": ok})
     return out
+
+
+def _agent_ready(name, have=None):
+    """True when the agent binary (or ollama model) is on this machine."""
+    if name == "ollama":
+        if have is None:
+            try:
+                with urllib.request.urlopen(f"{OLLAMA}/api/tags", timeout=2) as r:
+                    have = {m["name"] for m in json.loads(r.read())["models"]}
+            except Exception:
+                have = set()
+        return any(m.startswith(OLLAMA_MODEL.split(":")[0]) for m in have)
+    if name in ("claude", "hermes", "openclaw"):
+        return Path(resolve(name)).is_file()
+    return False

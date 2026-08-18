@@ -63,7 +63,7 @@ PORT=8765
 PLANETARY_DB_PATH=/app/data/planetary_council.db
 PUBLIC_BASE_URL=https://your-domain.example
 TELEGRAM_BOT_TOKEN=secret
-TELEGRAM_OWNER_CHAT_ID=318761680
+TELEGRAM_OWNER_CHAT_ID=YOUR-TELEGRAM-CHAT-ID
 ```
 
 Do not commit real values.

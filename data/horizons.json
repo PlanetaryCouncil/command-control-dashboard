@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-08-03T20:13:27.272612+00:00",
+  "updated_at": "2026-08-07T13:53:30.337200+00:00",
   "note": "One thread, widest to narrowest. If a level is blank, the chain is broken there and the dashboard says so.",
   "levels": [
     {
@@ -16,41 +16,38 @@
     },
     {
       "scale": "quarter",
-      "goal": "Cockpit and public site shipped, published, and actually steering the work.",
-      "why": "A dashboard nobody opens is a document.",
+      "goal": "The fleet runs itself: agents propose, build, review and merge without the operator in the loop.",
+      "why": "A fleet that needs a human for ordinary work is a queue. Marsita's attention is the scarce resource, not compute.",
       "review": "2026-09-30"
     },
     {
       "scale": "month",
-      "goal": "Dashboard public with real links; Discord cockpit live; Hermes hosted somewhere that stays awake.",
-      "why": "Unblocks everything downstream.",
+      "goal": "Green branches merge themselves; a daily summary is the only thing Marsita has to read.",
+      "why": "One-liners once a day, not a PR queue. Escalate money, identity and irreversible actions \u2014 nothing else.",
       "review": "2026-08-21"
     },
     {
       "scale": "week",
-      "goal": "Ship the transparent dashboard: horizons, settings, agent uplink, ASCII scope.",
-      "why": "This is the map everything else gets steered from.",
-      "review": "2026-07-27"
+      "goal": "Two machines, one fleet: Gaia the older sister thinks and steers, NUC does the heavy lifting, both fully automated.",
+      "why": "Measured 6x on the same suite. The split is which body carries the load, not what either is allowed to do.",
+      "review": "2026-08-14"
     },
     {
       "scale": "day",
-      "goal": "Stand up the agent fleet and merge it into the cockpit.",
-      "why": "One cockpit steering everything, not two screens.",
-      "review": ""
+      "goal": "Agents run in the background and report in one line each.",
+      "why": "Nothing worth watching happens at the speed of a human reading it."
     },
     {
       "scale": "hour",
-      "goal": "Align the fleet to the horizon chain so every agent serves a stated goal.",
-      "why": "Work that does not ladder up to a goal is motion, not progress.",
-      "review": ""
+      "goal": "Every proposal reaches a verdict without being asked twice.",
+      "why": "17 proposals sat unread behind a step nobody walked."
     },
     {
       "scale": "now",
-      "goal": "Agent fleet: five agents self-reporting, proven able to pass messages.",
-      "why": "Agents that cannot talk cannot cooperate; proven beats assumed.",
+      "goal": "Building is off on Gaia, on for NUC. Fleet merges its own green work.",
+      "why": "The switch exists so the laptop's cores belong to Marsita.",
       "project": "command-control-dashboard",
-      "started_at": "2026-07-29T03:42:39.195260+00:00",
-      "review": ""
+      "started_at": "2026-07-29T03:42:39.195260+00:00"
     }
   ]
 }

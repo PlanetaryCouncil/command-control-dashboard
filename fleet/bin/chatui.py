@@ -92,7 +92,7 @@ button[disabled]{opacity:.45;cursor:not-allowed;}
 .reply .secs{margin-left:auto;font-size:10px;color:var(--muted);font-weight:400;}
 .reply .body{white-space:pre-wrap;word-break:break-word;font-size:13.5px;
   color:var(--ink-2);max-height:460px;overflow-y:auto;}
-.reply.err .body{color:var(--critical);}
+.reply.err,.reply.err .body{color:var(--critical);}
 .dots::after{content:'';animation:dots 1.2s steps(4,end) infinite;}
 @keyframes dots{0%{content:'';}25%{content:'.';}50%{content:'..';}75%{content:'...';}}
 @media (prefers-reduced-motion:reduce){.dots::after{content:'...';animation:none;}}
@@ -205,6 +205,16 @@ async function send(){
     res = await (await fetch('chat/send', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)})).json();
   } catch(e){ sendBtn.disabled = false; return; }
+
+  if (res.error || !res.job){
+    const err = document.createElement('div'); err.className = 'reply err';
+    const body = document.createElement('div'); body.className = 'body';
+    body.textContent = res.error || 'none of the requested agents are ready';
+    err.appendChild(body);
+    replies.appendChild(err);
+    sendBtn.disabled = false;
+    return;
+  }
 
   const cards = {};
   for (const a of res.agents){

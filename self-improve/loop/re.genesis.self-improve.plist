@@ -8,16 +8,16 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/phil/projects/command-control-dashboard/self-improve/loop/run-cycle.sh</string>
+        <string>/path/to/command-control-dashboard/self-improve/loop/run-cycle.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/phil/projects/command-control-dashboard/self-improve</string>
+    <string>/path/to/command-control-dashboard/self-improve</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/phil/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/YOU/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
         <key>WINDOW_DAYS</key>
         <string>14</string>
         <key>TIMEOUT_SECS</key>
@@ -37,9 +37,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/self-improve/logs/launchd.out.log</string>
+    <string>/path/to/command-control-dashboard/self-improve/logs/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/self-improve/logs/launchd.err.log</string>
+    <string>/path/to/command-control-dashboard/self-improve/logs/launchd.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

@@ -8,16 +8,16 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/phil/projects/command-control-dashboard/fleet/bin/run-watchdogs.sh</string>
+        <string>/path/to/command-control-dashboard/fleet/bin/run-watchdogs.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet</string>
+    <string>/path/to/command-control-dashboard/fleet</string>
 
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
-        <string>/Users/phil/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <string>/Users/YOU/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     </dict>
 
     <!-- Hourly. Cheap (~1s per project), so the board is never stale. -->
@@ -27,9 +27,9 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/watchdogs.out.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/watchdogs.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/phil/projects/command-control-dashboard/fleet/logs/watchdogs.err.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/watchdogs.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>
