@@ -37,6 +37,12 @@ import events as ev  # noqa: E402
 
 LEDGER = FLEET / "data" / "localvoice.jsonl"
 
+# A health check that hangs is not a health check. 2026-08-06 it answered in
+# 25.3s; 2026-08-07 it blocked for 607.1s, holding two of four cores and its
+# share of 8GB against the rest of the fleet. Past ~90s the answer has stopped
+# being useful and only the RAM matters, so we give up and mark alert.
+PING_TIMEOUT = 90
+
 # Short, answerable, and different each day — so a stuck cache or a dead
 # model shows up as a wrong or missing answer rather than a repeat.
 QUESTIONS = [
@@ -54,7 +60,8 @@ def ping():
     q = random.choice(QUESTIONS)
     noop = lambda *a, **k: None
     t0 = time.time()
-    answer = chat.ask_ollama(chat.OLLAMA_MODEL, q, [], noop, num_predict=80)
+    answer = chat.ask_ollama(chat.OLLAMA_MODEL, q, [], noop, num_predict=80,
+                             timeout=PING_TIMEOUT)
     secs = round(time.time() - t0, 1)
     ok = bool(answer) and not answer.startswith("[") and len(answer) > 20
 

@@ -28,8 +28,18 @@ mkdir -p "$FLEET/workers" "$FLEET/digests" "$FLEET/logs"
 # --- pick the project's own test command ------------------------------------
 # Prefer the venv the project already uses; fall back to its declared tooling.
 cd "$TARGET" || exit 1
+# Same lesson as pipeline.venv_pytest(), which #32 fixed: `.venv` was
+# hardcoded, true on the Mac and false on the NUC, whose `.venv` is python
+# 3.14 with no pytest and whose working environment is `.venv311`. The
+# pipeline learned this; the watchdog did not, so on 2026-08-07 the NUC ran
+# watchdogs hourly against a repo with 337 passing tests and reported
+# "no test command detected" every time. A green board and no evidence.
 CMD=""
-if   [[ -x ".venv/bin/pytest" ]];                 then CMD=".venv/bin/pytest -q"
+VENV_PYTEST=""
+for _v in .venv .venv311 .venv312 .venv313; do
+  if [[ -x "$_v/bin/pytest" ]]; then VENV_PYTEST="$_v/bin/pytest"; break; fi
+done
+if   [[ -n "$VENV_PYTEST" ]];                     then CMD="$VENV_PYTEST -q"
 elif [[ -f "pyproject.toml" ]] && command -v uv >/dev/null 2>&1; then CMD="uv run pytest -q"
 elif [[ -f "package.json" ]] && grep -q '"test"' package.json 2>/dev/null; then CMD="npm test --silent"
 elif [[ -f "Makefile" ]] && grep -q '^test:' Makefile 2>/dev/null; then CMD="make test"
@@ -54,7 +64,7 @@ PY
 if [[ -z "$CMD" ]]; then
   DURATION=0
   write_status "skip" "No test command detected" \
-    "Looked for .venv/bin/pytest, uv+pyproject, npm test, make test." "" 0 0
+    "Looked for .venv*/bin/pytest, uv+pyproject, npm test, make test." "" 0 0
   echo "[$NAME] no test command detected"
   python3 "$FLEET/bin/events.py" "$NAME" warn "no test command detected" 2>/dev/null
   exit 0

@@ -48,7 +48,29 @@ MAX_PER_CYCLE = 12
 BUILD_TIMEOUT = 900
 DIFF_CLIP = 6000
 
+
+def venv_pytest() -> Path:
+    """The pytest that actually exists on THIS machine.
+
+    `.venv` was hardcoded, which was true on the Mac and false on the NUC:
+    that box's `.venv` is python 3.14, which has no pytest and no coincurve
+    wheel, so its 3.11 environment lives in `.venv311`. On 2026-08-07 all four
+    builds of the night succeeded and all four verifications failed on
+    "pytest does not exist" — the builder agents even said so in their
+    reports, having tried every alternate invocation and been refused by the
+    permission rules. The work was fine. The path was wrong.
+
+    Preference order, first hit wins; falls back to `.venv` so the failure
+    message still names the conventional location.
+    """
+    for name in (".venv", ".venv311", ".venv312", ".venv313"):
+        p = REPO / name / "bin" / "pytest"
+        if p.exists():
+            return p
+    return REPO / ".venv" / "bin" / "pytest"
+
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import buildgate     # noqa: E402
 import chat          # noqa: E402
 import events as ev  # noqa: E402
 
@@ -94,6 +116,24 @@ def slug(text: str) -> str:
     return s or "proposal"
 
 
+def branch_name(prop: dict) -> str:
+    """rota/<date>-<hhmm>-<slug> — the time keeps same-day proposals apart.
+
+    Two agents filing near-identical titles on one day used to collide on a
+    single branch, so a rejection of one read as a rejection of all.
+    """
+    ts = str(prop.get("ts", ""))
+    hhmm = re.sub(r"[^0-9]", "", ts[11:16])[:4]
+    stamp = f"{ts[:10]}-{hhmm}" if hhmm else ts[:10]
+    return f"rota/{stamp}-{slug(prop['text'])}"
+
+
+def branch_exists(branch: str) -> bool:
+    code, _ = run(["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+                  cwd=REPO)
+    return code == 0
+
+
 def run(cmd, cwd=None, timeout=300, stdin_text=None):
     try:
         r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
@@ -106,12 +146,16 @@ def run(cmd, cwd=None, timeout=300, stdin_text=None):
 
 
 def build(prop: dict) -> dict:
-    branch = f"rota/{prop['ts'][:10]}-{slug(prop['text'])}"
+    branch = branch_name(prop)
     wt = WORKTREES / branch.replace("/", "-")
+    if branch_exists(branch):
+        # never build a second proposal onto someone else's branch
+        return record(stage="build", proposal_ts=prop["ts"], branch=branch,
+                      ok=False, detail=f"branch {branch} already exists — refusing to reuse it")
     WORKTREES.mkdir(exist_ok=True)
     code, out = run(["git", "worktree", "add", "-b", branch, str(wt), "main"],
                     cwd=REPO)
-    if code != 0 and "already exists" not in out:
+    if code != 0:
         return record(stage="build", proposal_ts=prop["ts"], branch=branch,
                       ok=False, detail=out[-300:])
 
@@ -124,8 +168,9 @@ Implement the smallest working version of this proposal from the fleet's rota:
 {str(prop['text'])[:1500]}
 --- END ---
 
-Rules: touch only what the proposal needs. Run `.venv/bin/pytest -q` (the
-venv is at {REPO}/.venv) and make it pass. Commit everything with a clear
+Rules: touch only what the proposal needs. Run `{venv_pytest()} -q` — that
+exact path, it is this machine's environment and the only one the permission
+rules allow — and make it pass. Commit everything with a clear
 message. Do NOT push. Do NOT merge. Do NOT touch other branches. If the
 proposal is not implementable as code, commit nothing and say why in one
 line starting with SKIP:."""
@@ -136,8 +181,8 @@ line starting with SKIP:."""
                      "--allowedTools",
                      "Bash(git add:*)", "Bash(git commit:*)",
                      "Bash(git status:*)", "Bash(git diff:*)",
-                     "Bash(git log:*)", f"Bash({REPO}/.venv/bin/pytest:*)",
-                     "Bash(.venv/bin/pytest:*)",
+                     "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
+                     "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)",
                      "WebSearch", "WebFetch"],
                     cwd=wt, timeout=BUILD_TIMEOUT, stdin_text=prompt)
     committed = run(["git", "log", "--oneline", "main..HEAD"], cwd=wt)[1].strip()
@@ -182,8 +227,8 @@ commit nothing and say why in one line starting with SKIP:."""
                      "--allowedTools",
                      "Bash(git add:*)", "Bash(git commit:*)",
                      "Bash(git status:*)", "Bash(git diff:*)",
-                     "Bash(git log:*)", f"Bash({REPO}/.venv/bin/pytest:*)",
-                     "Bash(.venv/bin/pytest:*)", "WebSearch", "WebFetch"],
+                     "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
+                     "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)", "WebSearch", "WebFetch"],
                     cwd=wt, timeout=BUILD_TIMEOUT, stdin_text=prompt)
     after = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
     ok = code == 0 and after != before
@@ -221,8 +266,7 @@ def verify(built: dict) -> dict:
                       branch=branch, ok=False, tests="not run",
                       review=f"REJECT conflicts with main: {out[-200:]}")
 
-    code, out = run([str(REPO / ".venv" / "bin" / "pytest"), "-q"],
-                    cwd=wt, timeout=600)
+    code, out = run([str(venv_pytest()), "-q"], cwd=wt, timeout=600)
     tests_ok = code == 0
     tests_line = out.strip().splitlines()[-1] if out.strip() else "no output"
 
@@ -249,22 +293,106 @@ def verify(built: dict) -> dict:
                   tests=tests_line, review=" ".join(str(review).split())[:300])
 
 
+def land(verified: dict) -> dict:
+    """Merge an approved branch into main and push it. No human in the loop.
+
+    Marsita, 2026-08-07: "fleet can merge... I'm not able to understand
+    subtle code nuance... I don't want to worry about infra / pr / code /
+    issues." A queue of approved branches waiting on someone who does not
+    read diffs is not review, it is a stall dressed as caution.
+
+    Three things stand between a branch and main, and all three are machine
+    checks rather than opinions:
+
+    1. It was verified — tests ran on the branch already merged with main,
+       and the reviewer said APPROVE.
+    2. It merges cleanly, no conflict.
+    3. **The suite passes again on the merge commit itself.** Two branches
+       can each be green and break each other; that is exactly the case a
+       per-branch verdict cannot see, and the only moment it is visible is
+       here, after the merge and before the push.
+
+    Any of those failing rolls main back to where it was. The branch keeps
+    its commits and its verdict, so nothing is lost — it simply did not land
+    this cycle.
+    """
+    branch = verified["branch"]
+    ts = verified["proposal_ts"]
+    # Never touch the shared checkout. It belongs to whoever is working in it
+    # — on 2026-08-07 the Nuc's tree was sitting on another agent's branch
+    # mid-task, and `git checkout main` here would have yanked it away
+    # underneath them. The merge happens in a worktree of its own and the
+    # push goes from there; the operator's tree never moves.
+    wt = WORKTREES / f"land-{branch.replace('/', '-')}"
+    WORKTREES.mkdir(exist_ok=True)
+    run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+    code, out = run(["git", "worktree", "add", "--detach", str(wt), "main"],
+                    cwd=REPO)
+    if code != 0:
+        return record(stage="land", proposal_ts=ts, branch=branch, ok=False,
+                      detail=f"worktree: {out[-200:]}")
+
+    def done(ok, **extra):
+        run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+        return record(stage="land", proposal_ts=ts, branch=branch, ok=ok, **extra)
+
+    code, out = run(["git", "merge", "--no-ff", "--no-edit", branch], cwd=wt)
+    if code != 0:
+        run(["git", "merge", "--abort"], cwd=wt)
+        ev.emit("pipeline", "warn", f"[land] {branch}: conflicts with main")
+        return done(False, detail=f"conflict: {out[-200:]}")
+
+    merge_sha = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
+    code, out = run([str(venv_pytest()), "-q"], cwd=wt, timeout=900)
+    if code != 0:
+        # The merge commit is what failed, so the merge commit is what gets
+        # thrown away — not the branch, which is still good on its own and
+        # may land once whatever it collided with is fixed. Discarding the
+        # worktree discards the merge; main was never moved.
+        tail = out.strip().splitlines()[-1] if out.strip() else "no output"
+        ev.emit("pipeline", "warn",
+                f"[land] {branch}: green alone, red merged — dropped ({tail})")
+        return done(False, detail=f"merged tests: {tail}")
+
+    # Push the merge commit straight at main. Nothing local is updated to
+    # point at it until the push is accepted, so a rejected push leaves no
+    # half-landed state anywhere.
+    code, out = run(["git", "push", "origin", f"{merge_sha}:main"],
+                    cwd=wt, timeout=300)
+    if code != 0:
+        ev.emit("pipeline", "info",
+                f"[land] {branch}: push refused, will retry ({out[-120:]})")
+        return done(False, detail=f"push: {out[-200:]}")
+
+    run(["git", "fetch", "origin", "main:main"], cwd=REPO)
+    ev.emit("pipeline", "ok", f"[land] {branch} merged to main and pushed")
+    return done(True, sha=merge_sha[:12])
+
+
 def write_worker() -> None:
     done = by_proposal()
+    landed = [r for r in done.values() if r.get("stage") == "land" and r.get("ok")]
+    stuck = [r for r in done.values() if r.get("stage") == "land" and not r.get("ok")]
     awaiting = [r for r in done.values()
                 if r.get("stage") == "verify" and r.get("ok")]
     rejected = [r for r in done.values()
                 if r.get("stage") == "verify" and not r.get("ok")]
-    # The alert carries its own remedy: naming a branch makes Marsita go
-    # reconstruct the command; pasting one line clears the queue.
-    summary = (" · ".join(f"{r['branch']} awaits your merge — "
-                          f"git merge --no-ff {r['branch']}" for r in awaiting)
-               or f"nothing awaiting ({len(rejected)} rejected, "
-                  f"{len(done)} proposals processed)")
+    # Approved branches land themselves now, so "awaiting" means the landing
+    # failed, not that someone forgot to merge. Only that is worth an alert —
+    # a green cycle should say what it did and then be quiet.
+    if stuck:
+        summary = " · ".join(f"{r['branch']} could not land: "
+                             f"{str(r.get('detail'))[:60]}" for r in stuck)
+    elif awaiting:
+        summary = " · ".join(f"{r['branch']} approved, not yet landed"
+                             for r in awaiting)
+    else:
+        summary = (f"{len(landed)} landed, {len(rejected)} rejected, "
+                   f"{len(done)} proposals processed")
     WORKER.parent.mkdir(exist_ok=True)
     WORKER.write_text(json.dumps({
         "worker": "pipeline", "kind": "pipeline",
-        "status": "alert" if awaiting else "pass",
+        "status": "alert" if (stuck or awaiting) else "pass",
         "last_run": now(), "summary": summary[:200],
     }, indent=2))
 
@@ -344,6 +472,12 @@ def _cycle() -> None:
         if (r.get("stage") == "verify" and not r.get("ok")
                 and r["proposal_ts"] not in revised):
             revise(r)
+    # Land what passed. This runs before building and before the build gate,
+    # so a machine that has handed compiling to its brother still merges the
+    # work it verified — the queue never depends on which box is compiling.
+    for r in list(by_proposal().values()):
+        if r.get("stage") == "verify" and r.get("ok"):
+            land(r)
     # Drain, don't sip. The rota files one proposal an hour and this ran
     # one every two — so the queue grew by half a proposal an hour,
     # forever, and 27 of them was 54 hours of work that would never
@@ -353,6 +487,16 @@ def _cycle() -> None:
     # Only build what triage picked. An unreviewed proposal is a
     # suggestion, not a work order — the same mistake in miniature that
     # built a project out of an idea earlier today.
+    # Verifying and revising happen above regardless: a machine that has
+    # handed building to its faster brother still finishes what it started
+    # and still judges the work. Only the compiling moves.
+    if not buildgate.enabled():
+        g = buildgate.read()
+        ev.emit("pipeline", "info",
+                f"[pipeline] building is off on {g.get('host')} — "
+                f"{g.get('reason') or 'set from the board'}")
+        write_worker()
+        return
     items = _picked_items()
     if not items:
         ev.emit("pipeline", "info",

@@ -96,6 +96,91 @@ def nsec(priv_hex: str) -> str:
     return _bech32_encode("nsec", _to5bit(bytes.fromhex(priv_hex)))
 
 
+def _from5bit(values):
+    acc, bits, out = 0, 0, bytearray()
+    for v in values:
+        acc = (acc << 5) | v
+        bits += 5
+        if bits >= 8:
+            bits -= 8
+            out.append((acc >> bits) & 0xFF)
+    # Trailing partial group must be zero padding, not data.
+    if bits >= 5 or (acc << (8 - bits)) & 0xFF:
+        raise ValueError("bad padding")
+    return bytes(out)
+
+
+def from_npub(s: str) -> str:
+    """npub1... -> 32-byte pubkey hex. Accepts raw hex unchanged, so config
+    files can use whichever form the operator has to hand."""
+    s = s.strip()
+    if len(s) == 64 and all(c in "0123456789abcdefABCDEF" for c in s):
+        return s.lower()
+    if "1" not in s:
+        raise ValueError(f"not an npub or hex pubkey: {s[:16]}…")
+    hrp, _, data = s.rpartition("1")
+    if hrp != "npub":
+        raise ValueError(f"expected an npub, got {hrp!r}")
+    try:
+        values = [BECH32_CHARSET.index(c) for c in data.lower()]
+    except ValueError:
+        raise ValueError("npub contains characters outside the bech32 set")
+    if _bech32_polymod([ord(c) >> 5 for c in hrp] + [0]
+                       + [ord(c) & 31 for c in hrp] + values) != 1:
+        raise ValueError("npub checksum failed — it is mistyped")
+    return _from5bit(values[:-6]).hex()
+
+
+def last_seen(pubkey_hex: str, relays=None, kinds=None, timeout=12,
+              human_only=True, limit=20):
+    """Unix timestamp of this key's most recent event, or None.
+
+    Asks several relays and keeps the newest answer. This is read-only and
+    unauthenticated: nostr relays serve public events to anyone, so it needs
+    no key, no token and no account — which is exactly why it still works on
+    a machine nobody has touched for two weeks.
+
+    One relay being down, rate-limiting, or simply not carrying this author is
+    normal, so a single failure is not a result. Only every relay failing is,
+    and that is reported as None (no reading) rather than as silence — the
+    caller must not read a network outage as an absent operator.
+
+    human_only skips notes carrying the flamingo. This matters the moment
+    anything on this machine publishes on a schedule: a calendar posting under
+    your key would make "last seen" mean "the scheduler is up", which is
+    precisely the signal this is supposed not to be. The mark is what makes a
+    machine's hand visible, so it is also what makes the human's hand
+    countable. Fetch a window rather than one event, because the newest note
+    is quite likely to be the automated one.
+    """
+    import websocket
+    kinds = kinds or [1, 3, 6, 7, 30023]   # notes, contacts, reposts, reactions, articles
+    newest = None
+    req = json.dumps(["REQ", "deadman",
+                      {"authors": [pubkey_hex], "kinds": kinds,
+                       "limit": limit if human_only else 1}])
+    for url in (relays or RELAYS):
+        try:
+            ws = websocket.create_connection(url, timeout=timeout)
+            ws.settimeout(timeout)
+            ws.send(req)
+            while True:
+                msg = json.loads(ws.recv())
+                if msg[0] == "EVENT":
+                    body = msg[2]
+                    if human_only and MARK in str(body.get("content", "")):
+                        continue
+                    ts = int(body.get("created_at", 0))
+                    if newest is None or ts > newest:
+                        newest = ts
+                elif msg[0] in ("EOSE", "CLOSED", "NOTICE"):
+                    break
+            ws.close()
+        except Exception:
+            continue
+    return newest
+
+
 def load_key() -> str:
     """Private key hex, from a file only the operator can read."""
     try:

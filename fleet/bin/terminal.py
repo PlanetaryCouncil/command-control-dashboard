@@ -170,9 +170,13 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
         handler.send_error(403, "bad token")
         return
 
-    # A browser will not let a script forge Origin, so this is a real check.
+    # A browser will not let a script forge Origin, so this is a real check —
+    # but only if it is required. Skipping it when the header is absent meant
+    # any non-browser client could pass by simply not sending one, which is the
+    # easier thing to do, not the harder. The socket's other end is a PTY
+    # running claude at the repo root, so it fails closed.
     origin = handler.headers.get("Origin", "")
-    if origin and not origin.startswith(("http://127.0.0.1", "http://localhost")):
+    if not origin.startswith(("http://127.0.0.1", "http://localhost")):
         handler.send_error(403, "bad origin")
         return
 
