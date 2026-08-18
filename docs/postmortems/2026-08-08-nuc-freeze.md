@@ -196,9 +196,16 @@ one most likely to fire without cause.
 
 ## Still open
 
-- The hardware watchdog config has **not been verified across a reboot**. The
-  files are correct; the reboot has not been done. This is the largest
-  untested assumption in the fix.
+- ~~The hardware watchdog config has not been verified across a reboot.~~
+  **Verified on 2026-08-18, and it was broken.** Two reboots came up with no
+  `/dev/watchdog` at all: the kernel package deny-lists `iTCO_wdt`, and both
+  `/etc/modules-load.d` and the initramfs skip a deny-listed module while
+  reporting success. Fixed with an explicit `modprobe` in a systemd unit and
+  confirmed on a third reboot. See
+  [nuc-hardware-watchdog.md](../development-log-progress-report/nuc-hardware-watchdog.md).
+
+  The lesson generalises: **the untested assumption was untested for a reason,
+  and it was wrong.** Nine days of protection existed only on paper.
 - The Mac has neither watchdog.
 - Root cause of the freeze remains unknown. If it recurs, the hardware watchdog
   will now produce a *pattern* — which is the first real evidence we will ever

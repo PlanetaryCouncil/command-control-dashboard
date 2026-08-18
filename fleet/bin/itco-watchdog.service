@@ -1,0 +1,23 @@
+[Unit]
+Description=Load the Intel TCO watchdog the distro deny-lists
+DefaultDependencies=no
+Before=sysinit.target shutdown.target
+Conflicts=shutdown.target
+Documentation=file:/home/YOU/ccd/docs/postmortems/2026-08-08-nuc-freeze.md
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# modprobe by name, because every automatic path is blocked:
+#   /lib/modprobe.d/blacklist_linux_7.0.0-29-generic.conf:26: blacklist iTCO_wdt
+# A `blacklist` only stops the module being pulled in automatically - by alias,
+# by udev, by /etc/modules-load.d, by the initramfs. An explicit modprobe is
+# still honoured, and this is that explicit modprobe.
+#
+# Two reboots on 2026-08-18 came up with no /dev/watchdog at all while the
+# config looked right, because systemd-modules-load reports success when it
+# skips a deny-listed module. Silence in the log is why this took two tries.
+ExecStart=/sbin/modprobe iTCO_wdt
+
+[Install]
+WantedBy=sysinit.target
