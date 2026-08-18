@@ -151,6 +151,9 @@ def warn_stale(workers, lags):
     """
     for w in workers:
         lag_h = lags.get(w.get("worker"))
+        # `busy` and `thinking` are current statements about right now, so
+        # they are never overwritten by staleness - and they are never `pass`
+        # either, so this reads only the green ones, as before.
         if lag_h is None or w.get("status") != "pass":
             continue
         w["stale_hours"] = lag_h
@@ -233,8 +236,11 @@ def load_workers():
 
     # Anything needing attention sorts to the top. `stale` sits with the
     # failures: a check that has not run in a day is not a minor note.
+    # `busy` and `thinking` are not problems and not results. They sort below
+    # everything that wants a human and above the quiet ones, because "it is
+    # working on it" is the answer to "why is this card not fresh".
     rank = {"fail": 0, "stale": 1, "alert": 2, "warn": 3,
-            "skip": 4, "pass": 5, "idle": 6}
+            "thinking": 4, "busy": 5, "skip": 6, "pass": 7, "idle": 8}
     return sorted(out, key=lambda w: (rank.get(w.get("status"), 7), w["worker"]))
 
 
@@ -304,6 +310,7 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
 .stripe.pass{background:var(--good);} .stripe.fail{background:var(--crit);}
 .stripe.alert{background:var(--crit);} .stripe.skip{background:var(--hold);}
 .stripe.warn{background:var(--hold);} .stripe.stale{background:var(--crit);}
+.stripe.busy,.stripe.thinking{background:var(--accent,#5b8def);}
 .body{padding:17px 20px;flex:1;min-width:0;}
 .hrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px;}
 .wname{font-family:var(--mono);font-size:14.5px;font-weight:600;letter-spacing:-.01em;}
@@ -317,6 +324,8 @@ h1{font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;
 .pill.pass{background:var(--good-soft);color:var(--good);}
 .pill.fail,.pill.alert,.pill.stale{background:var(--crit-soft);color:var(--crit);}
 .pill.skip,.pill.idle,.pill.warn{background:var(--hold-soft);color:var(--hold);}
+/* Blue, not amber: nothing is wrong. The machine is mid-sentence. */
+.pill.busy,.pill.thinking{background:rgba(91,141,239,.14);color:#5b8def;}
 .glyph{font-size:11px;line-height:1;}
 .summary{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin:7px 0 0;}
 .note{font-size:13px;color:var(--muted);margin:6px 0 0;}
@@ -359,7 +368,8 @@ def render_body(workers):
         for w in workers:
             st = w.get("status", "idle")
             glyph = {"pass": "&#10003;", "fail": "&#10005;", "alert": "&#9888;",
-                     "warn": "&#9888;", "stale": "&#8987;"}.get(st, "&#8226;")
+                     "warn": "&#9888;", "stale": "&#8987;",
+                     "busy": "&#8943;", "thinking": "&#8943;"}.get(st, "&#8226;")
             import meter
             metrics = ""
             passed = w.get("tests_passed")
@@ -385,7 +395,11 @@ def render_body(workers):
                 digest = (f'<div class="digest">&#8627; <a href="{esc(w["digest"])}">'
                           f'{esc(str(w["digest"]).split("/")[-1])}</a></div>')
             note = f'<p class="note">{esc(w["note"])}</p>' if w.get("note") else ""
-            when = esc(ago(w.get("last_run")))
+            # "3m ago" alone does not say what happened 3m ago. A card can be
+            # thinking now and last have *said* something an hour back, and the
+            # difference is the whole point of having the two states.
+            when = ("last signal " + esc(ago(w.get("last_run")))
+                    if w.get("last_run") else "no signal yet")
             if w.get("worker") in lags:
                 when += (f' <span class="stalemark">&middot; stale '
                          f'{lags[w["worker"]]}h behind the fleet</span>')
