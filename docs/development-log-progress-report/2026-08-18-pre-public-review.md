@@ -27,11 +27,25 @@ jobs: 0
 X This run likely failed because of a workflow file issue.
 ```
 
-The workflow file is not the problem as far as I can tell — valid YAML, plain
-ASCII, no BOM, no tabs — and the API reports Actions enabled with
-`allowed_actions: all`. I could not determine the cause from the CLI; it needs
-looking at in the Actions tab in a browser, and a spending or billing limit is
-the usual answer.
+**Now proven not to be the workflow file.** I pushed a trivial three-line
+workflow alongside the real one — `runs-on: ubuntu-latest`, one `echo` — and it
+failed identically. GitHub registers both workflows as `active` and then
+refuses to build a run for either:
+
+```
+CI    | active | .github/workflows/ci.yml
+hello | active | .github/workflows/hello.yml
+
+ | startup_failure | path=BuildFailed
+ | startup_failure | path=BuildFailed
+```
+
+An empty run name and `path=BuildFailed` means GitHub never got as far as
+reading a file. So this is account or repository level, not the YAML: a
+spending limit, or a ruleset requiring a workflow that cannot be resolved. The
+billing API needs a scope this token does not have, so **the last step is
+yours** — the Actions tab in a browser. The probe workflow has been removed
+now that it has answered.
 
 This matters more the moment the repo is public. A contributor opens a pull
 request, sees no checks run, and has no idea whether they broke anything.
@@ -49,8 +63,19 @@ That is the exact bug fixed in `25b175d` for local runs — with `httpx`, all
 fourteen HTTP test modules fail at *collection*. The workflow was never
 updated because it never ran, so nobody saw it.
 
-And `pyproject.toml` has **no `[build-system]` section**, so `pip install .`
-is relying on pip's legacy fallback.
+And `pyproject.toml` had **no `[build-system]` section**. Declaring one turned
+a silent assumption into a visible failure:
+
+```
+error: Multiple top-level packages discovered in a flat-layout:
+       ['data', 'fleet', 'legacy', 'githooks']
+ERROR: Failed to build 'file:///home/m/ccd'
+```
+
+`pip install .` — the second step of the CI job — **has never been able to
+work**. Fixed by telling setuptools to package nothing, which is honest: this
+is a running system, not a library, and the install exists only to resolve
+dependencies.
 
 ### 3. `.gitignore` ignores `.venv/` but not `.venv311/`
 

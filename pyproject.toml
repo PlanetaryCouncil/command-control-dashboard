@@ -17,6 +17,20 @@ dependencies = [
   "websocket-client>=1.9.0",
 ]
 
+# Nothing here is importable as a package. `fleet/`, `legacy/` and `data/` are
+# a running system, not a library, and the tests reach them through
+# pythonpath below rather than through an install. So `pip install .` exists
+# only to resolve dependencies, and setuptools is told to package nothing
+# rather than left to guess.
+#
+# Without this it guessed, and refused: "Multiple top-level packages discovered
+# in a flat-layout: ['data', 'fleet', 'legacy', 'githooks']". CI ran
+# `pip install .` as its second step and would have died there - a failure that
+# had been waiting since the workflow was written, unseen because the workflow
+# had never started.
+[tool.setuptools]
+packages = []
+
 [dependency-groups]
 dev = [
   "pytest>=8.3.0",
