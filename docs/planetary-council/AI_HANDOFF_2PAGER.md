@@ -50,7 +50,7 @@ Key machine-readable routes:
 
 Local project path:
 
-`/Users/YOU/projects/planetary-council`
+`/path/to/planetary-council`
 
 A first working MVP has already been built. Current stack:
 
@@ -84,7 +84,7 @@ Important files:
 Verified test command:
 
 ```bash
-cd /Users/YOU/projects/planetary-council
+cd /path/to/planetary-council
 uv run pytest -q
 ```
 
@@ -97,7 +97,7 @@ Last verified result:
 Run locally:
 
 ```bash
-cd /Users/YOU/projects/planetary-council
+cd /path/to/planetary-council
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
 
@@ -238,7 +238,7 @@ gh auth login
 Then create/push repo:
 
 ```bash
-cd /Users/YOU/projects/planetary-council
+cd /path/to/planetary-council
 gh repo create planetary-council --private --source . --push
 ```
 
@@ -256,7 +256,7 @@ This should not be static-only hosting because the app needs WebSockets, DB writ
 Start by verifying the repo state:
 
 ```bash
-cd /Users/YOU/projects/planetary-council
+cd /path/to/planetary-council
 git status --short --branch
 uv run pytest -q
 ```

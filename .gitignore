@@ -8,7 +8,9 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.json.tmp
+*.jsonl.tmp
 .env
+.claude/worktrees/
 fleet/logs/
 fleet/index.html
 fleet/workers/
@@ -45,7 +47,11 @@ fleet/data/indexnow-key.txt
 !fleet/static/artwork.png
 !fleet/static/artwork-full.jpg
 fleet/data/signatures-collected.jsonl
+fleet/data/selfies.jsonl
+fleet/data/localvoice.jsonl
 fleet/data/homies-real.txt
+# local: absolute paths of this machine's checkouts
+fleet/projects.txt
 !fleet/static/gallery/
 !fleet/static/gallery/*
 

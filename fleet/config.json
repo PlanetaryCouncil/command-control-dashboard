@@ -5,8 +5,7 @@
     "every_seconds": 86400,
     "agents": [
       "claude",
-      "hermes",
-      "openclaw"
+      "hermes"
     ],
     "laps": 1,
     "_cost_note": "Once a day, not every 30 minutes. Measured 2026-08-02: one full relay costs ~960s of wall clock. At 1800s it occupied over half of all wall-clock time on a four-core machine, and the fleet's own load average reached 20 \u2014 five times the cores. The relay answers one question (can the agents pass a message), the answer changes rarely, and re-asking it hourly was the single largest consumer of a machine that has none to spare.",
@@ -31,8 +30,7 @@
     "every_seconds": 10800,
     "agents": [
       "claude",
-      "hermes",
-      "openclaw"
+      "hermes"
     ],
     "rounds": 2,
     "_cost_note": "Each turn is one agent for ~20-100s, one at a time. Four agents x two rounds is roughly 8 turns \u2014 double what it was. Every 3 hours still keeps the machine alone between sessions. ollama is the expensive one: dolphin-llama3 holds several GB resident while it thinks, on a box with 8. If the load gate starts deferring everything, drop ollama first and rounds second.",
@@ -50,8 +48,7 @@
     "every_seconds": 3600,
     "agents": [
       "claude",
-      "hermes",
-      "openclaw"
+      "hermes"
     ],
     "_cost_note": "Hourly, one agent per firing \u2014 not all three. A turn is 20-170s and one core, so the hourly cost is a few percent of one core, against the relay's 960s. Three agents means each one's turn comes round every three hours, and the load gate defers a turn rather than taking it on a saturated machine: a turn spent timing out is recorded as the agent having nothing to say, which is the failure this fleet already made twice.",
     "continuous_gap_seconds": 60

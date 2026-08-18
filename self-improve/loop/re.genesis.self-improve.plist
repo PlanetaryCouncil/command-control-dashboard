@@ -8,11 +8,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/YOU/projects/command-control-dashboard/self-improve/loop/run-cycle.sh</string>
+        <string>/path/to/command-control-dashboard/self-improve/loop/run-cycle.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/YOU/projects/command-control-dashboard/self-improve</string>
+    <string>/path/to/command-control-dashboard/self-improve</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -37,9 +37,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/YOU/projects/command-control-dashboard/self-improve/logs/launchd.out.log</string>
+    <string>/path/to/command-control-dashboard/self-improve/logs/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/YOU/projects/command-control-dashboard/self-improve/logs/launchd.err.log</string>
+    <string>/path/to/command-control-dashboard/self-improve/logs/launchd.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

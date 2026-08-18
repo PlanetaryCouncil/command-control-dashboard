@@ -197,6 +197,30 @@ def load_self_improve():
     }
 
 
+def sanitize_worker(w):
+    """Drop home paths and shot filenames from a worker card before it is
+    served. Writers can be stale; /workers.json is public."""
+    w = dict(w)
+    detail = w.get("detail")
+    if not isinstance(detail, str) or not detail:
+        return w
+    try:
+        parsed = json.loads(detail)
+    except json.JSONDecodeError:
+        if "/home/" in detail or "/Users/" in detail:
+            w["detail"] = ""
+        return w
+    if isinstance(parsed, dict):
+        cleaned = []
+        for row in parsed.get("results") or []:
+            if not isinstance(row, dict):
+                continue
+            cleaned.append({k: v for k, v in row.items() if k != "shot"})
+        parsed["results"] = cleaned
+        w["detail"] = json.dumps(parsed, indent=2)
+    return w
+
+
 def load_workers():
     out = []
     si = load_self_improve()
@@ -222,6 +246,7 @@ def load_workers():
         # whole board down with a KeyError at sort time.
         if not isinstance(w, dict) or not w.get("worker"):
             continue
+        w = sanitize_worker(w)
         w.setdefault("kind", "watchdog")
         w["metrics"] = [("passed", w.get("tests_passed", 0)),
                         ("failed", w.get("tests_failed", 0)),

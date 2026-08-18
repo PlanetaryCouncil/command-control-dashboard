@@ -135,7 +135,7 @@ adjourn, or whether the stop condition needs teeth.
    exactly the strangers who can now reach it. The repo went public the same
    day after a full secret sweep and a squashed history.
 4. **Still open — where does the fleet run when this laptop sleeps?** The
-   dappnode (16GB, 192.168.1.0) is the candidate. See the freezer.
+   dappnode (16GB, on the LAN) is the candidate. See the freezer.
 
 ---
 

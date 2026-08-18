@@ -23,9 +23,9 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/YOU/projects/command-control-dashboard/fleet/logs/ollama.out.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/ollama.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/YOU/projects/command-control-dashboard/fleet/logs/ollama.err.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/ollama.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

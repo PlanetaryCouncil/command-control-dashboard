@@ -13,8 +13,9 @@ An always-on board showing what this machine's agents are doing.
 
 ## Adding a project
 
-Append its absolute path to `projects.txt`. It appears on the board on the next
-run — no code change. The watchdog picks the project's own test command, in order:
+Copy `projects.example.txt` to `projects.txt` (gitignored) and append each
+checkout's absolute path. It appears on the board on the next run — no code
+change. The watchdog picks the project's own test command, in order:
 `.venv/bin/pytest` → `uv run pytest` → `npm test` → `make test`. If none is found
 the worker reports `skip` rather than inventing one.
 
@@ -43,6 +44,10 @@ The watchdog **observes and reports; it does not modify your projects.** Whateve
 establishes ground truth shouldn't share a process with something that changes
 the code being measured. Auto-proposing fix branches is a separate worker, and
 worth adding only once you've seen the watchdog catch something real.
+
+The optional NUC browser worker is `bin/nuc-bridge.py`. Set `FLEET_NUC`
+(`user@host`) on the machine that SSHes in; the script refuses to run
+without it and never writes SSH errors onto the public board.
 
 ## Control
 

@@ -8,11 +8,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/bin/python3</string>
-        <string>/Users/YOU/projects/command-control-dashboard/fleet/bin/comms-heartbeat.py</string>
+        <string>/path/to/command-control-dashboard/fleet/bin/comms-heartbeat.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/YOU/projects/command-control-dashboard/fleet</string>
+    <string>/path/to/command-control-dashboard/fleet</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -31,9 +31,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/YOU/projects/command-control-dashboard/fleet/logs/comms-heartbeat.out.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/comms-heartbeat.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/YOU/projects/command-control-dashboard/fleet/logs/comms-heartbeat.err.log</string>
+    <string>/path/to/command-control-dashboard/fleet/logs/comms-heartbeat.err.log</string>
 
     <key>ProcessType</key>
     <string>Background</string>

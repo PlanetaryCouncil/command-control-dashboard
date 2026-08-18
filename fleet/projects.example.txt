@@ -1,8 +1,8 @@
 # Projects the watchdog fleet monitors. One absolute path per line.
-# Add a project here and it appears on the dashboard on the next run —
-# no code change needed.
+# Copy to projects.txt (gitignored) and point each line at a checkout
+# on this machine. A missing path is skipped, not invented.
 #
 # Not yet listed, and why:
 #   ~/projects/basexHQ                   only DOCTRINE.md; no code or tests to run
 
-/Users/YOU/projects/command-control-dashboard
+/path/to/command-control-dashboard

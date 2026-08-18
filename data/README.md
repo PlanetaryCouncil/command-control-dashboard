@@ -36,6 +36,8 @@ source. A fresh clone boots without them: the loaders default to empty.
 - `data/oplog/`, `data/inbox/`
 - `fleet/rota/*`, `fleet/state/*`
 - `self-improve/state/*`
+- `fleet/data/selfies.jsonl`, `fleet/data/localvoice.jsonl`
+- `fleet/projects.txt`
 
 ## Rule
 
