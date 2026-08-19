@@ -1644,7 +1644,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </section>
   <section>
     <h3>repos</h3>
-    <a href="https://github.com/marsrobertson/command-control-dashboard" title="The source of all of this: cockpit, fleet, self-improve loop, and every test.">command-control</a>
+    <a href="https://github.com/PlanetaryCouncil/command-control-dashboard" title="The source of all of this: cockpit, fleet, self-improve loop, and every test.">command-control</a>
     <a href="https://brainfarts.planetarycouncil.org/" title="Logged AI mistakes, written up properly. Fifteen entries, two of them from today.">brain farts</a>
   </section>
 </footer>

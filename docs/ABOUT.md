@@ -81,7 +81,7 @@ curl https://[redacted-host]/moderation
 curl https://[redacted-host]/llms.txt
 ```
 
-The code is at **github.com/marsrobertson/command-control-dashboard**. The
+The code is at **github.com/PlanetaryCouncil/command-control-dashboard**. The
 filter that decides what gets blocked is `app/triage.py`, published on purpose —
 a filter whose safety depends on nobody reading it is unexamined rather than
 safe. Kerckhoffs, not obscurity.

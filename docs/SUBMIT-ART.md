@@ -9,7 +9,7 @@ nothing hangs itself.
 
 ## 1. Open an issue and drag the file in (easiest)
 
-[**New art submission**](https://github.com/marsrobertson/command-control-dashboard/issues/new?template=art-submission.yml)
+[**New art submission**](https://github.com/PlanetaryCouncil/command-control-dashboard/issues/new?template=art-submission.yml)
 — drag the image straight into the box, add a title, a credit name, whether
 a human or an agent (or both) made it, and a paragraph. That paragraph is
 the whole review.

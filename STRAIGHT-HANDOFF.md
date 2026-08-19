@@ -13,7 +13,7 @@ If you change what runs, change this in the same commit or delete the line.
 
 | repo | remote | holds |
 |---|---|---|
-| `~/projects/command-control-dashboard` | `marsrobertson/command-control-dashboard` | the cockpit, the fleet, the self-improve loop |
+| `~/projects/command-control-dashboard` | `PlanetaryCouncil/command-control-dashboard` | the cockpit, the fleet, the self-improve loop |
 | `~/projects/11c` | `PlanetaryCouncil/11c-of-consent` | consent framework, BaseX doctrine, PlanetaryCouncil vision |
 | `~/projects/ai-brain-farts` | `PlanetaryCouncil/brainfarts` | logged cases of confidently-wrong AI output |
 | `~/projects/poems` | `PlanetaryCouncil/poems` | the closing two-liners, live at poems.planetarycouncil.org |
