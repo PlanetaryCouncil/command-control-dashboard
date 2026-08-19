@@ -489,7 +489,7 @@ def cycle() -> None:
 def _cycle() -> None:
     import pressure
     snap = pressure.snapshot()
-    if snap["hot"]:
+    if snap["hot"] or (snap.get("disk") or {}).get("alert"):
         ev.emit("pipeline", "info",
                 f"[pipeline] deferred — {snap['reason']}")
         return

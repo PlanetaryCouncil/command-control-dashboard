@@ -766,9 +766,19 @@ function renderMachine(m){
   // Words first, number second. The whole failure this fixes was that a number
   // sat available and unread — "saturated" needs no interpretation.
   el.dataset.state = m.state;
-  el.textContent = `${m.state} · ${m.load1} / ${m.cores} cores`;
+  const d = m.disk || {};
+  const disk = (d.used_pct != null)
+    ? ` · disk ${Math.round(d.used_pct)}% ${d.free_gb}G free`
+    : "";
+  const ram = (m.compressor_gb != null)
+    ? ` · ram ${m.compressor_gb}G compressed`
+    : "";
+  el.textContent = `${m.state} · ${m.load1} / ${m.cores} cores${ram}${disk}`;
   el.title = `1m ${m.load1} · 5m ${m.load5} · 15m ${m.load15} — `
-           + `agents defer above ${m.gate}`;
+           + `agents defer above ${m.gate}`
+           + (d.total_gb != null
+              ? ` · ssd ${d.used_gb}G / ${d.total_gb}G`
+              : "");
 }
 
 function renderProcs(s){

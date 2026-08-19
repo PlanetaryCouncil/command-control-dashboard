@@ -197,7 +197,8 @@ def machine() -> dict:
             # Agents are held back above this, so the board should show the same
             # line the schedulers act on rather than a second opinion.
             "gate": _load_gate(),
-            "compressor_gb": _compressor_gb()}
+            "compressor_gb": _compressor_gb(),
+            "disk": _disk()}
 
 
 def _load_gate() -> float:
@@ -214,6 +215,14 @@ def _compressor_gb() -> float:
         return float(pressure.compressor_gb())
     except Exception:
         return 0.0
+
+
+def _disk() -> dict:
+    try:
+        import pressure
+        return pressure.disk()
+    except Exception:
+        return {}
 
 
 def kill_fleet(dry_run=False, only=None):

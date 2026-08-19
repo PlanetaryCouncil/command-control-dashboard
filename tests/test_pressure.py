@@ -42,5 +42,33 @@ def test_cool_when_load_and_ram_are_quiet(monkeypatch):
     monkeypatch.setattr(pressure, "ncpu", lambda: 4)
     monkeypatch.setattr(pressure, "max_load", lambda: 4.0)
     monkeypatch.setattr(pressure, "compressor_gb", lambda text=None: 0.3)
+    monkeypatch.setattr(pressure, "disk", lambda path=None: {
+        "path": "/", "total_gb": 200, "used_gb": 40, "free_gb": 160,
+        "used_pct": 20, "tight": False, "alert": False,
+    })
     assert pressure.too_hot() is False
-    assert pressure.snapshot()["reason"] == "ok"
+    snap = pressure.snapshot()
+    assert snap["hot"] is False
+    assert snap["disk_tight"] is False
+    assert "ok" in snap["reason"]
+
+
+def test_disk_tight_when_almost_full(monkeypatch):
+    class U:
+        total = 100 * 1024**3
+        used = 91 * 1024**3
+        free = 9 * 1024**3
+    monkeypatch.setattr(pressure.shutil, "disk_usage", lambda p: U)
+    d = pressure.disk("/x")
+    assert d["tight"] is True
+    assert d["alert"] is False
+    assert 8.5 < d["free_gb"] < 9.5
+
+
+def test_disk_alert_when_two_gig_left(monkeypatch):
+    class U:
+        total = 100 * 1024**3
+        used = 99 * 1024**3
+        free = 1 * 1024**3
+    monkeypatch.setattr(pressure.shutil, "disk_usage", lambda p: U)
+    assert pressure.disk_alert("/x") is True

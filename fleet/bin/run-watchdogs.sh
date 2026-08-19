@@ -6,10 +6,10 @@ FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIST="$FLEET/projects.txt"
 [[ -f "$LIST" ]] || { echo "no projects.txt"; exit 1; }
 PY="${PY:-$FLEET/../.venv/bin/python3}"
-if ! "$PY" -c "import sys; sys.path.insert(0, '$FLEET/bin'); import pressure; raise SystemExit(pressure.too_hot())"; then
+if ! "$PY" -c "import sys; sys.path.insert(0, '$FLEET/bin'); import pressure; raise SystemExit(pressure.too_hot() or pressure.disk_alert())"; then
   python3 "$FLEET/bin/events.py" fleet warn \
-    "watchdog deferred — machine hot (load or compressor)" 2>/dev/null || true
-  echo "watchdog deferred — machine hot"
+    "watchdog deferred — machine hot or disk tight" 2>/dev/null || true
+  echo "watchdog deferred — machine hot or disk tight"
   exit 0
 fi
 
