@@ -182,6 +182,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
         return chat.ask_hermes(prompt, noop)
     if agent == "openclaw":
         return chat.ask_openclaw(prompt, noop, session=session)
+    if agent == "grok":
+        return chat.ask_grok(prompt, [], noop)
     if agent == "ollama":
         return chat.ask_ollama(chat.OLLAMA_MODEL, prompt, [], noop)
     return f"[unknown agent {agent}]"
@@ -189,7 +191,7 @@ def ask(agent: str, prompt: str, session: str) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--agents", default="claude,hermes,openclaw")
+    ap.add_argument("--agents", default="hermes,grok")
     ap.add_argument("--dry-run", action="store_true",
                     help="show whose turn it is and the prompt, spawn nothing")
     ap.add_argument("--retry-deferred", action="store_true",

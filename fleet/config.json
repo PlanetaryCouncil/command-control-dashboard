@@ -4,8 +4,8 @@
     "_what": "One relay check for every agent. Hand an agent a random number, it must reply with that number plus one, then pass it on \u2014 a correct reply is only possible if the previous value arrived.",
     "every_seconds": 86400,
     "agents": [
-      "claude",
-      "hermes"
+      "hermes",
+      "grok"
     ],
     "laps": 1,
     "_cost_note": "Once a day, not every 30 minutes. Measured 2026-08-02: one full relay costs ~960s of wall clock. At 1800s it occupied over half of all wall-clock time on a four-core machine, and the fleet's own load average reached 20 \u2014 five times the cores. The relay answers one question (can the agents pass a message), the answer changes rarely, and re-asking it hourly was the single largest consumer of a machine that has none to spare.",
@@ -22,19 +22,19 @@
     "at_minute": 0
   },
   "pipeline": {
-    "_what": "Closes the rota's loop: unprocessed proposals are implemented by claude on rota/* branches in worktrees, pytest runs, hermes (a different vendor) reviews each diff, and the board lists what awaits a human merge. One cycle drains the queue \u2014 up to 12 builds \u2014 rather than taking one and leaving the rest; at one proposal an hour from the rota, taking one every two hours meant the backlog only ever grew. Nothing merges itself.",
+    "_what": "Closes the rota's loop: unprocessed proposals are implemented by grok (or FLEET_BUILDER) on rota/* branches in worktrees, pytest runs, hermes (a different vendor) reviews each diff, and the board lists what awaits a human merge. One cycle drains the queue \u2014 up to 12 builds \u2014 rather than taking one and leaving the rest; at one proposal an hour from the rota, taking one every two hours meant the backlog only ever grew. Nothing merges itself.",
     "every_seconds": 3600
   },
   "council": {
     "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied \u2014 a human reads and decides.",
     "every_seconds": 10800,
     "agents": [
-      "claude",
-      "hermes"
+      "hermes",
+      "grok"
     ],
     "rounds": 2,
     "_cost_note": "Each turn is one agent for ~20-100s, one at a time. Four agents x two rounds is roughly 8 turns \u2014 double what it was. Every 3 hours still keeps the machine alone between sessions. ollama is the expensive one: dolphin-llama3 holds several GB resident while it thinks, on a box with 8. If the load gate starts deferring everything, drop ollama first and rounds second.",
-    "_vendor_note": "claude=anthropic, hermes=openai, openclaw=openai, ollama=local. openclaw shares a vendor with hermes, so it adds a voice but not an independent one; ollama is the only genuinely different training here and the only one that keeps working with the wifi off. Two of four agreeing across vendors is a much stronger claim than two agreeing within one.",
+    "_vendor_note": "claude=anthropic, grok=xai, hermes=openai, openclaw=openai, ollama=local. hermes and grok are two companies; that is the claim. claude stays in the chat pane and comes back onto the schedule when the Anthropic plan has credits again. ollama is the only one that keeps working with the wifi off, and it is out of the council on this hardware.",
     "_ollama_note": "In the council: no, on this hardware. Measured across 20 turns (2026-08-05): median 169s, worst 712s, and ONE turn in twenty that was its own thought \u2014 the rest echoed a prompt heading, copied the worked example verbatim, or critiqued a line of its own input. Three prompt rewrites did not move it. qwen2.5:3b was tried on the same brief: 564s and a fragment. A council turn needs ~1,500 tokens of context, and prefill on this 4-core box runs ~5 tok/s, so the reading alone costs minutes before a word is generated. The reason to want a local voice is unchanged \u2014 it is the only one that survives the wifi dropping \u2014 so ollama stays RUNNING and stays in the chat pane, where a human asks a direct question and can wait. It is out of the council, where it cost 3-10 minutes a sitting and contributed once."
   },
   "e2e": {
@@ -47,8 +47,8 @@
     "_what": "One agent at a time, in rotation, reads the board and answers three questions: what would improve this machine, what would help Marsita the Ultra, what would help the planet. Proposes only \u2014 never applies. Continuous on the NUC: the next turn starts 60s after the previous one finishes, so one agent is always working and two never overlap.",
     "every_seconds": 3600,
     "agents": [
-      "claude",
-      "hermes"
+      "hermes",
+      "grok"
     ],
     "_cost_note": "Hourly, one agent per firing \u2014 not all three. A turn is 20-170s and one core, so the hourly cost is a few percent of one core, against the relay's 960s. Three agents means each one's turn comes round every three hours, and the load gate defers a turn rather than taking it on a saturated machine: a turn spent timing out is recorded as the agent having nothing to say, which is the failure this fleet already made twice.",
     "continuous_gap_seconds": 60

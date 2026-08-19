@@ -82,6 +82,8 @@ def ask(agent, prompt):
         return chat.ask_hermes(prompt, noop)
     if agent == "openclaw":
         return chat.ask_openclaw(prompt, noop, session="prioritise")
+    if agent == "grok":
+        return chat.ask_grok(prompt, [], noop)
     if agent == "ollama":
         return chat.ask_ollama(chat.OLLAMA_MODEL, prompt, [], noop,
                                num_predict=600)

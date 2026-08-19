@@ -77,7 +77,7 @@ TURN_TIMEOUT = 420
 # nothing. Revisit ollama on a machine with a GPU or spare RAM — the reason to
 # want it has not changed, and it is still the only vendor-independent voice
 # available here.
-DEFAULT_AGENTS = ["claude", "hermes", "openclaw"]
+DEFAULT_AGENTS = ["hermes", "grok"]
 
 NOTHING = re.compile(r"\bNOTHING TO ADD\b", re.I)
 
@@ -543,6 +543,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
     if agent == "openclaw":
         return chat.ask_openclaw(prompt, noop, session=session,
                                  timeout=TURN_TIMEOUT)
+    if agent == "grok":
+        return chat.ask_grok(prompt, [], noop, timeout=TURN_TIMEOUT)
     if agent == "ollama":
         # Bounded on purpose: see ask_ollama. ~220 tokens is three or four
         # sentences, which is the shape of a useful council turn anyway — the

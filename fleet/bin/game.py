@@ -72,6 +72,8 @@ def ask(agent: str, prompt: str, session: str = "") -> str:
         return chat.ask_hermes(prompt, noop)
     if agent == "openclaw":
         return chat.ask_openclaw(prompt, noop, session=session)
+    if agent == "grok":
+        return chat.ask_grok(prompt, [], noop)
     return f"[unknown agent {agent}]"
 
 

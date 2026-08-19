@@ -30,6 +30,17 @@ def test_grok_is_offered_in_chat():
     assert "grok" in chat.AGENTS
 
 
+def test_grok_is_ready_when_the_binary_resolves(tmp_path, monkeypatch):
+    """The gate used to list only claude/hermes/openclaw, so an installed
+    grok rendered as unready and the chat pane would not start it."""
+    fake = tmp_path / "grok"
+    fake.write_text("#!/bin/sh\n")
+    fake.chmod(0o755)
+    monkeypatch.setattr(chat, "resolve",
+                        lambda name: str(fake) if name == "grok" else name)
+    assert chat._agent_ready("grok") is True
+
+
 def test_grok_is_not_treated_as_local_work():
     """It is somebody else's GPU. Queueing it behind a local model throttles
     the wrong thing - the same reasoning that exempted hermes and openclaw."""
@@ -72,6 +83,13 @@ def test_a_grok_harness_failure_is_not_read_as_an_answer():
     look like a wrong one."""
     assert plusone.HARNESS_FAILURE.match("[timed out after 600s]")
     assert plusone.HARNESS_FAILURE.match("[unknown agent grokk]")
+
+
+def test_grok_is_a_different_vendor_from_hermes_and_claude():
+    vendors = _load("fleetvendors", "vendors.py")
+    assert vendors.vendor("grok") == "xai"
+    assert vendors.vendor("grok") != vendors.vendor("hermes")
+    assert vendors.vendor("grok") != vendors.vendor("claude")
 
 
 def test_grok_is_invoked_headless_and_plain(monkeypatch):

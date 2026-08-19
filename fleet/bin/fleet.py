@@ -1333,8 +1333,7 @@ def serve(port):
                        "remote": self._remote()}
                 try:
                     CHARGES.parent.mkdir(parents=True, exist_ok=True)
-                    with CHARGES.open("a") as fh:
-                        fh.write(json.dumps(rec) + "\n")
+                    _append_capped(CHARGES, rec)
                 except OSError:
                     self.send_error(500)
                     return
