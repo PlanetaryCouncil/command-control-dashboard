@@ -34,7 +34,22 @@ def sandbox(tmp_path, monkeypatch):
                         asked.append(agent) or "a concrete proposal")
     import quotas as quotas_mod
     monkeypatch.setattr(quotas_mod, "eligible", lambda agents, **k: agents)
+    import pressure
+    monkeypatch.setattr(pressure, "too_hot", lambda **k: False)
+    monkeypatch.setattr(pressure, "snapshot", lambda **k: {
+        "load1": 1.2, "ncpu": 4, "max_load": 4, "compressor_gb": 0.2,
+        "hot": False, "reason": "ok",
+    })
     return {"events": events, "asked": asked, "tmp": tmp_path}
+
+
+def _hot(monkeypatch, load=18.6):
+    import pressure
+    monkeypatch.setattr(pressure, "too_hot", lambda **k: True)
+    monkeypatch.setattr(pressure, "snapshot", lambda **k: {
+        "load1": load, "ncpu": 4, "max_load": 4, "compressor_gb": 2.2,
+        "hot": True, "reason": f"load {load:.1f} over 4 on 4 cores",
+    })
 
 
 def run(monkeypatch, *argv):
@@ -43,7 +58,7 @@ def run(monkeypatch, *argv):
 
 
 def test_deferral_leaves_a_pending_marker(sandbox, monkeypatch):
-    monkeypatch.setattr(rota.os, "getloadavg", lambda: (18.6, 0.0, 0.0))
+    _hot(monkeypatch, 18.6)
     assert run(monkeypatch) == 0
     state = json.loads(rota.STATE.read_text())
     assert state["deferred"]["agent"] == "hermes"
@@ -60,7 +75,6 @@ def test_retry_takes_the_deferred_agents_turn_and_clears_the_marker(
         {"last": "hermes", "turns": 7,
          "deferred": {"agent": "claude", "load": 18.6,
                       "ts": "2026-08-03T18:02:10Z"}}))
-    monkeypatch.setattr(rota.os, "getloadavg", lambda: (1.2, 0.0, 0.0))
     assert run(monkeypatch, "--retry-deferred",
                "--agents", "claude,hermes,openclaw") == 0
     assert sandbox["asked"] == ["claude"]
@@ -73,7 +87,6 @@ def test_retry_takes_the_deferred_agents_turn_and_clears_the_marker(
 
 def test_retry_is_a_noop_when_nothing_is_pending(sandbox, monkeypatch):
     rota.STATE.write_text(json.dumps({"last": "claude", "turns": 3}))
-    monkeypatch.setattr(rota.os, "getloadavg", lambda: (1.2, 0.0, 0.0))
     assert run(monkeypatch, "--retry-deferred") == 0
     assert sandbox["asked"] == []
     assert not rota.LEDGER.exists()
@@ -85,7 +98,7 @@ def test_retry_keeps_the_marker_while_the_machine_is_still_busy(
         {"last": "hermes", "turns": 7,
          "deferred": {"agent": "openclaw", "load": 18.6,
                       "ts": "2026-08-03T18:02:10Z"}}))
-    monkeypatch.setattr(rota.os, "getloadavg", lambda: (9.9, 0.0, 0.0))
+    _hot(monkeypatch, 9.9)
     assert run(monkeypatch, "--retry-deferred") == 0
     assert sandbox["asked"] == []
     state = json.loads(rota.STATE.read_text())
@@ -98,7 +111,6 @@ def test_a_completed_ordinary_turn_also_clears_a_stale_marker(
         {"last": "claude", "turns": 3,
          "deferred": {"agent": "hermes", "load": 18.6,
                       "ts": "2026-08-03T18:02:10Z"}}))
-    monkeypatch.setattr(rota.os, "getloadavg", lambda: (1.2, 0.0, 0.0))
     assert run(monkeypatch) == 0
     state = json.loads(rota.STATE.read_text())
     assert "deferred" not in state

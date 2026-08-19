@@ -860,6 +860,11 @@ def main():
     agents = quotas.eligible(agents)
     if not agents:
         print("no eligible agents (dry or rare)"); return 0
+    import pressure
+    if not a.dry_run and pressure.too_hot():
+        snap = pressure.snapshot()
+        print(f"machine hot ({snap['reason']}) — skipping this council")
+        return 0
     res = run(agents, a.rounds, dry_run=a.dry_run, force=a.force)
     if a.dry_run:
         return 0

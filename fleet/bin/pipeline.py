@@ -487,9 +487,11 @@ def cycle() -> None:
 
 
 def _cycle() -> None:
-    if os.getloadavg()[0] > MAX_LOAD:
+    import pressure
+    snap = pressure.snapshot()
+    if snap["hot"]:
         ev.emit("pipeline", "info",
-                f"[pipeline] deferred — load {os.getloadavg()[0]:.1f} over {MAX_LOAD}")
+                f"[pipeline] deferred — {snap['reason']}")
         return
     seen = by_proposal()
     # Verify first: a built branch without a verdict blocks nothing else.
@@ -543,10 +545,10 @@ def _cycle() -> None:
         key = item["ts"][0]                    # an item is keyed by its first
         if key in done:
             continue
-        if os.getloadavg()[0] > MAX_LOAD:
+        if pressure.too_hot():
             ev.emit("pipeline", "info",
-                    f"[pipeline] stopping after {built} — load "
-                    f"{os.getloadavg()[0]:.1f} over {MAX_LOAD}")
+                    f"[pipeline] stopping after {built} — "
+                    f"{pressure.snapshot()['reason']}")
             break
         # Every proposal the item covers goes into one prompt, so the
         # builder sees the whole ask instead of one agent's wording of it.

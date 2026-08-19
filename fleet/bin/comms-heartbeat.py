@@ -114,9 +114,11 @@ def main():
     # load climbed to 20 on four cores, and every one of those misses was
     # recorded as an agent failing to pass a message. It was not. The check
     # costs 2.4 microseconds.
-    max_load = float(os.environ.get("MAX_LOAD", "6"))
-    load1 = os.getloadavg()[0]
-    if load1 > max_load:
+    import pressure
+    snap = pressure.snapshot()
+    max_load = snap["max_load"]
+    load1 = snap["load1"]
+    if snap["hot"]:
         ev.emit(a.name, "warn",
                 f"[relay] deferred — load {load1:.1f} over {max_load:.0f} on "
                 f"{os.cpu_count()} cores; a timeout here would be the machine, "

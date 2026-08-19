@@ -5,6 +5,13 @@ set -uo pipefail
 FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIST="$FLEET/projects.txt"
 [[ -f "$LIST" ]] || { echo "no projects.txt"; exit 1; }
+PY="${PY:-$FLEET/../.venv/bin/python3}"
+if ! "$PY" -c "import sys; sys.path.insert(0, '$FLEET/bin'); import pressure; raise SystemExit(pressure.too_hot())"; then
+  python3 "$FLEET/bin/events.py" fleet warn \
+    "watchdog deferred — machine hot (load or compressor)" 2>/dev/null || true
+  echo "watchdog deferred — machine hot"
+  exit 0
+fi
 
 # Repair before observing: a flatlined comms heartbeat gets a restart, not a
 # report. This runs before the lock check below on purpose — an alive-but-stuck

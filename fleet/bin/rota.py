@@ -217,8 +217,10 @@ def main() -> int:
 
     # Same gate as the relay, same reason: a turn taken on a saturated machine
     # times out and gets recorded as the agent having nothing to say.
-    load1 = os.getloadavg()[0]
-    if load1 > MAX_LOAD and not a.dry_run:
+    import pressure
+    snap = pressure.snapshot()
+    load1 = snap["load1"]
+    if snap["hot"] and not a.dry_run:
         # Deferring used to drop the turn — the fleet's next thought waited a
         # full hour. Leave a pending marker instead; the watchdog retries it
         # once the sweep (the usual load source) finishes.
@@ -229,9 +231,9 @@ def main() -> int:
         STATE.parent.mkdir(parents=True, exist_ok=True)
         STATE.write_text(json.dumps(state, indent=2) + "\n")
         ev.emit("fleet", "warn",
-                f"[rota] {agent}'s turn deferred — load {load1:.1f} over "
-                f"{MAX_LOAD:.0f}; retry pending for the next idle window")
-        print(f"rota: load {load1:.1f} > {MAX_LOAD}; deferring {agent}, retry pending")
+                f"[rota] {agent}'s turn deferred — {snap['reason']}; "
+                f"retry pending for the next idle window")
+        print(f"rota: {snap['reason']}; deferring {agent}, retry pending")
         return 0
 
     board = council.board_state()

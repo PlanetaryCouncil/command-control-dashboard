@@ -69,6 +69,11 @@ QUESTIONS = [
 
 
 def ping():
+    import pressure
+    if pressure.too_hot():
+        snap = pressure.snapshot()
+        print(f"deferred — {snap['reason']}")
+        return 0
     q = random.choice(QUESTIONS)
     noop = lambda *a, **k: None
     t0 = time.time()

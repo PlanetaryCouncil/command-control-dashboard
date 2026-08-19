@@ -322,6 +322,11 @@ def main():
                     help="skip checks that spend an agent turn")
     ap.add_argument("--port", type=int, default=8899)
     a = ap.parse_args()
+    import pressure
+    if pressure.too_hot() and not a.quick:
+        snap = pressure.snapshot()
+        print(f"deferred — {snap['reason']}")
+        return 0
 
     print(f"canary: {CANARY}\n")
     ev.emit("fleet", "info", f"[e2e] run starting · canary {CANARY}")

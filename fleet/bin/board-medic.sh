@@ -34,6 +34,7 @@ probe() { curl -s -o /dev/null -w '%{http_code}' --max-time 20 http://127.0.0.1:
 # Vendor login + quota-shaped errors. Cheap, no agent turn. A dry
 # scheduled vendor must not wait for the next council sitting to show.
 "$PY" "$FLEET/bin/quotas.py" >/dev/null 2>&1 || true
+"$PY" "$FLEET/bin/pressure.py" >/dev/null 2>&1 || true
 
 ok=""
 for _ in 1 2 3; do

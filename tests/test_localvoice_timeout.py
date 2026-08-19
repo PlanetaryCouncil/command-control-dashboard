@@ -25,6 +25,8 @@ def test_ping_caps_the_call_at_ninety_seconds(monkeypatch, tmp_path):
     monkeypatch.setattr(chat, "ask_ollama", fake_ask_ollama)
     monkeypatch.setattr(localvoice, "LEDGER", tmp_path / "localvoice.jsonl")
     monkeypatch.setattr(localvoice, "FLEET", tmp_path)
+    import pressure
+    monkeypatch.setattr(pressure, "too_hot", lambda **k: False)
     localvoice.ping()
 
     assert seen["timeout"] == localvoice.PING_TIMEOUT
@@ -72,6 +74,8 @@ def test_timeout_marks_the_worker_alert(monkeypatch, tmp_path):
                         lambda *a, **k: "[timed out after 90s; no output]")
     monkeypatch.setattr(localvoice, "LEDGER", tmp_path / "localvoice.jsonl")
     monkeypatch.setattr(localvoice, "FLEET", tmp_path)
+    import pressure
+    monkeypatch.setattr(pressure, "too_hot", lambda **k: False)
     assert localvoice.ping() == 1
 
     import json
