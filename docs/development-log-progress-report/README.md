@@ -36,7 +36,12 @@ guesses nobody has tested yet.
 
 | Period | Report | Headline |
 |---|---|---|
+| 18–19 Aug 2026 | [session log](2026-08-18--2026-08-19-session.md) | 26 commits: the watchdog that had never loaded, and which model to ask. |
 | 9–18 Aug 2026 | [2026-08-09--2026-08-18.md](2026-08-09--2026-08-18.md) | The NUC was frozen the whole time and the board showed it green. |
+
+Machine notes, kept beside the reports because they are invisible from the
+repo: [the NUC hardware watchdog](nuc-hardware-watchdog.md), and
+[the pre-public review](2026-08-18-pre-public-review.md).
 
 ## How to write one
 
