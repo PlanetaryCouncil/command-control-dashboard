@@ -9,26 +9,26 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # The fleet runs 3.14, and 3.14 is deliberately absent here: cffi has
-        # no wheel for it yet and its sdist fails to build at all -
-        # "Expected exactly one LICENSE file in cffi distribution, got 0".
-        # That is a packaging bug in a transitive dependency, not something
-        # this repo can fix, and pinning CI to a version that cannot install
-        # buys a permanently red badge instead of a signal.
-        #
-        # 3.13 is the closest thing that installs. Add 3.14 back the day cffi
-        # ships a wheel for it.
-        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      # One version, on purpose. A matrix is a promise to support a range, and
+      # this is one system running on two machines rather than a library other
+      # people install - so the useful question is "does it run", not "does it
+      # run everywhere".
+      #
+      # 3.11 because it is the floor pyproject already declares, and because it
+      # is what the laptop serving the public board actually runs. Testing the
+      # floor is the cheap half of a range: code that works on the oldest
+      # supported version usually works above it, and the reverse is not true.
+      #
+      # The NUC runs 3.14 and is therefore untested here. It cannot be tested
+      # here either - cffi has no 3.14 wheel and its sdist will not build - so
+      # this is a known gap rather than an oversight.
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
