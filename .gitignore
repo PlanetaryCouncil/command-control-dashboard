@@ -72,3 +72,12 @@ fleet/data/board-name.txt
 # would make the hashed hands comparable across installs, which is exactly what
 # the salt exists to prevent.
 fleet/data/.charge-salt
+
+# Runtime state, not source. The offset is the bot position in the update
+# stream and the session is the thread it resumes; both are per-machine, and a
+# committed offset means a fresh clone believes it has read messages it has not.
+fleet/data/telegram-offset
+fleet/data/telegram-session
+
+# Build output from pip install .
+*.egg-info/
