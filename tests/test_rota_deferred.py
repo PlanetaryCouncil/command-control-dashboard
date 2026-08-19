@@ -32,6 +32,8 @@ def sandbox(tmp_path, monkeypatch):
     asked = []
     monkeypatch.setattr(rota, "ask", lambda agent, prompt, session:
                         asked.append(agent) or "a concrete proposal")
+    import quotas as quotas_mod
+    monkeypatch.setattr(quotas_mod, "eligible", lambda agents, **k: agents)
     return {"events": events, "asked": asked, "tmp": tmp_path}
 
 
@@ -59,7 +61,8 @@ def test_retry_takes_the_deferred_agents_turn_and_clears_the_marker(
          "deferred": {"agent": "claude", "load": 18.6,
                       "ts": "2026-08-03T18:02:10Z"}}))
     monkeypatch.setattr(rota.os, "getloadavg", lambda: (1.2, 0.0, 0.0))
-    assert run(monkeypatch, "--retry-deferred") == 0
+    assert run(monkeypatch, "--retry-deferred",
+               "--agents", "claude,hermes,openclaw") == 0
     assert sandbox["asked"] == ["claude"]
     state = json.loads(rota.STATE.read_text())
     assert "deferred" not in state

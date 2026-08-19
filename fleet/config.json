@@ -57,6 +57,15 @@
     "_what": "Probes the board on :8787 every five minutes; two silent probes trigger a fleet-server kickstart, a failed revival raises needs_you. The heartbeat medic, applied to the board itself.",
     "every_seconds": 300
   },
+  "quotas": {
+    "_what": "plenty spends scheduled turns (underutilised credits). rare is held unless nobody plentiful is up. The pulse never calls a model.",
+    "spend": {
+      "grok": "plenty",
+      "hermes": "plenty",
+      "claude": "rare",
+      "openclaw": "rare"
+    }
+  },
   "local_voice": {
     "_what": "One short question a day to the local model, so the offline fallback is known-good before the day the wifi dies. It is not an agent here: this laptop is too slow for local inference as work (measured 2026-08-05 \u2014 a council turn cost 3-10 minutes and said nothing). It is a backup with a pulse.",
     "at_hour": 6,

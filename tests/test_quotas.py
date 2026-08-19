@@ -23,12 +23,18 @@ def _ts(hours_ago=0):
 
 def test_quota_shaped_errors_are_counted_and_old_ones_are_not():
     events = [
-        {"ts": _ts(1), "agent": "claude", "msg": "out of credits on this plan"},
-        {"ts": _ts(1), "agent": "hermes", "msg": "council turn ok"},
-        {"ts": _ts(48), "agent": "claude", "msg": "rate limit hit"},
+        {"ts": _ts(1), "agent": "claude", "level": "error",
+         "msg": "out of credits on this plan"},
+        {"ts": _ts(1), "agent": "hermes", "level": "ok",
+         "msg": "council discussed the quotas card"},
+        {"ts": _ts(1), "agent": "grok", "level": "ok",
+         "msg": "[council] quotas alert: scheduled dry"},
+        {"ts": _ts(48), "agent": "claude", "level": "error",
+         "msg": "rate limit exceeded"},
     ]
     assert quotas.recent_quota_hits("claude", events=events) == 1
     assert quotas.recent_quota_hits("hermes", events=events) == 0
+    assert quotas.recent_quota_hits("grok", events=events) == 0
 
 
 def test_public_row_drops_email_and_paths():
@@ -84,6 +90,27 @@ def test_all_scheduled_ok_is_pass(monkeypatch):
     worker, down = quotas.pulse(cfg={})
     assert down == []
     assert worker["status"] == "pass"
+
+
+def test_eligible_skips_dry_and_holds_rare_while_plenty_is_up():
+    cfg = {"quotas": {"spend": {"grok": "plenty", "hermes": "plenty",
+                                "claude": "rare"}}}
+    rows = {
+        "grok": {"agent": "grok", "ok": True},
+        "hermes": {"agent": "hermes", "ok": True},
+        "claude": {"agent": "claude", "ok": True},
+    }
+    assert quotas.eligible(["hermes", "grok", "claude"], cfg=cfg, rows=rows) \
+        == ["hermes", "grok"]
+    rows["grok"]["ok"] = False
+    rows["hermes"]["ok"] = False
+    assert quotas.eligible(["hermes", "grok", "claude"], cfg=cfg, rows=rows) \
+        == ["claude"]
+
+
+def test_eligible_without_a_pulse_still_holds_rare():
+    cfg = {"quotas": {"spend": {"grok": "plenty", "claude": "rare"}}}
+    assert quotas.eligible(["claude", "grok"], cfg=cfg, rows={}) == ["grok"]
 
 
 def test_scheduled_agents_come_from_config_and_builder(monkeypatch):

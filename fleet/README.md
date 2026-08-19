@@ -9,7 +9,7 @@ An always-on board showing what this machine's agents are doing.
 | Worker | Kind | Runs | Does |
 |---|---|---|---|
 | `self-improve` | learner | daily 03:00 | Mines session transcripts, proposes tooling improvements, commits only what survives adversarial verification. Lives in `../self-improve`. |
-| `quotas` | pulse | with the board medic | Vendor login and 24h quota-shaped errors. A scheduled voice that is dry raises `needs_you`. `/usage` in the Grok TUI is the bill; this card is the fleet pulse. |
+| `quotas` | pulse | with the board medic | Vendor login and 24h quota-shaped errors. Scheduled jobs spend `plenty` (Grok, Hermes) and hold `rare` (Claude) unless nobody else is up. Never an agent turn. |
 | `planetary-council` | watchdog | hourly | Runs the project's own test suite; writes a digest when it breaks. |
 
 ## Adding a project

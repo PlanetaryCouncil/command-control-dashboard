@@ -855,8 +855,12 @@ def main():
         ASK_FILE.write_text(text.strip() + "\n")
         print(f"question set ({len(text.strip())} chars) — convening")
 
-    res = run([x.strip() for x in a.agents.split(",") if x.strip()],
-              a.rounds, dry_run=a.dry_run, force=a.force)
+    agents = [x.strip() for x in a.agents.split(",") if x.strip()]
+    import quotas
+    agents = quotas.eligible(agents)
+    if not agents:
+        print("no eligible agents (dry or rare)"); return 0
+    res = run(agents, a.rounds, dry_run=a.dry_run, force=a.force)
     if a.dry_run:
         return 0
 

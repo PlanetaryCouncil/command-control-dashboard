@@ -94,6 +94,11 @@ def main():
     a = ap.parse_args()
 
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
+    import quotas
+    agents = quotas.eligible(agents)
+    if not agents:
+        print(f"{a.name}: no eligible agents (dry or rare); skipping")
+        return 0
     WORKER = worker_path(a.name)
 
     # One relay at a time across ALL tiers. The per-name lock let agent-comms

@@ -29,12 +29,17 @@ import vendors       # noqa: E402
 
 WINDOW_HOURS = 24
 PROBE_TIMEOUT = 8
+# Tight on purpose: council talking about the quotas card used to match
+# the word "quotas" and mark Hermes dry. Only failure shapes, only
+# error/warn/needs_you. Never a completion to find this out.
 QUOTA_RE = re.compile(
-    r"credit|quota|rate.?limit|usage.?limit|out of (credits|quota)|"
-    r"billing|plan limit|insufficient.*(credit|quota|balance)|"
-    r"exceeded.*quota|429",
+    r"out of credits|credits? (exhausted|exceeded)|"
+    r"insufficient[_ ]quota|quota exceeded|"
+    r"rate.?limit(ed| exceed)|HTTP[ /]?429|"
+    r"billing (denied|error)|usage.?limit exceeded",
     re.I,
 )
+ERROR_LEVELS = {"error", "warn", "needs_you"}
 CONFIG = FLEET / "config.json"
 EVENTS = FLEET / "events.jsonl"
 WORKER = FLEET / "workers" / "quotas.json"
@@ -93,6 +98,8 @@ def recent_quota_hits(agent, events=None, hours=WINDOW_HOURS):
                 continue
     for e in src:
         if e.get("agent") != agent:
+            continue
+        if e.get("level") not in ERROR_LEVELS:
             continue
         ts = e.get("ts") or ""
         try:
@@ -245,8 +252,42 @@ CHECKS = {
 def public_row(row):
     """Fields safe for /workers.json. No emails, paths, tokens."""
     keep = ("agent", "vendor", "binary", "auth", "ok", "note",
-            "plan", "quota_errors_24h")
+            "plan", "quota_errors_24h", "spend")
     return {k: row[k] for k in keep if k in row}
+
+
+def spend_of(agent, cfg=None):
+    """plenty spends scheduled turns. rare is held unless nobody else is up."""
+    cfg = load_config() if cfg is None else cfg
+    return ((cfg.get("quotas") or {}).get("spend") or {}).get(agent, "plenty")
+
+
+def last_pulse_rows():
+    try:
+        w = json.loads(WORKER.read_text())
+        detail = json.loads(w.get("detail") or "{}")
+        return {r["agent"]: r for r in detail.get("vendors") or []
+                if isinstance(r, dict) and r.get("agent")}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def eligible(requested, cfg=None, rows=None):
+    """Who may spend a turn. Dry vendors are skipped. Rare vendors
+    (Claude, while that plan is tight) only run if no plentiful one is up.
+    Never calls a model — reads the last pulse and the spend table.
+    """
+    cfg = load_config() if cfg is None else cfg
+    if rows is None:
+        rows = last_pulse_rows()
+    live = []
+    for a in requested:
+        row = rows.get(a)
+        if row is not None and not row.get("ok"):
+            continue
+        live.append(a)
+    plenty = [a for a in live if spend_of(a, cfg) != "rare"]
+    return plenty or live
 
 
 def pulse(cfg=None):
@@ -254,12 +295,15 @@ def pulse(cfg=None):
     scheduled = scheduled_agents(cfg)
     rows = []
     for name in ("hermes", "grok", "claude", "ollama", "openclaw"):
-        fn = CHECKS[name]
-        rows.append(public_row(fn()))
+        raw = CHECKS[name]()
+        raw["spend"] = spend_of(name, cfg)
+        rows.append(public_row(raw))
     by_name = {r["agent"]: r for r in rows}
 
     down_scheduled = [a for a in scheduled if not by_name.get(a, {}).get("ok")]
     dry = [r["agent"] for r in rows if r.get("quota_errors_24h")]
+    held = [r["agent"] for r in rows if r.get("spend") == "rare"]
+    spending = eligible(scheduled, cfg=cfg, rows=by_name)
     if down_scheduled:
         status = "alert"
         summary = "scheduled dry: " + ", ".join(down_scheduled)
@@ -268,9 +312,10 @@ def pulse(cfg=None):
         summary = "quota-shaped errors: " + ", ".join(dry)
     else:
         status = "pass"
-        bits = [f"{r['agent']} {r.get('note') or ('ok' if r.get('ok') else 'down')}"
-                for r in rows if r["agent"] in scheduled or r.get("ok")]
-        summary = " · ".join(bits[:6]) or "no vendors"
+        bits = [f"{a} {by_name[a].get('note') or 'ok'}" for a in spending
+                if a in by_name]
+        hold = f" · holding {', '.join(held)}" if held else ""
+        summary = ("spending " + " · ".join(bits) + hold) if bits else "no vendors"
 
     worker = {
         "worker": "quotas",
@@ -279,7 +324,8 @@ def pulse(cfg=None):
         "last_run": iso(),
         "status": status,
         "summary": summary,
-        "detail": json.dumps({"scheduled": scheduled, "vendors": rows}, indent=2),
+        "detail": json.dumps({"scheduled": scheduled, "spending": spending,
+                              "vendors": rows}, indent=2),
         "tests_passed": sum(1 for r in rows if r.get("ok")),
         "tests_failed": sum(1 for r in rows if not r.get("ok")),
         "duration_s": 0,

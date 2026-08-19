@@ -198,8 +198,10 @@ def main() -> int:
                     help="take a load-deferred turn if one is pending, else exit")
     a = ap.parse_args()
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
+    import quotas
+    agents = quotas.eligible(agents)
     if not agents:
-        print("no agents"); return 1
+        print("no eligible agents (dry or rare)"); return 1
 
     agent, state = whose_turn(agents)
 
@@ -209,6 +211,9 @@ def main() -> int:
             print("rota: no deferred turn pending")
             return 0
         agent = deferred["agent"]
+        if agent not in agents:
+            print(f"rota: deferred {agent} is not eligible; skipping")
+            return 0
 
     # Same gate as the relay, same reason: a turn taken on a saturated machine
     # times out and gets recorded as the agent having nothing to say.
