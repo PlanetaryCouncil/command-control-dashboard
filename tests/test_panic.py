@@ -85,7 +85,13 @@ def test_dry_run_touches_nothing(tmp_path):
     out = subprocess.run(["bash", str(PANIC)], capture_output=True, text=True,
                          env=env, timeout=60).stdout
     assert "DRY RUN" in out
-    assert "would run" in out and "funnel reset" in out
+    assert "would run" in out
+    # `funnel reset` is only printed where tailscale exists. On a runner
+    # without it the script says so and skips, which is the correct behaviour
+    # and must not read as a failure - the thing under test is that a dry run
+    # touches nothing, not that the machine has a tunnel.
+    if "tailscale not installed" not in out:
+        assert "funnel reset" in out
 
 
 def test_it_stops_the_fleet_board_too():
