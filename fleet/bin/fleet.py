@@ -633,11 +633,13 @@ def _redact_processes(snap):
     cmd or cmd_full. The operator, local, still sees everything."""
     # "agent" is safe: it is one of a fixed set of agent names already printed
     # all over the public board, never anything derived from a command line.
-    safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "is_self")
+    safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "rss_mb",
+            "is_self", "kind")
     clean = lambda p: {k: p[k] for k in safe if k in p}
     out = dict(snap)
     out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
     out["external"] = [clean(p) for p in snap.get("external", [])]
+    out["heavies"] = [clean(p) for p in snap.get("heavies", [])]
     return out
 
 

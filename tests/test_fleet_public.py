@@ -170,7 +170,7 @@ def test_processes_redact_command_lines_for_a_remote_caller(server):
     lstatus, local = fetch("/api/processes")
     assert rstatus == 200 and lstatus == 200, (rstatus, lstatus)
     rem = json.loads(remote)
-    for bucket in ("fleet", "external"):
+    for bucket in ("fleet", "external", "heavies"):
         for proc in rem.get(bucket, []):
             assert "cmd" not in proc and "cmd_full" not in proc, \
                 "a command line leaked to a remote caller"

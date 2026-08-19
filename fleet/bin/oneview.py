@@ -787,6 +787,7 @@ function renderProcs(s){
     const wrap = node => { const td=document.createElement("td"); td.appendChild(node); return td; };
     tr.append(cell(p.pid,"n"));
     tr.append(cell(p.label + (p.is_self?"  (this)":"") + (own.has(p)?"":"  ·ext"), "w"));
+    tr.append(cell(p.rss_mb != null ? Math.round(p.rss_mb)+"M" : "—", "n"));
     tr.append(wrap(meter(p.cpu,100,{suffix:"% cpu"})));
     tr.append(wrap(meter(p.mem,100,{suffix:"% mem"})));
     tr.append(wrap(meter(elapsedSeconds(p.elapsed),86400,{tone:"info",exact:p.elapsed+" uptime"})));
@@ -795,7 +796,7 @@ function renderProcs(s){
   // A full-width row carrying either an agent's card or a plain group caption.
   const spanRow = (node, cls) => {
     const tr = document.createElement("tr"); tr.className = cls;
-    const td = document.createElement("td"); td.colSpan = 5;
+    const td = document.createElement("td"); td.colSpan = 6;
     td.appendChild(node); tr.appendChild(td); return tr;
   };
   const caption = txt => { const s=document.createElement("span");
@@ -810,7 +811,7 @@ function renderProcs(s){
     if (mine.length) mine.forEach(p => tb.appendChild(procRow(p)));
     else {
       const tr=document.createElement("tr"), td=document.createElement("td");
-      td.colSpan=5; td.className="empty"; td.textContent="// no process";
+      td.colSpan=6; td.className="empty"; td.textContent="// no process";
       tr.appendChild(td); tb.appendChild(tr);
     }
   }
@@ -821,14 +822,19 @@ function renderProcs(s){
     tb.appendChild(spanRow(caption("fleet work"), "cgrp"));
     loose.forEach(p => tb.appendChild(procRow(p)));
   }
+  const heavies = s.heavies || [];
+  if (heavies.length){
+    tb.appendChild(spanRow(caption("heaviest on the box"), "cgrp"));
+    heavies.forEach(p => tb.appendChild(procRow(p)));
+  }
   if (!WORKERS.length && !rows.length){
     const tr=document.createElement("tr"), td=document.createElement("td");
-    td.colSpan=5; td.className="empty"; td.textContent="// nothing running";
+    td.colSpan=6; td.className="empty"; td.textContent="// nothing running";
     tr.appendChild(td); tb.appendChild(tr);
   }
   $("#procs .n").textContent =
     WORKERS.length + " agents · " + rows.length + " procs · "
-    + s.killable + " killable";
+    + heavies.length + " heavy · " + s.killable + " killable";
   const kb = $("#kill");
   kb.disabled = s.killable === 0;
   // A greyed button with no reason next to it is a question, and Marsita asked
@@ -1578,7 +1584,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
       <div class="load"><i></i><span class="msg"></span></div>
       <div class="body">
         <table>
-          <thead><tr><th>pid</th><th>what</th><th>cpu</th><th>mem</th><th>up</th></tr></thead>
+          <thead><tr><th>pid</th><th>what</th><th>rss</th><th>cpu</th><th>mem</th><th>up</th></tr></thead>
           <tbody id="procbody"></tbody>
         </table>
       </div>

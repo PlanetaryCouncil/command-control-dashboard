@@ -123,6 +123,7 @@ function row(p, killable){
 
   tr.appendChild(text(p.pid, 'num'));
   tr.appendChild(text(p.label + (p.is_self ? '  (this server)' : ''), ''));
+  tr.appendChild(text((p.rss_mb != null ? Math.round(p.rss_mb) + 'M' : '—'), 'num'));
   tr.appendChild(cell(meter(p.cpu, 100, {suffix:'% cpu'})));
   tr.appendChild(cell(meter(p.mem, 100, {suffix:'% memory'})));
   tr.appendChild(cell(meter(elapsedSeconds(p.elapsed), 86400,
@@ -139,15 +140,22 @@ async function refresh(){
   fleetBody.replaceChildren();
   if (!s.fleet.length){
     const tr = document.createElement('tr'); const td = document.createElement('td');
-    td.colSpan = 6; td.className='empty'; td.textContent = '// nothing running';
+    td.colSpan = 7; td.className='empty'; td.textContent = '// nothing running';
     tr.appendChild(td); fleetBody.appendChild(tr);
   } else s.fleet.forEach(p => fleetBody.appendChild(row(p, true)));
 
   extBody.replaceChildren();
   s.external.forEach(p => extBody.appendChild(row(p, false)));
 
+  const heavyBody = document.getElementById('heavyBody');
+  if (heavyBody){
+    heavyBody.replaceChildren();
+    (s.heavies || []).forEach(p => heavyBody.appendChild(row(p, false)));
+  }
+
   document.getElementById('count').textContent =
-    s.killable + ' killable · ' + s.external.length + ' external';
+    s.killable + ' killable · ' + s.external.length + ' runtimes · '
+    + (s.heavies || []).length + ' heavy';
   killBtn.disabled = s.killable === 0;
   if (s.killable === 0 && killBtn.dataset.armed !== '1')
     killNote.textContent = 'Nothing to kill right now.';
@@ -200,7 +208,7 @@ disarm(); getToken(); refresh(); setInterval(refresh, 8000);
 def page():
     import meter
     import nav
-    head = ("<tr><th>PID</th><th>What</th><th>CPU</th><th>MEM</th>"
+    head = ("<tr><th>PID</th><th>What</th><th>RSS</th><th>CPU</th><th>MEM</th>"
             "<th>Uptime</th><th>Command</th></tr>")
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -230,6 +238,9 @@ def page():
 
   <h2>Agent runtimes &mdash; not touched by the kill switch</h2>
   <table><thead>{head}</thead><tbody id="extBody"></tbody></table>
+
+  <h2>Heaviest on the box &mdash; RSS, any process, never killable here</h2>
+  <table><thead>{head}</thead><tbody id="heavyBody"></tbody></table>
 </div>
 <script>{JS}</script>
 </body></html>"""

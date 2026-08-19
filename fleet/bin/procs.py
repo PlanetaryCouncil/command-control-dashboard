@@ -44,7 +44,12 @@ EXTERNAL_PATTERNS = [
     (r"tui_gateway\.slash_worker", "Hermes worker"),
     (r"llama-server|ollama", "Ollama"),
     (r"uvicorn app\.main:app", "cockpit"),
+    (r"/bin/grok\b|\bgrok\b", "Grok"),
+    (r"/bin/claude\b|\bclaude\b", "Claude CLI"),
 ]
+
+HEAVY_MIN_MB = 40
+HEAVY_TOP = 15
 
 # Which agent a process belongs to. An agent IS a process — the board used to
 # show the two as separate lists, so the same fact ("openclaw is up") appeared
@@ -61,19 +66,20 @@ PROC_AGENT = {
 def _ps():
     try:
         out = subprocess.run(
-            ["ps", "-axo", "pid=,ppid=,etime=,pcpu=,pmem=,command="],
+            ["ps", "-axo", "pid=,ppid=,etime=,pcpu=,pmem=,rss=,command="],
             capture_output=True, text=True, timeout=10).stdout
     except Exception:
         return []
     rows = []
     for line in out.splitlines():
-        parts = line.strip().split(None, 5)
-        if len(parts) < 6:
+        parts = line.strip().split(None, 6)
+        if len(parts) < 7:
             continue
-        pid, ppid, etime, cpu, mem, cmd = parts
+        pid, ppid, etime, cpu, mem, rss, cmd = parts
         try:
             rows.append({"pid": int(pid), "ppid": int(ppid), "elapsed": etime,
-                         "cpu": float(cpu), "mem": float(mem), "cmd": cmd})
+                         "cpu": float(cpu), "mem": float(mem),
+                         "rss_kb": int(rss), "cmd": cmd})
         except ValueError:
             continue
     return rows
@@ -103,7 +109,8 @@ def snapshot():
     """Everything worth showing, split into what we own and what we don't."""
     keep = _protected()
     fleet, external = [], []
-    for r in _ps():
+    rows = _ps()
+    for r in rows:
         kind, label = _classify(r["cmd"])
         if not kind:
             continue
@@ -112,6 +119,7 @@ def snapshot():
         item = {"pid": r["pid"], "label": label, "agent": PROC_AGENT.get(label),
                 "elapsed": r["elapsed"],
                 "cpu": r["cpu"], "mem": r["mem"],
+                "rss_mb": round(r["rss_kb"] / 1024, 1),
                 "cmd": r["cmd"][:160],
                 # Untruncated, for matching: a 160-char display cap once ate
                 # "--name e2e-victim" off the end and made the scoped kill
@@ -122,8 +130,41 @@ def snapshot():
     fleet.sort(key=lambda x: -x["cpu"])
     external.sort(key=lambda x: -x["cpu"])
     return {"fleet": fleet, "external": external,
+            "heavies": heavies(rows),
             "killable": sum(1 for f in fleet if not f["is_self"]),
             "machine": machine()}
+
+
+def _short_name(cmd: str) -> str:
+    tok = (cmd or "").split()[0]
+    name = tok.rsplit("/", 1)[-1]
+    return (name or "proc")[:48]
+
+
+def heavies(rows=None):
+    """Top RAM sitters, fleet or not. Shown, never killable from here."""
+    rows = rows if rows is not None else _ps()
+    ranked = sorted(rows, key=lambda r: -r.get("rss_kb", 0))
+    out = []
+    for r in ranked:
+        mb = r.get("rss_kb", 0) / 1024
+        if mb < HEAVY_MIN_MB and r.get("cpu", 0) < 8:
+            continue
+        kind, label = _classify(r["cmd"])
+        out.append({
+            "pid": r["pid"],
+            "label": label or _short_name(r["cmd"]),
+            "kind": kind or "other",
+            "rss_mb": round(mb, 1),
+            "cpu": r["cpu"],
+            "mem": r["mem"],
+            "elapsed": r["elapsed"],
+            "cmd": r["cmd"][:160],
+            "cmd_full": r["cmd"],
+        })
+        if len(out) >= HEAVY_TOP:
+            break
+    return out
 
 
 def machine() -> dict:
@@ -155,7 +196,24 @@ def machine() -> dict:
             "per_core": round(ratio, 2), "state": state,
             # Agents are held back above this, so the board should show the same
             # line the schedulers act on rather than a second opinion.
-            "gate": float(os.environ.get("MAX_LOAD", "6"))}
+            "gate": _load_gate(),
+            "compressor_gb": _compressor_gb()}
+
+
+def _load_gate() -> float:
+    try:
+        import pressure
+        return float(pressure.max_load())
+    except Exception:
+        return float(os.environ.get("MAX_LOAD", os.cpu_count() or 4))
+
+
+def _compressor_gb() -> float:
+    try:
+        import pressure
+        return float(pressure.compressor_gb())
+    except Exception:
+        return 0.0
 
 
 def kill_fleet(dry_run=False, only=None):
