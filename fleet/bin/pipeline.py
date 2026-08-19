@@ -335,6 +335,11 @@ def land(verified: dict) -> dict:
     wt = WORKTREES / f"land-{branch.replace('/', '-')}"
     WORKTREES.mkdir(exist_ok=True)
     run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+    # Base the merge on origin's main, not on whatever local main happens to
+    # be. When several branches land in one loop, each push advances the
+    # remote and leaves the local ref behind; building on the stale ref is
+    # what produced the standing "push: behind its remote" alert.
+    run(["git", "fetch", "origin", "main:main"], cwd=REPO)
     code, out = run(["git", "worktree", "add", "--detach", str(wt), "main"],
                     cwd=REPO)
     if code != 0:
@@ -345,37 +350,53 @@ def land(verified: dict) -> dict:
         run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
         return record(stage="land", proposal_ts=ts, branch=branch, ok=ok, **extra)
 
-    code, out = run(["git", "merge", "--no-ff", "--no-edit", branch], cwd=wt)
-    if code != 0:
-        run(["git", "merge", "--abort"], cwd=wt)
-        ev.emit("pipeline", "warn", f"[land] {branch}: conflicts with main")
-        return done(False, detail=f"conflict: {out[-200:]}")
+    # Two attempts. A push refused because the remote moved between the fetch
+    # above and the push below is a race with our own sibling lands, not a
+    # real conflict — rebuild on the new main and try once more before
+    # raising an alert a human has to read.
+    for attempt in (1, 2):
+        code, out = run(["git", "merge", "--no-ff", "--no-edit", branch], cwd=wt)
+        if code != 0:
+            run(["git", "merge", "--abort"], cwd=wt)
+            ev.emit("pipeline", "warn", f"[land] {branch}: conflicts with main")
+            return done(False, detail=f"conflict: {out[-200:]}")
 
-    merge_sha = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
-    code, out = run([str(venv_pytest()), "-q"], cwd=wt, timeout=900)
-    if code != 0:
-        # The merge commit is what failed, so the merge commit is what gets
-        # thrown away — not the branch, which is still good on its own and
-        # may land once whatever it collided with is fixed. Discarding the
-        # worktree discards the merge; main was never moved.
-        tail = out.strip().splitlines()[-1] if out.strip() else "no output"
+        merge_sha = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
+        code, out = run([str(venv_pytest()), "-q"], cwd=wt, timeout=900)
+        if code != 0:
+            # The merge commit is what failed, so the merge commit is what gets
+            # thrown away — not the branch, which is still good on its own and
+            # may land once whatever it collided with is fixed. Discarding the
+            # worktree discards the merge; main was never moved.
+            tail = out.strip().splitlines()[-1] if out.strip() else "no output"
+            ev.emit("pipeline", "warn",
+                    f"[land] {branch}: green alone, red merged — dropped ({tail})")
+            return done(False, detail=f"merged tests: {tail}")
+
+        # Push the merge commit straight at main. Nothing local is updated to
+        # point at it until the push is accepted, so a rejected push leaves no
+        # half-landed state anywhere.
+        code, out = run(["git", "push", "origin", f"{merge_sha}:main"],
+                        cwd=wt, timeout=300)
+        if code == 0:
+            run(["git", "fetch", "origin", "main:main"], cwd=REPO)
+            ev.emit("pipeline", "ok",
+                    f"[land] {branch} merged to main and pushed")
+            return done(True, sha=merge_sha[:12])
+
+        if attempt == 1:
+            ev.emit("pipeline", "info",
+                    f"[land] {branch}: push refused, rebuilding on new main "
+                    f"({out[-120:]})")
+            run(["git", "fetch", "origin", "main:main"], cwd=REPO)
+            rc, rout = run(["git", "reset", "--hard", "main"], cwd=wt)
+            if rc != 0:
+                return done(False, detail=f"reset: {rout[-200:]}")
+            continue
+
         ev.emit("pipeline", "warn",
-                f"[land] {branch}: green alone, red merged — dropped ({tail})")
-        return done(False, detail=f"merged tests: {tail}")
-
-    # Push the merge commit straight at main. Nothing local is updated to
-    # point at it until the push is accepted, so a rejected push leaves no
-    # half-landed state anywhere.
-    code, out = run(["git", "push", "origin", f"{merge_sha}:main"],
-                    cwd=wt, timeout=300)
-    if code != 0:
-        ev.emit("pipeline", "info",
-                f"[land] {branch}: push refused, will retry ({out[-120:]})")
+                f"[land] {branch}: push refused twice ({out[-120:]})")
         return done(False, detail=f"push: {out[-200:]}")
-
-    run(["git", "fetch", "origin", "main:main"], cwd=REPO)
-    ev.emit("pipeline", "ok", f"[land] {branch} merged to main and pushed")
-    return done(True, sha=merge_sha[:12])
 
 
 def write_worker() -> None:
