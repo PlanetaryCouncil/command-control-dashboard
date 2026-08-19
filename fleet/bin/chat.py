@@ -428,6 +428,6 @@ def _agent_ready(name, have=None):
             except Exception:
                 have = set()
         return any(m.startswith(OLLAMA_MODEL.split(":")[0]) for m in have)
-    if name in ("claude", "hermes", "openclaw"):
+    if name in ("claude", "hermes", "openclaw", "grok"):
         return Path(resolve(name)).is_file()
     return False

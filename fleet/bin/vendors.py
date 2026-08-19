@@ -29,6 +29,7 @@ from __future__ import annotations
 
 VENDORS: dict[str, str] = {
     "claude": "anthropic",
+    "grok": "xai",
     "hermes": "openai",
     "openclaw": "openai",
     "ollama": "local",
@@ -36,6 +37,7 @@ VENDORS: dict[str, str] = {
 
 MODELS: dict[str, str] = {
     "claude": "claude-opus-5",
+    "grok": "grok-4",
     "hermes": "gpt-5.5",
     "openclaw": "gpt-5.5",
     "ollama": "llama3.2:1b",
@@ -70,8 +72,8 @@ if __name__ == "__main__":
     for a in VENDORS:
         print(f"  {describe(a)}")
     print()
-    for a in ("claude", "hermes"):
-        pool = ["claude", "hermes", "openclaw"]
+    for a in ("claude", "hermes", "grok"):
+        pool = ["claude", "hermes", "grok"]
         picks = independent_of(a, pool)
         best = picks[0] if picks else None
         note = "" if best and vendor(best) != vendor(a) else "  (same vendor — weaker)"

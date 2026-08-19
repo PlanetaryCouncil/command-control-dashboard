@@ -66,7 +66,7 @@ def test_relay_caps_every_agent_turn(monkeypatch):
     """plusone.TURN_TIMEOUT existed since the file was written and capped
     nothing; hermes ran its hops on the 300s chat default."""
     seen = _capture_timeout(monkeypatch)
-    for agent in ("claude", "hermes", "openclaw"):
+    for agent in ("claude", "hermes", "openclaw", "grok"):
         seen.clear()
         plusone.ask(agent, "n+1?", session="t")
         assert seen["timeout"] == plusone.TURN_TIMEOUT, agent
@@ -74,7 +74,7 @@ def test_relay_caps_every_agent_turn(monkeypatch):
 
 def test_council_caps_every_agent_turn(monkeypatch):
     seen = _capture_timeout(monkeypatch)
-    for agent in ("claude", "hermes", "openclaw"):
+    for agent in ("claude", "hermes", "openclaw", "grok"):
         seen.clear()
         council.ask(agent, "one thing?", session="t")
         assert seen["timeout"] == council.TURN_TIMEOUT, agent

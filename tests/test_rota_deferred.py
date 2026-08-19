@@ -44,7 +44,7 @@ def test_deferral_leaves_a_pending_marker(sandbox, monkeypatch):
     monkeypatch.setattr(rota.os, "getloadavg", lambda: (18.6, 0.0, 0.0))
     assert run(monkeypatch) == 0
     state = json.loads(rota.STATE.read_text())
-    assert state["deferred"]["agent"] == "claude"
+    assert state["deferred"]["agent"] == "hermes"
     assert state["deferred"]["load"] == 18.6
     assert sandbox["asked"] == []
     assert any("retry pending" in e for e in sandbox["events"])

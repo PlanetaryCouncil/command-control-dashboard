@@ -11,9 +11,9 @@ agents propose and nothing ever reads the proposals. Marsita, 2026-08-04:
 is testing -> obviously". This is that pipe.
 
 Stages, each a different pair of hands:
-  1. build   — claude (the only agent here that can edit files) implements
-               the proposal in a fresh git worktree on branch rota/<slug>,
-               runs the tests, commits. It never pushes and never merges.
+  1. build   — grok (or FLEET_BUILDER) implements the proposal in a
+               fresh git worktree on branch rota/<slug>, runs the tests,
+               commits. It never pushes and never merges.
   2. verify  — pytest runs mechanically in the worktree, then hermes (a
                different vendor) reads the diff and answers APPROVE or
                REJECT with a reason. Builder never grades its own work.
@@ -73,6 +73,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import buildgate     # noqa: E402
 import chat          # noqa: E402
 import events as ev  # noqa: E402
+
+
+def builder_name() -> str:
+    """Who implements. Default grok: it is here, it has credits, it edits.
+
+    Claude stays selectable via FLEET_BUILDER=claude when that plan is alive
+    again. The reviewer is always hermes, a different company.
+    """
+    return os.environ.get("FLEET_BUILDER", "grok").strip() or "grok"
+
+
+def run_builder(prompt, cwd, timeout=BUILD_TIMEOUT):
+    who = builder_name()
+    if who == "grok":
+        return run(["grok", "-p", prompt, "--output-format", "plain",
+                    "--always-approve", "--cwd", str(cwd)],
+                   cwd=cwd, timeout=timeout)
+    return run(["claude", "--print", "--permission-mode", "acceptEdits",
+                "--allowedTools",
+                "Bash(git add:*)", "Bash(git commit:*)",
+                "Bash(git status:*)", "Bash(git diff:*)",
+                "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
+                "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)",
+                "WebSearch", "WebFetch"],
+               cwd=cwd, timeout=timeout, stdin_text=prompt)
 
 
 def now() -> str:
@@ -174,17 +199,7 @@ rules allow — and make it pass. Commit everything with a clear
 message. Do NOT push. Do NOT merge. Do NOT touch other branches. If the
 proposal is not implementable as code, commit nothing and say why in one
 line starting with SKIP:."""
-    # acceptEdits covers file edits only — the first live cycle implemented
-    # its proposal and then couldn't run `git commit`. Grant the exact
-    # commands the job needs, nothing broader.
-    code, out = run(["claude", "--print", "--permission-mode", "acceptEdits",
-                     "--allowedTools",
-                     "Bash(git add:*)", "Bash(git commit:*)",
-                     "Bash(git status:*)", "Bash(git diff:*)",
-                     "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
-                     "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)",
-                     "WebSearch", "WebFetch"],
-                    cwd=wt, timeout=BUILD_TIMEOUT, stdin_text=prompt)
+    code, out = run_builder(prompt, wt)
     committed = run(["git", "log", "--oneline", "main..HEAD"], cwd=wt)[1].strip()
     ok = code == 0 and bool(committed)
     ev.emit("pipeline", "ok" if ok else "warn",
@@ -223,13 +238,7 @@ Fix exactly what the objection names — smallest change that answers it.
 Run `.venv/bin/pytest -q` (venv at {REPO}/.venv) and keep it green. Commit.
 Do NOT push, do NOT merge. If the objection cannot be answered in code,
 commit nothing and say why in one line starting with SKIP:."""
-    code, out = run(["claude", "--print", "--permission-mode", "acceptEdits",
-                     "--allowedTools",
-                     "Bash(git add:*)", "Bash(git commit:*)",
-                     "Bash(git status:*)", "Bash(git diff:*)",
-                     "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
-                     "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)", "WebSearch", "WebFetch"],
-                    cwd=wt, timeout=BUILD_TIMEOUT, stdin_text=prompt)
+    code, out = run_builder(prompt, wt)
     after = run(["git", "rev-parse", "HEAD"], cwd=wt)[1].strip()
     ok = code == 0 and after != before
     ev.emit("pipeline", "ok" if ok else "warn",
@@ -573,7 +582,8 @@ def triage() -> None:
         "why in one final line. No preamble.\n\n" + "\n\n".join(lines))
     print(f"triaging {len(todo)} proposals…", flush=True)
     noop = lambda *a, **k: None
-    out = chat.ask_claude(prompt, [], noop)
+    out = chat.ask_grok(prompt, [], noop) if builder_name() == "grok" \
+        else chat.ask_claude(prompt, [], noop)
     stamp = now()
     (FLEET / "rota" / "triage.md").write_text(
         f"# Triage {stamp}\n\n{len(todo)} unprocessed proposals reviewed.\n\n"
