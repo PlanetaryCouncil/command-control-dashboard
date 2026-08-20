@@ -3,8 +3,8 @@
 
 A brain fart is a case of confidently-wrong AI output: what was claimed,
 what was actually true, and four scores. The dashboard serves the log at
-/brainfarts.json so the site has a first-party feed instead of a
-hand-curated gallery.
+/brainfarts.json. This script only appends; it does not hook the board,
+rota, or pipeline.
 
   brainfart.py --agent claude --claim "the suite is green" \\
                --reality "14 tests failed" \\
@@ -76,23 +76,6 @@ def emit(agent, claim, reality, confidence, wrongness, consequence,
     except OSError:
         pass
     return rec
-
-
-def load(path=None):
-    """Every intact line, in file order. A truncated tail is skipped, not
-    fatal — same crash-safety as the event log."""
-    p = path or LOG
-    try:
-        lines = p.read_text(errors="replace").splitlines()
-    except OSError:
-        return []
-    out = []
-    for line in lines:
-        try:
-            out.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return out
 
 
 def main(argv=None):
