@@ -71,11 +71,12 @@ dialog b{color:var(--phosphor)}
 
 
 def page(nav_html: str = "", nav_css: str = "") -> str:
+    import nav
     return f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>send a message — fleet</title>
+<title>{nav.title("send a message")}</title>
 <!-- agents: /llms.txt -->
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <style>{nav_css}{CSS}</style>

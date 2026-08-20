@@ -12,6 +12,7 @@ and a name, so identity never depends on color alone.
 AGENT_STYLE = {
     "self-improve":              ("\U0001F501", "#3987e5", "#2a78d6"),  # blue
     "grok":                      ("\U0001F52D", "#5b6b7c", "#8fa3b8"),  # slate
+    "agy":                       ("\u2693", "#1a73e8", "#4285f4"),  # google blue
     "hermes":                    ("\U0001FAB6", "#d95926", "#eb6834"),  # orange
     "openclaw":                  ("\U0001F980", "#199e70", "#1baf7a"),  # aqua
     "agent-comms":               ("\U0001F517", "#c98500", "#eda100"),  # yellow
@@ -251,7 +252,7 @@ def page(events, agents_json):
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleet — stream</title>
+<title>{nav.title("stream")}</title>
 <style>{CSS}\n{nav_css}
 {style_css()}</style></head>
 <body>

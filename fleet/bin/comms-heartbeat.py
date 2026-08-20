@@ -94,6 +94,10 @@ def main():
     a = ap.parse_args()
 
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
+    import heavygate
+    if not heavygate.enabled():
+        print(f"{a.name}: heavy work off on this machine — skipping")
+        return 0
     import quotas
     agents = quotas.eligible(agents)
     if not agents:

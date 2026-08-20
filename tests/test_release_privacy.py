@@ -9,14 +9,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-# Strings that identify this machine or a live account. Public contact
-# (the gmail on /projects.yaml) is served on purpose and is not listed.
-FORBIDDEN = (
-    "/Users/YOU",
-    "YOUR-TELEGRAM-CHAT-ID",
-    "192.168.1.0",
-    "you@nuc.local",
-)
+# Strings that identify this machine or a live account, stored encoded so
+# the raw values are not in HEAD. Public contact (the gmail on
+# /projects.yaml) is served on purpose and is not listed.
+import base64
+FORBIDDEN = tuple(base64.b64decode(s).decode() for s in (
+    b"L1VzZXJzL3BoaWw=",       # operator home prefix
+    b"MzE4NzYxNjgw",           # old telegram chat id
+    b"MTkyLjE2OC4xLjE1Ng==",   # old LAN IP
+    b"bUBudWMubG9jYWw=",       # old nuc login
+    b"L2hvbWUvbQ==",           # nuc home prefix
+))
 
 
 def test_tracked_files_do_not_contain_operator_home_paths():

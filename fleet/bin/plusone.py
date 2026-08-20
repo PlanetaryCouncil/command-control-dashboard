@@ -47,6 +47,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
                                  timeout=TURN_TIMEOUT)
     if agent == "grok":
         return chat.ask_grok(prompt, [], noop, timeout=TURN_TIMEOUT)
+    if agent == "agy":
+        return chat.ask_agy(prompt, [], noop, timeout=TURN_TIMEOUT)
     return f"[unknown agent {agent}]"
 
 

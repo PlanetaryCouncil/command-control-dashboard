@@ -322,6 +322,10 @@ def main():
                     help="skip checks that spend an agent turn")
     ap.add_argument("--port", type=int, default=8899)
     a = ap.parse_args()
+    import heavygate
+    if not heavygate.enabled() and not a.quick:
+        print("heavy work off on this machine — skipping")
+        return 0
     import pressure
     if pressure.too_hot() and not a.quick:
         snap = pressure.snapshot()

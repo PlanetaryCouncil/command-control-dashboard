@@ -308,6 +308,13 @@ canvas.mark:hover{opacity:1;}
 #say button:disabled{opacity:.4;cursor:not-allowed;}
 #sayNote{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#askbtn{border-color:var(--info);color:var(--info);}
+#pendingAsk{display:none;padding:6px 8px;border-top:1px solid var(--info);
+  background:color-mix(in srgb,var(--info) 12%,transparent);
+  font-family:var(--mono);font-size:10px;color:var(--ink);line-height:1.4;}
+#pendingAsk.on{display:block;}
+#pendingAsk b{color:var(--info);letter-spacing:.08em;text-transform:uppercase;
+  margin-right:8px;}
 
 /* ---------- goals: the chain, and whether you are keeping it ----------
    A list of goals is a poster. What makes it accountable is the review date
@@ -771,7 +778,7 @@ function renderMachine(m){
     ? ` · disk ${Math.round(d.used_pct)}% ${d.free_gb}G free`
     : "";
   const ram = (m.compressor_gb != null)
-    ? ` · ram ${m.compressor_gb}G compressed`
+    ? ` · ram ${Number(m.compressor_gb).toFixed(1)}G compressed`
     : "";
   el.textContent = `${m.state} · ${m.load1} / ${m.cores} cores${ram}${disk}`;
   el.title = `1m ${m.load1} · 5m ${m.load5} · 15m ${m.load15} — `
@@ -1254,6 +1261,42 @@ if (convBtn) convBtn.addEventListener("click", async () => {
                      convBtn.innerHTML = "&#128483; convene"; }, 8000);
 });
 
+async function loadAsk(){
+  const box = $("#pendingAsk"), txt = $("#pendingAskText");
+  if (!box) return;
+  try {
+    const r = await fetch("api/ask", {cache:"no-store"});
+    if (!r.ok) return;
+    const d = await r.json();
+    const q = (d.ask || "").trim();
+    if (q){ txt.textContent = q; box.classList.add("on"); }
+    else { txt.textContent = ""; box.classList.remove("on"); }
+  } catch(e){}
+}
+
+const askBtn = document.getElementById("askbtn");
+if (askBtn) askBtn.addEventListener("click", async () => {
+  const body = $("#sayBody").value.trim();
+  const note = $("#sayNote");
+  if (!body){ note.textContent = "ask something first"; return; }
+  askBtn.disabled = true; note.textContent = "asking…";
+  try {
+    const r = await fetch("api/convene", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ask: body}),
+    });
+    if (!r.ok){ note.textContent = "refused: " + r.status; }
+    else {
+      note.textContent = "council sits";
+      $("#sayBody").value = "";
+      loadAsk();
+    }
+  } catch(e){ note.textContent = "failed: " + e.message; }
+  askBtn.disabled = false;
+});
+if (askBtn){ loadAsk(); setInterval(loadAsk, 6000); }
+
 const tick = () => { const d = new Date();
   $("#clock").textContent = [d.getHours(),d.getMinutes(),d.getSeconds()]
     .map(x => String(x).padStart(2,"0")).join(":"); };
@@ -1455,20 +1498,10 @@ def _for_script(json_text: str) -> str:
 
 
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
+    import html as _html
     import nav
-    import os, socket
-    from pathlib import Path as _P
-    # Each dashboard self-identifies so an operator running several can tell them
-    # apart: FLEET_NAME env wins, else data/board-name.txt (per-instance, not
-    # tracked), else the machine's hostname, else "FLEET".
-    def _name_file():
-        try:
-            return (_P(__file__).resolve().parent.parent / "data"
-                    / "board-name.txt").read_text().strip()
-        except OSError:
-            return ""
-    board_name = (os.environ.get("FLEET_NAME") or _name_file()
-                  or socket.gethostname().split(".")[0] or "FLEET").upper()
+    board_name = nav.board_name()
+    board_h1 = _html.escape(board_name)
     js = (JS.replace("__AGENTS__", _for_script(agents_json))
             .replace("__SEED__", _for_script(seed_json))
             .replace("__TOKEN__", _for_script(repr(token).replace("'", '"'))))
@@ -1501,7 +1534,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 -->
 <html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleet</title>
+<title>{nav.title()}</title>
 <link rel="stylesheet" href="/static/xterm.css">
 <script src="/static/signature.js?v=2"></script>
 <style>{CSS}\n{nav.CSS}</style></head>
@@ -1509,7 +1542,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
 <div id="bar">
   <span id="pulse"></span>
-  <h1>{board_name}</h1>
+  <h1>{board_h1}</h1>
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
@@ -1565,10 +1598,12 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
         <span class="big" id="emptyTitle"></span>
         <span class="sub" id="emptySub"></span>
       </div>
+      <div id="pendingAsk"><b>you asked</b><span id="pendingAskText"></span></div>
       <form id="say" autocomplete="off">
         <div class="sayrow">
           <input id="sayWho" maxlength="60" placeholder="you">
-          <input id="sayBody" maxlength="3900" placeholder="say something to the agents">
+          <input id="sayBody" maxlength="3900" placeholder="{'talk to the board' if not remote else 'leave a public signal'}">
+          {'' if remote else '<button type="button" id="askbtn" title="Ask the council. Local only — this is an instruction, not a public signal.">ask</button>'}
           <button type="submit">post</button>
           <span id="sayNote"></span>
         </div>

@@ -58,6 +58,17 @@ def test_material_change_moves_the_hash(fleet, changed):
     assert council.board_fingerprint(state()) != council.board_fingerprint(state(**changed))
 
 
+def test_a_new_operator_question_moves_the_hash(fleet):
+    """Asking while the workers sit still used to skip the council that
+    was supposed to answer. A question is a board change."""
+    quiet = council.board_fingerprint(state())
+    asked = council.board_fingerprint({**state(),
+                                       "operator_ask": "merge the deny list?"})
+    assert quiet != asked
+    assert (council.board_fingerprint({**state(), "operator_ask": "merge the deny list?"})
+            == asked)
+
+
 def test_fingerprint_round_trip(fleet):
     assert council.last_fingerprint() is None
     council.save_fingerprint("deadbeef")

@@ -28,6 +28,16 @@ def test_heavies_rank_by_rss_and_skip_mice():
     assert h[1]["label"] == "Google"
 
 
+def test_machine_ram_is_one_decimal():
+    """The bar printed the raw compressor float — 2.1891098022460938G.
+    One decimal is enough to see it climb; the rest is noise."""
+    m = procs.machine()
+    gb = m["compressor_gb"]
+    assert isinstance(gb, float)
+    assert gb == round(gb, 1)
+    assert len(f"{gb:.1f}") <= 5   # 12.3 is already a crisis
+
+
 def test_snapshot_has_rss_and_heavies():
     snap = procs.snapshot()
     assert "heavies" in snap

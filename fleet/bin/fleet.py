@@ -526,10 +526,12 @@ def _nav_css():
 
 
 def render_page(refresh=True):
+    import nav
     meta = '<meta http-equiv="refresh" content="20">' if refresh else ""
     return (f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1">{meta}'
-            f'<title>Fleet</title><style>{CSS}\n{_nav_css()}\n{_meter_css()}</style></head>'
+            f'<title>{nav.title("cards")}</title>'
+            f'<style>{CSS}\n{_nav_css()}\n{_meter_css()}</style></head>'
             f'<body>{render_body(load_workers())}</body></html>')
 
 
@@ -592,7 +594,7 @@ PUBLIC_WRITE_LIMITER = _public_write_limiter()
 CONTROL_PATHS = frozenset({
     "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
     "/api/kill", "/api/kill-token", "/api/paste-image", "/api/convene",
-    "/api/build-gate",
+    "/api/build-gate", "/api/ask",
 })
 
 
@@ -1113,6 +1115,16 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/api/ask":
+                # Local only (CONTROL_PATHS). The pending question is an
+                # instruction, not a public signal — strangers do not get
+                # to read what the operator just asked the council.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import council
+                self._send(json.dumps({"ask": council.operator_question()}
+                                      ).encode(), "application/json")
+                return
+
             if path == "/robots.txt":
                 # Deliberately wide open — the fleet is published so agents
                 # can watch it. A crawler that checks manners gets a 200, and
@@ -1551,9 +1563,22 @@ def serve(port):
                 # convening costs real agent-minutes on a 4-core box, so a
                 # stranger doesn't get the gavel. council.py's own lock
                 # handles a sitting already in session.
+                #
+                # Optional JSON {ask: "..."} is the operator talking through
+                # the board. Written via council.set_question — this file
+                # never names the on-disk path, which is the airlock.
                 if self._remote():
                     self.send_error(404)
                     return
+                ask = ""
+                n = int(self.headers.get("Content-Length") or 0)
+                if n:
+                    try:
+                        body = json.loads(
+                            self.rfile.read(min(n, 4096)).decode())
+                        ask = str(body.get("ask") or "").strip()
+                    except Exception:
+                        ask = ""
                 try:
                     cfg = json.loads((FLEET / "config.json").read_text())
                     agents = ",".join(cfg.get("council", {}).get(
@@ -1561,16 +1586,24 @@ def serve(port):
                     rounds = str(cfg.get("council", {}).get("rounds", 2))
                 except (OSError, ValueError):
                     agents, rounds = "claude,hermes,openclaw", "2"
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import council
+                import events as ev
+                if ask:
+                    council.set_question(ask)
                 log = (FLEET / "logs" / "convene.log").open("a")
                 subprocess.Popen(
-                    ["/usr/local/bin/python3", str(FLEET / "bin" / "council.py"),
+                    [sys.executable, str(FLEET / "bin" / "council.py"),
                      "--agents", agents, "--rounds", rounds],
                     stdout=log, stderr=log, start_new_session=True)
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import events as ev
+                if ask:
+                    ev.emit("fleet", "info",
+                            f"[council] operator asked: {ask[:200]}",
+                            origin="operator", layer=0)
                 ev.emit("fleet", "info",
                         f"[council] convened by the operator — {agents}")
-                self._send(json.dumps({"convened": agents}).encode(),
+                self._send(json.dumps({"convened": agents,
+                                       "asked": bool(ask)}).encode(),
                            "application/json")
                 return
 

@@ -184,6 +184,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
         return chat.ask_openclaw(prompt, noop, session=session)
     if agent == "grok":
         return chat.ask_grok(prompt, [], noop)
+    if agent == "agy":
+        return chat.ask_agy(prompt, [], noop)
     if agent == "ollama":
         return chat.ask_ollama(chat.OLLAMA_MODEL, prompt, [], noop)
     return f"[unknown agent {agent}]"
@@ -191,7 +193,7 @@ def ask(agent: str, prompt: str, session: str) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--agents", default="hermes,grok")
+    ap.add_argument("--agents", default="hermes,grok,agy")
     ap.add_argument("--dry-run", action="store_true",
                     help="show whose turn it is and the prompt, spawn nothing")
     ap.add_argument("--retry-deferred", action="store_true",
@@ -202,6 +204,10 @@ def main() -> int:
     agents = quotas.eligible(agents)
     if not agents:
         print("no eligible agents (dry or rare)"); return 1
+    import heavygate
+    if not heavygate.enabled() and not a.dry_run:
+        print("heavy work off on this machine — skipping")
+        return 0
 
     agent, state = whose_turn(agents)
 

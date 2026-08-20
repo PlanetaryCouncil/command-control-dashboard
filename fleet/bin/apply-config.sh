@@ -124,7 +124,20 @@ write_plist re.genesis.self-improve \
     <dict><key>Hour</key><integer>$SI_H</integer><key>Minute</key><integer>$SI_M</integer></dict>" \
   /bin/bash "$REPO/self-improve/loop/run-cycle.sh"
 
-if [[ ${#CHANGED_JOBS[@]} -eq 0 ]]; then
+HEAVY=1
+if ! "$PY" -c "import sys; sys.path.insert(0, '$FLEET/bin'); import heavygate; raise SystemExit(0 if heavygate.enabled() else 1)"; then
+  HEAVY=0
+fi
+
+if [[ "$HEAVY" -eq 0 ]]; then
+  echo "  heavy work off on $(hostname -s) — unloading council/rota/heartbeat"
+  for label in re.genesis.council re.genesis.rota re.genesis.watchdogs \
+               re.genesis.pipeline re.genesis.comms-heartbeat \
+               re.genesis.e2e re.genesis.self-improve re.genesis.local-voice; do
+    launchctl unload "$AGENTS_DIR/$label.plist" 2>/dev/null || true
+    echo "  unloaded $label"
+  done
+elif [[ ${#CHANGED_JOBS[@]} -eq 0 ]]; then
   echo "  no schedule changes — nothing reloaded"
 else
   for label in "${CHANGED_JOBS[@]}"; do

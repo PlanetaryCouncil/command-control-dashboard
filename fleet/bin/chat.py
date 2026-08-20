@@ -51,6 +51,7 @@ AGENTS = {
     "hermes":   ("Hermes", False),
     "openclaw": ("OpenClaw", False),
     "grok":     ("Grok (xAI, cloud, has a tool loop)", False),
+    "agy":      ("Antigravity (Google, cloud)", False),
 }
 
 JOBS = {}          # job_id -> {queue, agents, done}
@@ -132,6 +133,7 @@ def resolve(name):
     import shutil
     extra = [
         str(Path.home() / ".local/bin"),
+        str(Path.home() / ".grok" / "bin"),
         "/usr/local/bin", "/opt/homebrew/bin",
         "/usr/local/opt/node@22/bin", "/usr/bin", "/bin",
     ]
@@ -255,6 +257,23 @@ def ask_grok(prompt, files, emit, timeout=600):
                    timeout=timeout)
 
 
+def ask_agy(prompt, files, emit, timeout=600):
+    """One Antigravity turn, headless.
+
+    Binary is `agy`. `--print` is the single-turn mode. No
+    --dangerously-skip-permissions: it joins able to speak before it
+    joins able to act, same rule as grok.
+    """
+    if files:
+        prompt += ("\n\nAttached files (read them from these paths):\n"
+                   + "\n".join(str(f) for f in files))
+    mins = max(1, (timeout + 59) // 60)
+    return run_cmd(
+        ["agy", "--print", prompt, "--output-format", "text",
+         "--print-timeout", f"{mins}m"],
+        timeout=timeout)
+
+
 def ask_hermes(prompt, emit, timeout=300):
     return run_cmd(["hermes", "-z", prompt], timeout=timeout)
 
@@ -323,6 +342,8 @@ def _run(agent, prompt, images, files, emit, q, job_id, t0):
             text = ask_openclaw(prompt, emit)
         elif agent == "grok":
             text = ask_grok(prompt, files, emit)
+        elif agent == "agy":
+            text = ask_agy(prompt, files, emit)
         else:
             text = f"[unknown agent {agent}]"
     except Exception as e:
@@ -428,6 +449,6 @@ def _agent_ready(name, have=None):
             except Exception:
                 have = set()
         return any(m.startswith(OLLAMA_MODEL.split(":")[0]) for m in have)
-    if name in ("claude", "hermes", "openclaw", "grok"):
+    if name in ("claude", "hermes", "openclaw", "grok", "agy"):
         return Path(resolve(name)).is_file()
     return False

@@ -10,6 +10,7 @@ everywhere. Every hue is paired with an emoji and a name.
 CHAT_STYLE = {
     "claude":   ("\U0001F9E0", "#3987e5", "#2a78d6"),  # blue
     "grok":     ("\U0001F52D", "#5b6b7c", "#8fa3b8"),  # slate — matches agentsview
+    "agy":      ("\u2693", "#1a73e8", "#4285f4"),      # google blue
     "hermes":   ("\U0001FAB6", "#d95926", "#eb6834"),  # orange — matches live view
     "openclaw": ("\U0001F980", "#199e70", "#1baf7a"),  # aqua  — matches live view
     "ollama":   ("\U0001F999", "#9085e9", "#4a3aa7"),  # violet
@@ -284,7 +285,7 @@ def page(agents, style_json):
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleet — chat</title>
+<title>{nav.title("chat")}</title>
 <style>{CSS}\n{nav.CSS}\n{agent_css()}</style></head>
 <body>
 <header>

@@ -197,7 +197,7 @@ def machine() -> dict:
             # Agents are held back above this, so the board should show the same
             # line the schedulers act on rather than a second opinion.
             "gate": _load_gate(),
-            "compressor_gb": _compressor_gb(),
+            "compressor_gb": round(_compressor_gb(), 1),
             "disk": _disk()}
 
 

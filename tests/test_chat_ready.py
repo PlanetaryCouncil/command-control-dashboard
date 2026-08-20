@@ -43,6 +43,11 @@ def test_keeps_only_the_requested_agents_that_are_ready(monkeypatch):
     assert res.get("job")
 
 
+def test_agy_is_a_known_cloud_agent():
+    assert "agy" in chat.AGENTS
+    assert chat.ask_agy.__name__ == "ask_agy"
+
+
 def test_readiness_uses_resolve_not_bare_which(monkeypatch, tmp_path):
     fake = tmp_path / "claude"
     fake.write_text("#!/bin/sh\n")

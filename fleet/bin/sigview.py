@@ -62,11 +62,12 @@ footer{font-size:.72rem;color:var(--phosphor-d);border-top:1px solid var(--rule)
 
 
 def page(nav_html: str = "", nav_css: str = "") -> str:
+    import nav
     return f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Signatures — fleet</title>
+<title>{nav.title("signatures")}</title>
 <style>{nav_css}{CSS}</style>
 </head><body>
 <div class="wrap">

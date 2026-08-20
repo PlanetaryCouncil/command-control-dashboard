@@ -30,6 +30,7 @@ from __future__ import annotations
 VENDORS: dict[str, str] = {
     "claude": "anthropic",
     "grok": "xai",
+    "agy": "google",
     "hermes": "openai",
     "openclaw": "openai",
     "ollama": "local",
@@ -38,6 +39,7 @@ VENDORS: dict[str, str] = {
 MODELS: dict[str, str] = {
     "claude": "claude-opus-5",
     "grok": "grok-4",
+    "agy": "gemini",
     "hermes": "gpt-5.5",
     "openclaw": "gpt-5.5",
     "ollama": "llama3.2:1b",

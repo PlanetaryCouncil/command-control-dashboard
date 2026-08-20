@@ -22,6 +22,8 @@ AGENTS = {
     # like infrastructure instead of a voice. Slate, the next free slot.
     "grok": ("\U0001F52D", "#5b6b7c", "#8fa3b8",
              "cloud agent with a tool loop; reasons and searches"),
+    "agy": ("\u2693", "#1a73e8", "#4285f4",
+            "Antigravity (Google); sits on the NUC"),
     "self-improve": ("\U0001F501", "#3987e5", "#2a78d6",
                      "reads its own transcripts, proposes tooling"),
     "hermes": ("\U0001FAB6", "#d95926", "#eb6834",
@@ -287,7 +289,7 @@ def page(events, seed_json, agents_json, orch_json):
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleet — agents</title>
+<title>{nav.title("agents")}</title>
 <style>{CSS}\n{nav.CSS}\n{agent_css()}</style></head>
 <body>
 <header>

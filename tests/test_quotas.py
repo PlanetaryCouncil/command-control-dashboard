@@ -71,11 +71,15 @@ def test_scheduled_dry_vendor_makes_the_card_alert(monkeypatch):
     monkeypatch.setitem(quotas.CHECKS, "claude", lambda: fake("claude", True))
     monkeypatch.setitem(quotas.CHECKS, "ollama", lambda: fake("ollama", True))
     monkeypatch.setitem(quotas.CHECKS, "openclaw", lambda: fake("openclaw", False))
+    monkeypatch.setitem(quotas.CHECKS, "agy", lambda: fake("agy", True))
 
     worker, down = quotas.pulse(cfg={})
     assert down == ["grok"]
     assert worker["status"] == "alert"
     assert "grok" in worker["summary"]
+    # Logged out is not "dry". Dry is quota-shaped errors.
+    assert "logged out" in worker["summary"]
+    assert "dry" not in worker["summary"]
 
 
 def test_all_scheduled_ok_is_pass(monkeypatch):
@@ -111,6 +115,57 @@ def test_eligible_skips_dry_and_holds_rare_while_plenty_is_up():
 def test_eligible_without_a_pulse_still_holds_rare():
     cfg = {"quotas": {"spend": {"grok": "plenty", "claude": "rare"}}}
     assert quotas.eligible(["claude", "grok"], cfg=cfg, rows={}) == ["grok"]
+
+
+def test_hermes_codex_checkmark_is_logged_in(monkeypatch):
+    """'not logged in' contains the letters 'logged in'. Nous being
+    out must not make Codex look in, and the checkmark is the bit
+    that means in."""
+    monkeypatch.setattr(quotas.chat, "_agent_ready", lambda n: True)
+    monkeypatch.setattr(quotas, "recent_quota_hits", lambda *a, **k: 0)
+    out = ("Nous Portal   ✗ not logged in\n"
+           "OpenAI Codex  ✓ logged in\n")
+    monkeypatch.setattr(quotas, "run", lambda *a, **k: (0, out))
+    row = quotas.check_hermes()
+    assert row["ok"] is True
+    assert row["auth"] == "logged-in"
+    assert row["note"] == "codex"
+
+
+def test_hermes_status_timeout_is_not_dry(monkeypatch):
+    """An 8s probe on a loaded box used to mark Hermes logged-out,
+    then the card said 'vendor dry' and dinged needs_you."""
+    monkeypatch.setattr(quotas.chat, "_agent_ready", lambda n: True)
+    monkeypatch.setattr(quotas, "recent_quota_hits", lambda *a, **k: 0)
+    monkeypatch.setattr(quotas, "run", lambda *a, **k: (1, "timeout"))
+    row = quotas.check_hermes()
+    assert row["ok"] is True
+    assert row["auth"] == "unknown"
+    assert "timed out" in row["note"]
+
+
+def test_quota_hits_are_the_only_dry(monkeypatch):
+    monkeypatch.setattr(quotas, "scheduled_agents",
+                        lambda cfg=None: ["hermes", "grok"])
+
+    def fake(name, hits=0, ok=True, auth="logged-in"):
+        return {"agent": name, "vendor": name, "binary": True,
+                "auth": auth, "ok": ok, "note": "x",
+                "quota_errors_24h": hits}
+
+    monkeypatch.setitem(quotas.CHECKS, "hermes",
+                        lambda: fake("hermes", hits=2, ok=False))
+    monkeypatch.setitem(quotas.CHECKS, "grok", lambda: fake("grok"))
+    monkeypatch.setitem(quotas.CHECKS, "claude", lambda: fake("claude"))
+    monkeypatch.setitem(quotas.CHECKS, "ollama", lambda: fake("ollama"))
+    monkeypatch.setitem(quotas.CHECKS, "openclaw",
+                        lambda: fake("openclaw", ok=False, auth="missing"))
+    monkeypatch.setitem(quotas.CHECKS, "agy", lambda: fake("agy"))
+    worker, down = quotas.pulse(cfg={})
+    assert down == ["hermes"]
+    assert worker["summary"].startswith("scheduled dry:")
+    assert "hermes" in worker["summary"]
+    assert "grok" not in worker["summary"]
 
 
 def test_scheduled_agents_come_from_config_and_builder(monkeypatch):

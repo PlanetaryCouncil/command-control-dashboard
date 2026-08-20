@@ -469,7 +469,15 @@ def cycle() -> None:
     long job here (council, rota, plusone) already shares a lock; the
     pipeline was written without one. A cycle that finds the lock held
     exits quietly — the next hour will do it.
+
+    Gaia with the heavy gate off skips the whole cycle — the NUC runs
+    this. Building already has its own switch; this is the rest of the
+    job so the laptop stays a board.
     """
+    import heavygate
+    if not heavygate.enabled():
+        print("heavy work off on this machine — skipping")
+        return
     import fcntl
     LOCK.parent.mkdir(exist_ok=True)
     fh = LOCK.open("w")
@@ -493,6 +501,14 @@ def _cycle() -> None:
         ev.emit("pipeline", "info",
                 f"[pipeline] deferred — {snap['reason']}")
         return
+    seen = by_proposal()
+    # Cheap autopilot first: close errors/dupes so the waiting count
+    # is a shortlist, not 1800 restatements. Does not pick work to build.
+    try:
+        import autotriage
+        autotriage.run(batches=1)
+    except Exception as e:
+        ev.emit("pipeline", "warn", f"[autotriage] skipped: {e}")
     seen = by_proposal()
     # Verify first: a built branch without a verdict blocks nothing else.
     for r in list(seen.values()):
@@ -575,46 +591,15 @@ def _cycle() -> None:
 
 
 def triage() -> None:
-    """Read every unprocessed proposal and say which deserve building.
+    """Close the pile with a cheap model. Does not pick branches to build.
 
-    Marsita, 2026-08-05: "27 proposals that's good maybe we can simply
-    review them? decide that needs to be built." Better than draining:
-    most of a backlog is duplicates and stale observations, and building
-    those costs agent-hours to produce branches nobody wants. One agent
-    reads the lot, groups what repeats, and returns a ranked shortlist.
-    The human picks; the pipeline builds only what was picked.
+    Marsita, 2026-08-20: "they should be triaged, this should be
+    autopilot, we should use cheap models." The 2026-08-05 failure
+    (8 triage items → 20 branches) still forbids auto-build.
     """
-    seen = by_proposal()
-    todo = [p for p in proposals() if p["ts"] not in seen]
-    if not todo:
-        print("nothing to triage")
-        return
-    lines = []
-    for p in todo:
-        text = " ".join(str(p.get("text", "")).split())
-        lines.append(f"[{p['ts'][:16]} by {p.get('agent','?')}] {text[:400]}")
-    prompt = (
-        "You are triaging a backlog of improvement proposals written by "
-        "agents about the machine they run on. There are "
-        f"{len(todo)} of them and most of a backlog is duplicates or "
-        "already-fixed observations.\n\nGroup them. Then return AT MOST 8 "
-        "items worth building, each one line:\n"
-        "  RANK | one-line description | why it matters | the proposal "
-        "timestamps it covers\n\nDrop anything already obviously done, "
-        "purely observational, or repeated. Say how many you dropped and "
-        "why in one final line. No preamble.\n\n" + "\n\n".join(lines))
-    print(f"triaging {len(todo)} proposals…", flush=True)
-    noop = lambda *a, **k: None
-    out = chat.ask_grok(prompt, [], noop) if builder_name() == "grok" \
-        else chat.ask_claude(prompt, [], noop)
-    stamp = now()
-    (FLEET / "rota" / "triage.md").write_text(
-        f"# Triage {stamp}\n\n{len(todo)} unprocessed proposals reviewed.\n\n"
-        f"{out}\n")
-    ev.emit("pipeline", "needs_you",
-            f"[pipeline] triaged {len(todo)} proposals - shortlist in "
-            f"rota/triage.md, awaiting your picks")
-    print(out[:2000])
+    import autotriage
+    res = autotriage.run(batches=3)
+    print(json.dumps(res, indent=2))
 
 
 if __name__ == "__main__":

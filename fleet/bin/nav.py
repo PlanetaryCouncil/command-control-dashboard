@@ -71,6 +71,36 @@ SPECULATION = """<script type="speculationrules">
 CONTROL = {"/chat", "/terminal"}
 
 
+def board_name() -> str:
+    """Which dashboard this is. Tabs need it; the h1 already had it.
+
+    FLEET_NAME env, else data/board-name.txt (per box, not in git), else
+    hostname. Uppercase so GAIA and NUC read as names, not files.
+    """
+    import os
+    import socket
+    from pathlib import Path
+
+    def from_file():
+        try:
+            return (Path(__file__).resolve().parent.parent / "data"
+                    / "board-name.txt").read_text().strip()
+        except OSError:
+            return ""
+
+    raw = (os.environ.get("FLEET_NAME") or from_file()
+           or socket.gethostname().split(".")[0] or "FLEET")
+    raw = " ".join(raw.split())[:40]
+    return (raw or "FLEET").upper()
+
+
+def title(*suffix: str) -> str:
+    """Escaped <title> text. Name first, so two hosts never share a tab."""
+    import html
+    parts = [board_name(), *(s for s in suffix if s)]
+    return html.escape(" · ".join(parts), quote=True)
+
+
 def html(current: str = "", remote: bool = False) -> str:
     """Nav markup. `current` is the path of the page rendering it."""
     out = []

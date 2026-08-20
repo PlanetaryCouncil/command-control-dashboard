@@ -187,10 +187,11 @@ box.focus();
 
 
 def page(token: str, nav_html: str, nav_css: str) -> str:
+    import nav
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleet — terminal</title>
+<title>{nav.title("terminal")}</title>
 <link rel="stylesheet" href="/static/xterm.css">
 <style>{CSS}
 {nav_css}</style></head>

@@ -105,3 +105,24 @@ def test_the_question_file_is_not_publicly_writable_by_design():
     fleet_py = (BIN / "fleet.py").read_text()
     assert "council-question" not in fleet_py, \
         "the web server writes the operator question file — that is the airlock, breached"
+
+
+def test_set_question_is_what_the_council_reads(tmp_path, monkeypatch):
+    monkeypatch.setattr(council, "ASK_FILE", tmp_path / "q.md")
+    assert council.set_question("  merge it now  ") == "merge it now"
+    assert council.operator_question() == "merge it now"
+
+
+def test_the_local_board_has_an_ask_button_and_the_public_one_does_not():
+    """Dogfood: the operator talks through the board. Strangers still post
+    airlocked signals. The ask button is the split."""
+    import oneview
+    local = oneview.page("[]", "{}", "tok", remote=False)
+    remote = oneview.page("[]", "{}", "", remote=True)
+    assert "<title>" in local and "Fleet</title>" not in local
+    assert 'id="askbtn"' in local
+    assert 'id="askbtn"' not in remote
+    assert "talk to the board" in local
+    assert "leave a public signal" in remote
+    assert "api/ask" in local
+    assert "api/convene" in local

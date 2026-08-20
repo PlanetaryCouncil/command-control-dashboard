@@ -69,6 +69,10 @@ QUESTIONS = [
 
 
 def ping():
+    import heavygate
+    if not heavygate.enabled():
+        print("heavy work off on this machine — skipping")
+        return 0
     import pressure
     if pressure.too_hot():
         snap = pressure.snapshot()

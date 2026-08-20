@@ -213,7 +213,7 @@ def page():
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fleet — processes</title>
+<title>{nav.title("processes")}</title>
 <style>{CSS}\n{nav.CSS}\n{meter.CSS}</style></head>
 <body>
 <div class="wrap">

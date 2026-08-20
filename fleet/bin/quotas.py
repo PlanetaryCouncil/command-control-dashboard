@@ -29,6 +29,12 @@ import vendors       # noqa: E402
 
 WINDOW_HOURS = 24
 PROBE_TIMEOUT = 8
+# hermes status prints every provider. 8s was enough to call it
+# logged-out on a loaded box, then the card said "dry" and painted
+# whoever else missed the same pulse. 20s is still cheap; a turn is not.
+HERMES_STATUS_TIMEOUT = 20
+HERMES_CODEX_RE = re.compile(
+    r"OpenAI Codex[^\n]*✓[^\n]*logged in", re.I)
 # Tight on purpose: council talking about the quotas card used to match
 # the word "quotas" and mark Hermes dry. Only failure shapes, only
 # error/warn/needs_you. Never a completion to find this out.
@@ -79,6 +85,8 @@ def run(cmd, timeout=PROBE_TIMEOUT):
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         return r.returncode, (r.stdout or "") + (r.stderr or "")
+    except subprocess.TimeoutExpired:
+        return 1, "timeout"
     except Exception as e:
         return 1, str(e)
 
@@ -169,15 +177,26 @@ def check_hermes():
         row["auth"] = "missing"
         row["note"] = "CLI not on PATH"
         return row
-    code, out = run([chat.resolve("hermes"), "status"])
-    logged_in = "OpenAI Codex" in out and "logged in" in out
-    row["auth"] = "logged-in" if logged_in else "logged-out"
+    code, out = run([chat.resolve("hermes"), "status"],
+                    timeout=HERMES_STATUS_TIMEOUT)
     hits = recent_quota_hits("hermes")
     row["quota_errors_24h"] = hits
     if hits:
+        row["auth"] = "logged-in"
         row["ok"] = False
         row["note"] = f"quota-shaped errors in last {WINDOW_HOURS}h"
-    elif not logged_in:
+        return row
+    # "not logged in" contains the substring "logged in". Nous being
+    # logged-out used to make Codex look logged-in; a timeout used to
+    # make Codex look logged-out. Both became "vendor dry".
+    if out.strip() == "timeout" or "timed out" in out.lower():
+        row["auth"] = "unknown"
+        row["ok"] = True
+        row["note"] = "status timed out"
+        return row
+    logged_in = bool(HERMES_CODEX_RE.search(out))
+    row["auth"] = "logged-in" if logged_in else "logged-out"
+    if not logged_in:
         row["ok"] = False
         row["note"] = "not logged in"
     else:
@@ -240,12 +259,39 @@ def check_openclaw():
     return row
 
 
+def check_agy():
+    """Binary + credentials dir. Never call ask_agy."""
+    row = {"agent": "agy", "vendor": vendors.vendor("agy"),
+           "binary": chat._agent_ready("agy")}
+    if not row["binary"]:
+        row["ok"] = False
+        row["auth"] = "missing"
+        row["note"] = "CLI not on PATH"
+        return row
+    creds = Path.home() / ".gemini" / "antigravity-cli"
+    logged_in = creds.is_dir()
+    row["auth"] = "logged-in" if logged_in else "logged-out"
+    hits = recent_quota_hits("agy")
+    row["quota_errors_24h"] = hits
+    if hits:
+        row["ok"] = False
+        row["note"] = f"quota-shaped errors in last {WINDOW_HOURS}h"
+    elif not logged_in:
+        row["ok"] = False
+        row["note"] = "not logged in"
+    else:
+        row["ok"] = True
+        row["note"] = "google"
+    return row
+
+
 CHECKS = {
     "ollama": check_ollama,
     "claude": check_claude,
     "hermes": check_hermes,
     "grok": check_grok,
     "openclaw": check_openclaw,
+    "agy": check_agy,
 }
 
 
@@ -294,22 +340,28 @@ def pulse(cfg=None):
     cfg = cfg if cfg is not None else load_config()
     scheduled = scheduled_agents(cfg)
     rows = []
-    for name in ("hermes", "grok", "claude", "ollama", "openclaw"):
-        raw = CHECKS[name]()
+    for name, fn in CHECKS.items():
+        raw = fn()
         raw["spend"] = spend_of(name, cfg)
         rows.append(public_row(raw))
     by_name = {r["agent"]: r for r in rows}
 
     down_scheduled = [a for a in scheduled if not by_name.get(a, {}).get("ok")]
-    dry = [r["agent"] for r in rows if r.get("quota_errors_24h")]
+    dry = [a for a in down_scheduled
+           if by_name.get(a, {}).get("quota_errors_24h")]
+    logged_out = [a for a in down_scheduled if a not in dry]
     held = [r["agent"] for r in rows if r.get("spend") == "rare"]
     spending = eligible(scheduled, cfg=cfg, rows=by_name)
-    if down_scheduled:
+    if dry:
         status = "alert"
-        summary = "scheduled dry: " + ", ".join(down_scheduled)
-    elif dry:
+        summary = "scheduled dry: " + ", ".join(dry)
+    elif logged_out:
+        status = "alert"
+        summary = "scheduled logged out: " + ", ".join(logged_out)
+    elif [r["agent"] for r in rows if r.get("quota_errors_24h")]:
         status = "warn"
-        summary = "quota-shaped errors: " + ", ".join(dry)
+        summary = "quota-shaped errors: " + ", ".join(
+            r["agent"] for r in rows if r.get("quota_errors_24h"))
     else:
         status = "pass"
         bits = [f"{a} {by_name[a].get('note') or 'ok'}" for a in spending
@@ -339,15 +391,30 @@ def publish(worker):
     return worker
 
 
+def _previous_card():
+    try:
+        old = json.loads(WORKER.read_text())
+        return old.get("status"), old.get("summary")
+    except (OSError, ValueError):
+        return None, None
+
+
 def main():
+    prev_status, prev_summary = _previous_card()
     worker, down = pulse()
     publish(worker)
-    if down:
-        ev.emit("quotas", "needs_you",
-                f"[quotas] scheduled vendor dry: {', '.join(down)} — "
-                f"top up or take them off the roster")
-    else:
-        ev.emit("quotas", "ok", f"[quotas] {worker['summary']}"[:400])
+    # Same card every five minutes is not a new emergency. The medic
+    # used to ding needs_you on a loop and the stream drowned in it.
+    same = (worker["status"] == prev_status
+            and worker["summary"] == prev_summary)
+    if not same:
+        if down:
+            why = worker["summary"]
+            ev.emit("quotas", "needs_you",
+                    f"[quotas] {why} — top up, log in, or take them "
+                    f"off the roster")
+        else:
+            ev.emit("quotas", "ok", f"[quotas] {worker['summary']}"[:400])
     print(worker["summary"])
     return 0 if worker["status"] != "alert" else 1
 

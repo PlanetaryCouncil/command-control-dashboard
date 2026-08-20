@@ -77,7 +77,7 @@ TURN_TIMEOUT = 420
 # nothing. Revisit ollama on a machine with a GPU or spare RAM — the reason to
 # want it has not changed, and it is still the only vendor-independent voice
 # available here.
-DEFAULT_AGENTS = ["hermes", "grok"]
+DEFAULT_AGENTS = ["hermes", "grok", "agy"]
 
 NOTHING = re.compile(r"\bNOTHING TO ADD\b", re.I)
 
@@ -343,6 +343,19 @@ ASK_FILE = FLEET / "data" / "council-question.md"
 ASK_MAX = 1200
 
 
+def set_question(text: str) -> str:
+    """Write the operator's question. Returns the truncated text stored.
+
+    The web server may call this from a local-only route. It must never
+    mention the file name — the airlock test greps fleet.py for it, because
+    a public route that knew the path could steer the council.
+    """
+    q = " ".join((text or "").split())[:ASK_MAX]
+    ASK_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ASK_FILE.write_text(q + "\n")
+    return q
+
+
 def operator_question() -> str:
     """The one thing in the prompt that outranks the board.
 
@@ -443,6 +456,9 @@ def board_state() -> dict:
 
     return {
         "needs_attention": " · ".join(attention) or "nothing",
+        # A new question IS a board change. Without this, asking while the
+        # workers sit still skipped the council that was meant to answer it.
+        "operator_ask": operator_question(),
         "workers": workers,
         # Read these before proposing anything. If your idea is already
         # here, say so and move on rather than deriving it again — and
@@ -483,6 +499,7 @@ def board_fingerprint(state: dict) -> str:
             b.get("branch") if isinstance(b, dict) else str(b)
             for b in state.get("unmerged_branches", [])
         ),
+        "operator_ask": state.get("operator_ask") or "",
     }
     blob = json.dumps(material, sort_keys=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()[:16]
@@ -545,6 +562,8 @@ def ask(agent: str, prompt: str, session: str) -> str:
                                  timeout=TURN_TIMEOUT)
     if agent == "grok":
         return chat.ask_grok(prompt, [], noop, timeout=TURN_TIMEOUT)
+    if agent == "agy":
+        return chat.ask_agy(prompt, [], noop, timeout=TURN_TIMEOUT)
     if agent == "ollama":
         # Bounded on purpose: see ask_ollama. ~220 tokens is three or four
         # sentences, which is the shape of a useful council turn anyway — the
@@ -851,15 +870,20 @@ def main():
         return 0
     if a.ask:
         text = sys.stdin.read() if a.ask == "-" else a.ask
-        ASK_FILE.parent.mkdir(parents=True, exist_ok=True)
-        ASK_FILE.write_text(text.strip() + "\n")
-        print(f"question set ({len(text.strip())} chars) — convening")
+        stored = set_question(text)
+        print(f"question set ({len(stored)} chars) — convening")
 
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
     import quotas
     agents = quotas.eligible(agents)
     if not agents:
         print("no eligible agents (dry or rare)"); return 0
+    import heavygate
+    # --ask is the operator on this board. That still sits here even
+    # when unattended council lives on the NUC.
+    if not heavygate.enabled() and not (a.ask or a.force or a.dry_run):
+        print("heavy work off on this machine — skipping")
+        return 0
     import pressure
     if not a.dry_run and pressure.too_hot():
         snap = pressure.snapshot()

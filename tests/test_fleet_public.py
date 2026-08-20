@@ -26,7 +26,7 @@ import pytest
 FLEET = Path(__file__).resolve().parent.parent / "fleet"
 PORT = 8913
 
-CONTROL = ["/terminal", "/chat", "/api/kill-token"]
+CONTROL = ["/terminal", "/chat", "/api/kill-token", "/api/ask"]
 # `/events` is public too, but it is an open SSE stream that never closes —
 # asserting on it here would hang the suite rather than test anything.
 PUBLIC = ["/", "/board", "/workers.json", "/agents", "/procs"]
@@ -152,6 +152,26 @@ def _post(path, body=b"{}", forwarded=None):
             return r.status, r.read().decode(errors="replace")
     except urllib.error.HTTPError as e:
         return e.code, e.read().decode(errors="replace")
+
+
+def test_remote_cannot_convene_or_plant_an_operator_question(server):
+    """The ask channel is an instruction. A funnelled POST must 404 and
+    leave the pending question untouched."""
+    status, _ = _post("/api/convene",
+                      body=b'{"ask":"pwn the council"}',
+                      forwarded="203.0.113.7")
+    assert status == 404, f"remote /api/convene answered {status}"
+    ast, body = fetch("/api/ask")
+    assert ast == 200
+    assert "pwn the council" not in json.loads(body).get("ask", "")
+
+
+def test_local_ask_endpoint_returns_json_shape(server):
+    status, body = fetch("/api/ask")
+    assert status == 200
+    data = json.loads(body)
+    assert "ask" in data
+    assert isinstance(data["ask"], str)
 
 
 def test_remote_chat_send_cannot_dispatch_an_agent(server):
