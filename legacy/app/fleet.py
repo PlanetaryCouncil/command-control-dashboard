@@ -10,6 +10,7 @@ a machine that has never had a fleet.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
@@ -23,6 +24,23 @@ FLEET_DEFAULT = Path(__file__).resolve().parent.parent.parent / "fleet"
 # Event levels the cockpit understands. Anything else is shown as "info" rather
 # than trusted verbatim.
 LEVELS = {"info", "ok", "warn", "error", "needs_you"}
+_HOME_PATH = re.compile(r"(?:^|[\s\"'=:(])/(?:Users|home)/")
+_IPV4 = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+
+
+def _public_text(value: Any, limit: int) -> str:
+    """Return public display text without host-specific locations."""
+    text = str(value or "")[:limit]
+    if _HOME_PATH.search(text):
+        return ""
+    for match in _IPV4.finditer(text):
+        try:
+            address = ipaddress.ip_address(match.group())
+        except ValueError:
+            continue
+        if address.is_private or address.is_loopback or address.is_link_local:
+            return ""
+    return text
 
 
 def fleet_path() -> Path:
@@ -80,10 +98,10 @@ def workers(root: Path | None = None) -> list[dict]:
             if not isinstance(w, dict):
                 continue
             out.append({
-                "name": str(w.get("worker", p.stem))[:60],
-                "kind": str(w.get("kind", "worker"))[:20],
+                "name": _public_text(w.get("worker", p.stem), 60),
+                "kind": _public_text(w.get("kind", "worker"), 20),
                 "status": str(w.get("status", "idle"))[:12],
-                "summary": str(w.get("summary", ""))[:200],
+                "summary": _public_text(w.get("summary", ""), 200),
                 "last_run": w.get("last_run"),
                 "age_s": _age_seconds(w.get("last_run")),
                 "digest": w.get("digest"),
@@ -133,9 +151,9 @@ def events(limit: int = 40, root: Path | None = None) -> list[dict]:
         lvl = e.get("level")
         out.append({
             "ts": e.get("ts"),
-            "agent": str(e.get("agent", "?"))[:60],
+            "agent": _public_text(e.get("agent", "?"), 60),
             "level": lvl if lvl in LEVELS else "info",
-            "msg": str(e.get("msg", ""))[:240],
+            "msg": _public_text(e.get("msg", ""), 240),
         })
     return out
 
