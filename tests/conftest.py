@@ -6,7 +6,7 @@ from app import main, ratelimit
 
 # Every path main.py writes through. Missing one means tests mutate real data.
 WRITE_PATHS = ("DATA_PATH", "INBOX_PATH", "HORIZONS_PATH", "EVENTS_PATH",
-               "TRUSTED_NODES_PATH", "CONFLICTS_PATH")
+               "BRAINFARTS_PATH", "TRUSTED_NODES_PATH", "CONFLICTS_PATH")
 
 
 @pytest.fixture(autouse=True)

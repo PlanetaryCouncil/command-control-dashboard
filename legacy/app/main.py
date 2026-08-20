@@ -33,6 +33,7 @@ PAIRING_PATH = Path(os.environ.get("PAIRING_JSON", ROOT / "data" / "pairing.json
 OPLOG_DIR = Path(os.environ.get("OPLOG_DIR", ROOT / "data" / "oplog"))
 CONFLICTS_PATH = Path(os.environ.get("SYNC_CONFLICTS_JSON", ROOT / "data" / "sync_conflicts.json"))
 EVENTS_PATH = Path(os.environ.get("EVENTS_JSONL", ROOT / "data" / "events.jsonl"))
+BRAINFARTS_PATH = Path(os.environ.get("BRAINFARTS_JSONL", ROOT / "data" / "brainfarts.jsonl"))
 INBOX_DIR = Path(os.environ.get("INBOX_DIR", ROOT / "data" / "inbox"))
 MAX_UPLOAD_BYTES = int(os.environ.get("MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".heic", ".bmp"}
@@ -762,6 +763,26 @@ def api_events(limit: int = 50) -> dict:
         except json.JSONDecodeError:
             continue  # truncated tail from a crash — skip, don't fail the read
     return {"events": list(reversed(events))}
+
+
+@app.get("/brainfarts.json")
+def brainfarts() -> list:
+    """The fleet's log of confidently-wrong AI output.
+
+    One JSON object per line on disk; served as an array so a visitor or
+    the brainfarts site can draw from it without parsing JSONL. A missing
+    file is an empty feed, not an error — the log starts empty on a fresh
+    clone. Truncated tails are skipped, same as /api/events.
+    """
+    if not BRAINFARTS_PATH.exists():
+        return []
+    out = []
+    for line in BRAINFARTS_PATH.read_text(errors="replace").splitlines():
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return out
 
 
 # ============ FILE INBOX ============

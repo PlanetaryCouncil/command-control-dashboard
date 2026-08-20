@@ -632,7 +632,7 @@ COCKPIT = "http://127.0.0.1:8770"
 FORWARD_EXACT = {
     "/auth", "/about", "/moderation", "/boot", "/llms.txt", "/health",
     "/api/dashboard", "/api/signals", "/api/pair", "/api/fleet",
-    "/api/approvals", "/legacy-green-cockpit",
+    "/api/approvals", "/legacy-green-cockpit", "/brainfarts.json",
 }
 FORWARD_PREFIX = ("/api/signals/", "/api/approvals/", "/api/projects",
                   "/api/handoffs", "/api/artifacts", "/api/events")
