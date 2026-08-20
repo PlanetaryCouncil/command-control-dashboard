@@ -89,6 +89,31 @@ def test_api_fleet_does_not_publish_the_install_path(monkeypatch, tmp_path):
     assert str(tmp_path) not in json.dumps(body)
 
 
+def test_api_fleet_sanitizes_worker_and_event_host_details(monkeypatch, tmp_path):
+    root = _make_fleet(
+        tmp_path,
+        workers=[{
+            "worker": "private-worker",
+            "status": "pass",
+            "summary": "repo at /Users/operator/private/project",
+        }],
+        events=[{
+            "ts": "2026-08-20T00:00:00+00:00",
+            "agent": "private-worker",
+            "level": "needs_you",
+            "msg": "node 192.168.1.23 needs attention",
+        }],
+    )
+    monkeypatch.setenv("FLEET_PATH", str(root))
+    body = client.get("/api/fleet").json()
+    blob = json.dumps(body)
+    assert "/Users/" not in blob
+    assert "192.168.1.23" not in blob
+    assert body["workers"][0]["summary"] == ""
+    assert body["events"][0]["msg"] == ""
+    assert body["blocked"][0]["msg"] == ""
+
+
 def test_api_dashboard_contract_unchanged():
     """Agents read /api/dashboard; merging the fleet must not alter it."""
     assert "fleet" not in client.get("/api/dashboard").json()
