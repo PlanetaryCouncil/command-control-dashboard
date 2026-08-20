@@ -77,6 +77,24 @@ def test_stale_on_disk_card_is_stripped_at_load():
     assert "desktop" in blob
 
 
+def test_every_worker_field_is_sanitized_before_publication():
+    spec = importlib.util.spec_from_file_location(
+        "fleetboard_public_fields", BIN / "fleet.py")
+    fleetboard = importlib.util.module_from_spec(spec)
+    sys.modules["fleetboard_public_fields"] = fleetboard
+    spec.loader.exec_module(fleetboard)
+    dirty = {
+        "worker": "old-writer",
+        "target": "/Users/operator/private/repo",
+        "summary": "reachable at 192.168.1.23",
+        "detail": json.dumps({"nested": "/home/operator/secret"}),
+    }
+    blob = json.dumps(fleetboard.sanitize_worker(dirty))
+    assert "/Users/" not in blob
+    assert "/home/" not in blob
+    assert "192.168.1.23" not in blob
+
+
 def test_publish_creates_the_workers_dir(tmp_path):
     rep = nuc_bridge.public_report(False, unreachable="ssh failed")
     worker = nuc_bridge.publish(rep, fleet=tmp_path)

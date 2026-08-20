@@ -204,3 +204,10 @@ def test_processes_redact_command_lines_for_a_remote_caller(server):
         assert '"cmd_full"' in local, "the operator lost the full command locally"
     else:
         assert loc.get("machine"), "the local view lost its machine block too"
+
+
+def test_processes_redact_machine_paths_for_a_remote_caller(server):
+    status, body = fetch("/api/processes", forwarded="203.0.113.7")
+    assert status == 200
+    remote = json.loads(body)
+    assert "path" not in remote.get("machine", {}).get("disk", {})

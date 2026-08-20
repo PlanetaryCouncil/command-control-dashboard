@@ -81,6 +81,14 @@ def test_api_fleet_endpoint_shape():
     assert set(body["counts"]) == {"total", "healthy", "attention"}
 
 
+def test_api_fleet_does_not_publish_the_install_path(monkeypatch, tmp_path):
+    root = _make_fleet(tmp_path)
+    monkeypatch.setenv("FLEET_PATH", str(root))
+    body = client.get("/api/fleet").json()
+    assert body["path"] == "fleet"
+    assert str(tmp_path) not in json.dumps(body)
+
+
 def test_api_dashboard_contract_unchanged():
     """Agents read /api/dashboard; merging the fleet must not alter it."""
     assert "fleet" not in client.get("/api/dashboard").json()

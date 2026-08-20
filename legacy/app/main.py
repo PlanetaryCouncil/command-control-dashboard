@@ -494,7 +494,8 @@ def auth_doc() -> str:
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "data_file": str(DATA_PATH), "exists": DATA_PATH.exists()}
+    # Health is public; expose the logical file, never the host install path.
+    return {"ok": True, "data_file": DATA_PATH.name, "exists": DATA_PATH.exists()}
 
 
 @app.get("/api/dashboard")

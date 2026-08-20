@@ -14,6 +14,8 @@ def test_health():
     body = client.get("/health").json()
     assert body["ok"] is True
     assert body["exists"] is True
+    assert body["data_file"] == "life.json"
+    assert "/" not in body["data_file"]
 
 
 def test_focus_score_uses_spec_weights():

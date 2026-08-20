@@ -10,6 +10,7 @@ so adding a worker to the board means adding a worker, not editing this file.
 
 import hashlib
 import html
+import ipaddress
 import json
 import os
 import re
@@ -197,28 +198,52 @@ def load_self_improve():
     }
 
 
+_PUBLIC_HOME_PATH = re.compile(r"(?:^|[\s\"'=:(])/(?:Users|home)/")
+_PUBLIC_IPV4 = re.compile(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])")
+
+
+def _sanitize_public_value(value):
+    """Remove install-specific locations and private addresses recursively."""
+    if isinstance(value, dict):
+        return {k: _sanitize_public_value(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_sanitize_public_value(v) for v in value]
+    if isinstance(value, tuple):
+        return tuple(_sanitize_public_value(v) for v in value)
+    if not isinstance(value, str):
+        return value
+    if _PUBLIC_HOME_PATH.search(value):
+        return ""
+    for match in _PUBLIC_IPV4.finditer(value):
+        try:
+            address = ipaddress.ip_address(match.group())
+        except ValueError:
+            continue
+        if address.is_private or address.is_loopback or address.is_link_local:
+            return ""
+    return value
+
+
 def sanitize_worker(w):
     """Drop home paths and shot filenames from a worker card before it is
     served. Writers can be stale; /workers.json is public."""
     w = dict(w)
     detail = w.get("detail")
-    if not isinstance(detail, str) or not detail:
-        return w
-    try:
-        parsed = json.loads(detail)
-    except json.JSONDecodeError:
-        if "/home/" in detail or "/Users/" in detail:
-            w["detail"] = ""
-        return w
-    if isinstance(parsed, dict):
-        cleaned = []
-        for row in parsed.get("results") or []:
-            if not isinstance(row, dict):
-                continue
-            cleaned.append({k: v for k, v in row.items() if k != "shot"})
-        parsed["results"] = cleaned
-        w["detail"] = json.dumps(parsed, indent=2)
-    return w
+    if isinstance(detail, str) and detail:
+        try:
+            parsed = json.loads(detail)
+        except json.JSONDecodeError:
+            pass
+        else:
+            if isinstance(parsed, dict):
+                cleaned = []
+                for row in parsed.get("results") or []:
+                    if not isinstance(row, dict):
+                        continue
+                    cleaned.append({k: v for k, v in row.items() if k != "shot"})
+                parsed["results"] = cleaned
+                w["detail"] = json.dumps(parsed, indent=2)
+    return _sanitize_public_value(w)
 
 
 def load_workers():
@@ -638,11 +663,21 @@ def _redact_processes(snap):
     safe = ("pid", "label", "agent", "elapsed", "cpu", "mem", "rss_mb",
             "is_self", "kind")
     clean = lambda p: {k: p[k] for k in safe if k in p}
-    out = dict(snap)
-    out["fleet"] = [clean(p) for p in snap.get("fleet", [])]
-    out["external"] = [clean(p) for p in snap.get("external", [])]
-    out["heavies"] = [clean(p) for p in snap.get("heavies", [])]
-    return out
+    machine_safe = ("cores", "load1", "load5", "load15", "per_core",
+                    "state", "gate", "compressor_gb")
+    disk_safe = ("total_gb", "used_gb", "free_gb", "used_pct", "tight",
+                 "alert")
+    source_machine = snap.get("machine") or {}
+    machine = {k: source_machine[k] for k in machine_safe if k in source_machine}
+    source_disk = source_machine.get("disk") or {}
+    machine["disk"] = {k: source_disk[k] for k in disk_safe if k in source_disk}
+    return {
+        "fleet": [clean(p) for p in snap.get("fleet", [])],
+        "external": [clean(p) for p in snap.get("external", [])],
+        "heavies": [clean(p) for p in snap.get("heavies", [])],
+        "killable": snap.get("killable", 0),
+        "machine": machine,
+    }
 
 
 def start_legacy_cockpit(port=8770):
