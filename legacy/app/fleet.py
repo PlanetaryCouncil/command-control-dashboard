@@ -161,7 +161,9 @@ def snapshot(root: Path | None = None) -> dict:
     ws = workers(root=root)
     return {
         "present": root.is_dir(),
-        "path": str(root),
+        # This payload is public. The absolute install path identifies the
+        # operator account and host layout without helping a remote reader.
+        "path": root.name or "fleet",
         "workers": ws,
         "events": evts,
         "blocked": blocked(evts),
