@@ -3,6 +3,19 @@
 What changed, what broke, and what it cost — written for Mars coming back from
 somewhere, and for whoever else is reading.
 
+Three cheap piles. Do not mix them.
+
+| Pile | Where | What it is |
+|---|---|---|
+| **git log** | `git log` | commits |
+| **session / prompt log** | dated `*session.md` in this folder | the story of a sitting |
+| **handoff** | `handoff-YYYY-MM-DD.md` in this folder | the bag for the next chat |
+
+When the window fills: write a new dated handoff, add one row below, `/flush`,
+`/new`. Do not append forever. Zero think.
+
+**Current bag:** [handoff 21 Aug 2026](handoff-2026-08-21.md).
+
 ---
 
 ## What changed most recently
@@ -36,6 +49,7 @@ guesses nobody has tested yet.
 
 | Period | Report | Headline |
 |---|---|---|
+| 21 Aug 2026 | [handoff](handoff-2026-08-21.md) | Hub is the porch; NUC/Gaia get names; next chat starts here. |
 | 18–19 Aug 2026 | [session log](2026-08-18--2026-08-19-session.md) | 26 commits: the watchdog that had never loaded, and which model to ask. |
 | 9–18 Aug 2026 | [2026-08-09--2026-08-18.md](2026-08-09--2026-08-18.md) | The NUC was frozen the whole time and the board showed it green. |
 
