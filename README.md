@@ -3,6 +3,13 @@
 A transparent cockpit for one person and their AI agents — plus the fleet of
 agents that runs alongside it, watches the code, and improves its own tooling.
 
+New agents: start with `AGENTS.md`; it gives the minimal loading order and
+communication contract.
+
+```bash
+python3 fleet/bin/brief.py   # live state + newest handoff, one context packet
+```
+
 Everything served here is meant to be readable by anyone. There is no private
 half, no login wall, no hidden tier. That is deliberate, and it has one hard
 consequence:
