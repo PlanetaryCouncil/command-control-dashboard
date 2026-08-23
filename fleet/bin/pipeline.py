@@ -141,11 +141,16 @@ def is_waiting(prop: dict, seen: dict | None = None) -> bool:
 def latest_for(key: str, done: dict | None = None) -> dict | None:
     """Match a build.txt stamp (16–19 chars) to the latest pipeline row."""
     done = by_proposal() if done is None else done
+    key = str(key)
     if key in done:
         return done[key]
-    prefix = str(key)[:16]
-    return next((v for k, v in done.items() if str(k).startswith(prefix)),
-                None)
+    # Current build stamps carry seconds but omit the ledger's timezone.
+    # Preserve those seconds: two proposals can legitimately share a minute.
+    if len(key) > 16:
+        return next((v for k, v in done.items() if str(k).startswith(key)),
+                    None)
+    # Sixteen-character stamps predate second precision.
+    return next((v for k, v in done.items() if str(k).startswith(key)), None)
 
 
 def already_built(key: str, done: dict | None = None) -> bool:

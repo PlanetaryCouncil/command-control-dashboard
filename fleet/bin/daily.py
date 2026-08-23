@@ -64,13 +64,12 @@ def landed() -> list[str]:
     history with GitHub, so `git log main` reported zero landings the
     morning after brainfarts was pushed to origin/main.
     """
-    for ref in ("origin/main", "main"):
-        out = _run(["git", "log", "--since", f"{WINDOW_H} hours ago",
-                    "--no-merges", "--pretty=%s", ref])
-        lines = [l for l in out.splitlines() if l.strip()]
-        if lines:
-            return lines[:12]
-    return []
+    remote = _run(["git", "rev-parse", "--verify", "--quiet",
+                   "refs/remotes/origin/main"])
+    ref = "origin/main" if remote else "main"
+    out = _run(["git", "log", "--since", f"{WINDOW_H} hours ago",
+                "--no-merges", "--pretty=%s", ref])
+    return [line for line in out.splitlines() if line.strip()][:12]
 
 
 def pipeline_state() -> tuple[list[str], list[str]]:

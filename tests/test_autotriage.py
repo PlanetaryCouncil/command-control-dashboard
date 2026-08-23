@@ -247,6 +247,15 @@ def test_already_built_skips_drop_not_reopen():
     assert pipeline.already_built("2026-08-07T16:00", done) is False
 
 
+def test_already_built_preserves_seconds_when_proposals_share_a_minute():
+    done = {
+        "2026-08-07T13:00:05+00:00": {"stage": "land"},
+        "2026-08-07T13:00:45+00:00": {"stage": "reopen"},
+    }
+    assert pipeline.already_built("2026-08-07T13:00:05", done) is True
+    assert pipeline.already_built("2026-08-07T13:00:45", done) is False
+
+
 def test_stale_proposals_drop_without_a_model(pile, monkeypatch):
     from datetime import datetime, timedelta, timezone
     monkeypatch.setattr(autotriage, "ask_cheap", lambda p: (_ for _ in ()).throw(

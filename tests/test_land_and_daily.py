@@ -152,6 +152,22 @@ def test_daily_pipeline_state_uses_the_latest_row(tmp_path, monkeypatch):
     assert not any("brainfarts" in s for s in stuck)
 
 
+def test_daily_does_not_report_local_commits_when_remote_is_quiet(monkeypatch):
+    import daily
+
+    calls = []
+
+    def fake_run(cmd, cwd=daily.REPO):
+        calls.append(cmd)
+        if "rev-parse" in cmd:
+            return "remote-sha"
+        return ""
+
+    monkeypatch.setattr(daily, "_run", fake_run)
+    assert daily.landed() == []
+    assert not any(cmd[-1] == "main" for cmd in calls if cmd[:2] == ["git", "log"])
+
+
 def test_daily_report_is_short_and_has_the_sections():
     import daily
     txt = daily.report()
