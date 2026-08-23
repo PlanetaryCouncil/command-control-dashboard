@@ -194,37 +194,100 @@ def _session_id():
     return sid, False
 
 
+def telegram_agent() -> str:
+    """Who answers free text. Claude is logged out on the NUC; a line
+    that still calls it is a stale-session then an empty --print.
+
+    Plenty vendors first (grok, hermes). Override with
+    FLEET_TELEGRAM_AGENT.
+    """
+    who = (os.environ.get("FLEET_TELEGRAM_AGENT") or "").strip()
+    if who:
+        return who
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import quotas
+        live = quotas.eligible(["grok", "hermes", "claude"])
+        if live:
+            return live[0]
+    except Exception:
+        pass
+    return "grok"
+
+
+def _run(cmd, timeout, cwd=None, stdin_text=None):
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=timeout, cwd=cwd or str(FLEET.parent),
+                           input=stdin_text)
+    except subprocess.TimeoutExpired:
+        return "", f"timed out after {timeout // 60} min. still running? check /procs."
+    return (p.stdout or "").strip(), (p.stderr or "").strip()
+
+
+def _dispatch_claude(text, timeout, retried=False):
+    """Prompt on stdin. A trailing positional used to vanish into
+    `--allowedTools Bash Read Edit...` so --print had no input
+    (2026-08-21: 'Input must be provided either through stdin or as
+    a prompt argument'). Tools are one comma-separated value.
+    """
+    sid, resuming = _session_id()
+    cmd = ["claude", "--print",
+           "--resume" if resuming else "--session-id", sid,
+           "--permission-mode", "acceptEdits",
+           "--allowedTools", ",".join(TOOLS),
+           "--add-dir", str(FLEET.parent)]
+    out, err = _run(cmd, timeout, stdin_text=text)
+    if out:
+        return out
+    if "session" in err.lower() and resuming and not retried:
+        try:
+            SESSION.unlink()
+        except OSError:
+            pass
+        return _dispatch_claude(text, timeout, retried=True)
+    if err:
+        return f"(no output)\n{err[:400]}"
+    return "(no output)"
+
+
+def _dispatch_grok(text, timeout):
+    prompt = (
+        "You are the operator's telegram line to this fleet. "
+        "Do what they asked. Be short. Working copy: "
+        f"{FLEET.parent}\n\n{text}"
+    )
+    cmd = ["grok", "-p", prompt, "--output-format", "plain",
+           "--always-approve", "--cwd", str(FLEET.parent)]
+    out, err = _run(cmd, timeout)
+    return out or (f"(no output)\n{err[:400]}" if err else "(no output)")
+
+
+def _dispatch_hermes(text, timeout):
+    prompt = (
+        "You are the operator's telegram line to this fleet. "
+        "Answer in a few short lines.\n\n" + text
+    )
+    out, err = _run(["hermes", "-z", prompt], timeout)
+    return out or (f"(no output)\n{err[:400]}" if err else "(no output)")
+
+
 def dispatch(text, timeout=900):
-    """Free text goes to the agent, in a conversation that remembers.
+    """Free text goes to a live agent.
 
     Only reachable after the allowlist check, so the sender is the operator and
     the text is an instruction rather than untrusted input. That distinction is
     the whole reason the allowlist is not optional — and the reason this may
     hold real tools.
     """
-    sid, resuming = _session_id()
-    cmd = ["claude", "--print",
-           "--resume" if resuming else "--session-id", sid,
-           "--permission-mode", "acceptEdits",
-           "--allowedTools", *TOOLS,
-           "--add-dir", str(FLEET.parent)]
-    try:
-        p = subprocess.run(cmd + [text], capture_output=True, text=True,
-                           timeout=timeout, cwd=str(FLEET.parent))
-    except subprocess.TimeoutExpired:
-        return f"timed out after {timeout // 60} min. still running? check /procs."
-    out = (p.stdout or "").strip()
-    if not out:
-        err = (p.stderr or "").strip()[:400]
-        # A dead session id must not wedge the line permanently.
-        if "session" in err.lower() and resuming:
-            try:
-                SESSION.unlink()
-            except OSError:
-                pass
-            return f"session was stale — cleared it, send that again.\n{err}"
-        return f"(no output){chr(10) + err if err else ''}"
-    return out
+    who = telegram_agent()
+    if who == "claude":
+        return _dispatch_claude(text, timeout)
+    if who == "grok":
+        return _dispatch_grok(text, timeout)
+    if who == "hermes":
+        return _dispatch_hermes(text, timeout)
+    return f"[unknown telegram agent {who}]"
 
 
 def handle(text):

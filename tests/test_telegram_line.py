@@ -107,6 +107,45 @@ def test_long_replies_are_truncated_not_dropped(monkeypatch):
     assert captured["text"].endswith("(truncated)")
 
 
+def test_claude_dispatch_puts_the_prompt_on_stdin(monkeypatch, tmp_path):
+    """`--allowedTools Bash Read Edit` ate the prompt. stdin cannot."""
+    monkeypatch.setattr(telegram, "SESSION", tmp_path / "sid")
+    seen = {}
+
+    def fake_run(cmd, timeout, cwd=None, stdin_text=None):
+        seen["cmd"] = cmd
+        seen["stdin"] = stdin_text
+        return "ok", ""
+
+    monkeypatch.setattr(telegram, "_run", fake_run)
+    monkeypatch.setattr(telegram, "telegram_agent", lambda: "claude")
+    assert telegram.dispatch("triage the pile") == "ok"
+    assert seen["stdin"] == "triage the pile"
+    tools = [a for i, a in enumerate(seen["cmd"])
+             if i and seen["cmd"][i - 1] == "--allowedTools"]
+    assert tools == [",".join(telegram.TOOLS)]
+    assert "triage the pile" not in seen["cmd"]
+
+
+def test_stale_claude_session_retries_the_same_text(monkeypatch, tmp_path):
+    sid = tmp_path / "sid"
+    sid.write_text("dead-session-id\n")
+    monkeypatch.setattr(telegram, "SESSION", sid)
+    calls = []
+
+    def fake_run(cmd, timeout, cwd=None, stdin_text=None):
+        calls.append(stdin_text)
+        if "--resume" in cmd:
+            return "", "No conversation found with session ID: dead-session-id"
+        return "triaged 40", ""
+
+    monkeypatch.setattr(telegram, "_run", fake_run)
+    monkeypatch.setattr(telegram, "telegram_agent", lambda: "claude")
+    assert telegram.dispatch("127 proposals?") == "triaged 40"
+    assert calls == ["127 proposals?", "127 proposals?"]
+    assert sid.read_text().strip() != "dead-session-id"
+
+
 def test_config_path_is_outside_the_repo():
     """A repo that has ever contained a bot token has a burned token."""
     repo = Path(__file__).resolve().parent.parent

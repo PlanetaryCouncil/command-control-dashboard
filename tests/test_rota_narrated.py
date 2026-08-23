@@ -39,6 +39,15 @@ def test_the_three_observed_narrations_are_caught():
         assert rota.narrated(text), text
 
 
+def test_stderr_quota_dump_is_a_harness_failure():
+    assert rota.harness_failed(
+        "[stderr] Error: Individual quota reached. Please upgrade")
+    assert rota.harness_failed("[error] boom")
+    assert rota.harness_failed("[timed out after 180s; no output]")
+    assert not rota.harness_failed(
+        "Write static/basex/index.html as a one-page explainer")
+
+
 def test_a_real_proposal_is_not_narration():
     real = (
         "Stagger heavyweight runs when the fleet is active. The sweep and the "

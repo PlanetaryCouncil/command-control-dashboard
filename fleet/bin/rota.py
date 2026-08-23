@@ -174,6 +174,15 @@ def narrated(out: str) -> bool:
     return any(p in head for p in NARRATION)
 
 
+def harness_failed(out: str) -> bool:
+    """CLI wrappers and quota dumps are not proposals."""
+    s = str(out).strip()
+    if s.startswith(("[timed out", "[error", "[unknown agent", "[stderr]")):
+        return True
+    low = s.lower()
+    return "quota reached" in low or "out of credits" in low
+
+
 def ask(agent: str, prompt: str, session: str) -> str:
     noop = lambda *a: None
     if agent == "claude":
@@ -263,8 +272,10 @@ def main() -> int:
     secs = round(time.time() - t0, 1)
 
     # A harness failure is not a contribution — same distinction the relay had to
-    # learn, where a timeout was recorded as the agent's answer.
-    failed = out.strip().startswith(("[timed out", "[error", "[unknown agent"))
+    # learn, where a timeout was recorded as the agent's answer. `[stderr]`
+    # is chat.run_cmd wrapping a CLI that printed nothing to stdout
+    # (agy quota-reached, 2026-08-21 — filed as proposed until this check).
+    failed = harness_failed(out)
     nothing = "NOTHING TO ADD" in out.upper() and len(out.strip()) < 400
     unusable = not failed and not nothing and narrated(out)
 
