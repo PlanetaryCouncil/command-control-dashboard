@@ -16,6 +16,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "fleet" / "bin")
 import quotas  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def isolated_capacity_state(monkeypatch, tmp_path):
+    """A real provider reading must never steer a unit test."""
+    monkeypatch.setattr(quotas, "CAPACITY", tmp_path / "quota-capacity.json")
+
+
 def _ts(hours_ago=0):
     t = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
     return t.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -117,6 +123,24 @@ def test_eligible_without_a_pulse_still_holds_rare():
     assert quotas.eligible(["claude", "grok"], cfg=cfg, rows={}) == ["grok"]
 
 
+def test_quota_reached_is_a_failure_shape():
+    assert quotas.QUOTA_RE.search("Individual quota reached. Resets in 104h")
+
+
+def test_hermes_custom_endpoint_is_logged_in(monkeypatch):
+    monkeypatch.setattr(quotas.chat, "_agent_ready", lambda n: True)
+    monkeypatch.setattr(quotas, "recent_quota_hits", lambda *a, **k: 0)
+    out = ("Model:        llama3.2:3b\n"
+           "Provider:     Custom endpoint\n"
+           "Nous Portal   ✗ not logged in\n"
+           "OpenAI Codex  ✗ not logged in (run: hermes model)\n")
+    monkeypatch.setattr(quotas, "run", lambda *a, **k: (0, out))
+    row = quotas.check_hermes()
+    assert row["ok"] is True
+    assert row["auth"] == "logged-in"
+    assert row["note"] == "custom endpoint"
+
+
 def test_hermes_codex_checkmark_is_logged_in(monkeypatch):
     """'not logged in' contains the letters 'logged in'. Nous being
     out must not make Codex look in, and the checkmark is the bit
@@ -176,3 +200,80 @@ def test_scheduled_agents_come_from_config_and_builder(monkeypatch):
         "rota": {"agents": ["grok"]},
     })
     assert got == ["hermes", "grok"]
+
+
+def test_capacity_flows_from_fresh_observations(monkeypatch):
+    fixed = datetime(2026, 8, 23, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(quotas, "now", lambda: fixed)
+    cfg = {"quotas": {"reserve_below_pct": 10,
+                       "harvest_within_hours": 24}}
+    base = {"observed_at": "2026-08-23T11:00:00Z"}
+    observations = {
+        "roots": {**base, "remaining_pct": 5,
+                  "reset_at": "2026-08-28T12:00:00Z"},
+        "fruit": {**base, "remaining_pct": 40,
+                  "reset_at": "2026-08-23T20:00:00Z"},
+        "stem": {**base, "remaining_pct": 70,
+                 "reset_at": "2026-08-26T12:00:00Z"},
+    }
+    assert quotas.capacity_fields("roots", observations, cfg)["flow"] == "reserve"
+    assert quotas.capacity_fields("fruit", observations, cfg)["flow"] == "harvest"
+    assert quotas.capacity_fields("stem", observations, cfg)["flow"] == "spend"
+
+
+def test_stale_capacity_never_overrides_manual_policy(monkeypatch):
+    fixed = datetime(2026, 8, 23, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(quotas, "now", lambda: fixed)
+    obs = {"grok": {"remaining_pct": 90,
+                    "observed_at": "2026-08-20T00:00:00Z",
+                    "reset_at": "2026-08-24T00:00:00Z"}}
+    row = quotas.capacity_fields("grok", obs, {"quotas": {}})
+    assert row["flow"] == "stale"
+    cfg = {"quotas": {"spend": {"grok": "rare"}}}
+    assert quotas.effective_spend("grok", row, cfg) == "rare"
+
+
+def test_past_reset_invalidates_the_old_balance(monkeypatch):
+    fixed = datetime(2026, 8, 23, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(quotas, "now", lambda: fixed)
+    obs = {"grok": {"remaining_pct": 80,
+                    "observed_at": "2026-08-23T10:00:00Z",
+                    "reset_at": "2026-08-23T11:00:00Z"}}
+    row = quotas.capacity_fields("grok", obs, {"quotas": {}})
+    assert row["flow"] == "stale"
+    assert row["reset_hours"] == 0
+
+
+def test_naive_reset_time_is_treated_as_utc():
+    assert quotas.parse_time("2026-08-23T12:00:00").tzinfo == timezone.utc
+
+
+def test_harvest_capacity_moves_to_front_and_reserve_is_held():
+    cfg = {"quotas": {"spend": {"grok": "rare", "hermes": "plenty",
+                                  "claude": "plenty"}}}
+    rows = {
+        "grok": {"ok": True, "flow": "harvest",
+                 "required_burn_pct_per_hour": 8},
+        "hermes": {"ok": True, "flow": "spend",
+                   "required_burn_pct_per_hour": 1},
+        "claude": {"ok": True, "flow": "reserve"},
+    }
+    assert quotas.eligible(["hermes", "grok", "claude"], cfg, rows) \
+        == ["grok", "hermes"]
+
+
+def test_exhausted_capacity_is_not_routed_even_when_login_is_healthy():
+    rows = {"grok": {"ok": True, "flow": "exhausted"},
+            "hermes": {"ok": True, "flow": "spend"}}
+    assert quotas.eligible(["grok", "hermes"], rows=rows, cfg={}) == ["hermes"]
+
+
+def test_observation_is_local_atomic_state(monkeypatch, tmp_path):
+    monkeypatch.setattr(quotas, "CAPACITY", tmp_path / "quota-capacity.json")
+    fixed = datetime(2026, 8, 23, 12, tzinfo=timezone.utc)
+    monkeypatch.setattr(quotas, "now", lambda: fixed)
+    got = quotas.save_observation("grok", 37,
+                                  fixed + timedelta(hours=10), "usage command")
+    assert got["remaining_pct"] == 37
+    assert got["reset_at"] == "2026-08-23T22:00:00Z"
+    assert quotas.load_capacity()["grok"]["source"] == "usage command"

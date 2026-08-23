@@ -63,3 +63,21 @@ launchctl unload ~/Library/LaunchAgents/re.genesis.watchdogs.plist      # stop c
 ```
 
 Logs are in `logs/` (last 20 runs per project); failure digests in `digests/`.
+
+## Quota flow
+
+The quota pulse does not spend a model turn to measure a model. Login and
+quota-shaped errors are automatic; remaining percentages and reset times are
+recorded from a provider's own `/usage` command or UI:
+
+```bash
+python3 bin/quotas.py observe grok 37 --resets-in-hours 10 --source usage-command
+python3 bin/quotas.py observe claude 8 --resets-at 2026-08-28T12:00:00Z
+```
+
+Observations live in ignored per-machine state, never in git. Fresh readings
+create four routing states: `spend`, `harvest` (unused capacity near reset),
+`reserve`, and `exhausted`. A stale or missing reading is `unknown` and falls
+back to the conservative `plenty`/`rare` table in `config.json`; it never
+silently guesses that credits exist. The public quota card contains percentage
+and reset timing, but no account identity, credential, or token.

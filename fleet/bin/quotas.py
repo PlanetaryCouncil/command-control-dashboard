@@ -10,6 +10,7 @@ No emails, home paths, or tokens in the card — /workers.json is public.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -40,15 +41,17 @@ HERMES_CODEX_RE = re.compile(
 # error/warn/needs_you. Never a completion to find this out.
 QUOTA_RE = re.compile(
     r"out of credits|credits? (exhausted|exceeded)|"
-    r"insufficient[_ ]quota|quota exceeded|"
+    r"insufficient[_ ]quota|quota (exceeded|reached)|"
     r"rate.?limit(ed| exceed)|HTTP[ /]?429|"
     r"billing (denied|error)|usage.?limit exceeded",
     re.I,
 )
+HERMES_CUSTOM_RE = re.compile(r"Provider:\s+Custom endpoint", re.I)
 ERROR_LEVELS = {"error", "warn", "needs_you"}
 CONFIG = FLEET / "config.json"
 EVENTS = FLEET / "events.jsonl"
 WORKER = FLEET / "workers" / "quotas.json"
+CAPACITY = FLEET / "state" / "quota-capacity.json"
 GROK_AUTH = Path.home() / ".grok" / "auth.json"
 OLLAMA = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 
@@ -79,6 +82,92 @@ def load_config():
         return json.loads(CONFIG.read_text())
     except (OSError, ValueError):
         return {}
+
+
+def parse_time(value):
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
+
+
+def load_capacity():
+    """Human/tool observations, kept per machine and never inferred from login."""
+    try:
+        data = json.loads(CAPACITY.read_text())
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_observation(agent, remaining_pct, reset_at=None, source="manual"):
+    """Record what a provider UI/command actually said without spending a turn."""
+    data = load_capacity()
+    data[agent] = {
+        "remaining_pct": max(0.0, min(100.0, float(remaining_pct))),
+        "observed_at": iso(),
+        "reset_at": iso(reset_at) if reset_at else None,
+        "source": str(source)[:40],
+    }
+    CAPACITY.parent.mkdir(parents=True, exist_ok=True)
+    tmp = CAPACITY.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+    tmp.replace(CAPACITY)
+    return data[agent]
+
+
+def capacity_policy(cfg=None):
+    q = (cfg or {}).get("quotas") or {}
+    return {
+        "max_age_hours": float(q.get("observation_max_age_hours", 48)),
+        "reserve_below_pct": float(q.get("reserve_below_pct", 10)),
+        "harvest_within_hours": float(q.get("harvest_within_hours", 24)),
+    }
+
+
+def capacity_fields(agent, observations=None, cfg=None):
+    """Turn an observation into a flow state; stale data never steers routing."""
+    observations = load_capacity() if observations is None else observations
+    obs = observations.get(agent)
+    if not isinstance(obs, dict):
+        return {"flow": "unknown"}
+    try:
+        remaining = max(0.0, min(100.0, float(obs["remaining_pct"])))
+    except (KeyError, TypeError, ValueError):
+        return {"flow": "unknown"}
+    observed = parse_time(obs.get("observed_at"))
+    policy = capacity_policy(cfg)
+    age_h = ((now() - observed).total_seconds() / 3600) if observed else None
+    if age_h is None or age_h > policy["max_age_hours"]:
+        return {"flow": "stale", "remaining_pct": remaining,
+                "observed_at": obs.get("observed_at")}
+    reset = parse_time(obs.get("reset_at"))
+    reset_h = (reset - now()).total_seconds() / 3600 if reset else None
+    # The old percentage describes the window that just ended. Once reset has
+    # passed, the new balance is unknown until observed; never keep harvesting
+    # a historical allowance.
+    if reset_h is not None and reset_h <= 0:
+        return {"flow": "stale", "remaining_pct": remaining,
+                "observed_at": obs.get("observed_at"),
+                "reset_at": iso(reset), "reset_hours": 0.0}
+    if remaining <= 0:
+        flow = "exhausted"
+    elif reset_h is not None and reset_h <= policy["harvest_within_hours"]:
+        flow = "harvest"
+    elif remaining <= policy["reserve_below_pct"]:
+        flow = "reserve"
+    else:
+        flow = "spend"
+    out = {"flow": flow, "remaining_pct": round(remaining, 1),
+           "observed_at": obs.get("observed_at")}
+    if reset:
+        out["reset_at"] = iso(reset)
+        out["reset_hours"] = round(reset_h, 1)
+        out["required_burn_pct_per_hour"] = round(remaining / max(reset_h, .25), 2)
+    return out
 
 
 def run(cmd, timeout=PROBE_TIMEOUT):
@@ -194,14 +283,22 @@ def check_hermes():
         row["ok"] = True
         row["note"] = "status timed out"
         return row
-    logged_in = bool(HERMES_CODEX_RE.search(out))
-    row["auth"] = "logged-in" if logged_in else "logged-out"
-    if not logged_in:
-        row["ok"] = False
-        row["note"] = "not logged in"
-    else:
+    if HERMES_CODEX_RE.search(out):
+        row["auth"] = "logged-in"
         row["ok"] = True
         row["note"] = "codex"
+        return row
+    # NUC runs hermes against a local/custom endpoint. Codex not
+    # logged in used to mark that box "scheduled logged out" and
+    # skip a working agent (pong in 2026-08-21).
+    if HERMES_CUSTOM_RE.search(out):
+        row["auth"] = "logged-in"
+        row["ok"] = True
+        row["note"] = "custom endpoint"
+        return row
+    row["auth"] = "logged-out"
+    row["ok"] = False
+    row["note"] = "not logged in"
     return row
 
 
@@ -298,7 +395,9 @@ CHECKS = {
 def public_row(row):
     """Fields safe for /workers.json. No emails, paths, tokens."""
     keep = ("agent", "vendor", "binary", "auth", "ok", "note",
-            "plan", "quota_errors_24h", "spend")
+            "plan", "quota_errors_24h", "spend", "flow", "remaining_pct",
+            "observed_at", "reset_at", "reset_hours",
+            "required_burn_pct_per_hour")
     return {k: row[k] for k in keep if k in row}
 
 
@@ -306,6 +405,16 @@ def spend_of(agent, cfg=None):
     """plenty spends scheduled turns. rare is held unless nobody else is up."""
     cfg = load_config() if cfg is None else cfg
     return ((cfg.get("quotas") or {}).get("spend") or {}).get(agent, "plenty")
+
+
+def effective_spend(agent, row, cfg=None):
+    """Fresh capacity can override the static fallback; unknown data cannot."""
+    flow = (row or {}).get("flow")
+    if flow in ("exhausted", "reserve"):
+        return "rare"
+    if flow in ("harvest", "spend"):
+        return "plenty"
+    return spend_of(agent, cfg)
 
 
 def last_pulse_rows():
@@ -329,26 +438,38 @@ def eligible(requested, cfg=None, rows=None):
     live = []
     for a in requested:
         row = rows.get(a)
-        if row is not None and not row.get("ok"):
+        if row is not None and (not row.get("ok")
+                                or row.get("flow") == "exhausted"):
             continue
         live.append(a)
-    plenty = [a for a in live if spend_of(a, cfg) != "rare"]
-    return plenty or live
+    plentiful = [a for a in live if effective_spend(a, rows.get(a), cfg) != "rare"]
+    chosen = plentiful or live
+    # Fruit nearest ripeness first: quota about to reset has the highest
+    # required burn rate. Stable sorting preserves configured order otherwise.
+    return sorted(chosen, key=lambda a: (
+        (rows.get(a) or {}).get("flow") == "harvest",
+        (rows.get(a) or {}).get("required_burn_pct_per_hour", 0),
+    ), reverse=True)
 
 
 def pulse(cfg=None):
     cfg = cfg if cfg is not None else load_config()
     scheduled = scheduled_agents(cfg)
     rows = []
+    observations = load_capacity()
     for name, fn in CHECKS.items():
         raw = fn()
         raw["spend"] = spend_of(name, cfg)
+        raw.update(capacity_fields(name, observations=observations, cfg=cfg))
         rows.append(public_row(raw))
     by_name = {r["agent"]: r for r in rows}
 
-    down_scheduled = [a for a in scheduled if not by_name.get(a, {}).get("ok")]
+    down_scheduled = [a for a in scheduled
+                      if (not by_name.get(a, {}).get("ok")
+                          or by_name.get(a, {}).get("flow") == "exhausted")]
     dry = [a for a in down_scheduled
-           if by_name.get(a, {}).get("quota_errors_24h")]
+           if (by_name.get(a, {}).get("quota_errors_24h")
+               or by_name.get(a, {}).get("flow") == "exhausted")]
     logged_out = [a for a in down_scheduled if a not in dry]
     held = [r["agent"] for r in rows if r.get("spend") == "rare"]
     spending = eligible(scheduled, cfg=cfg, rows=by_name)
@@ -364,7 +485,7 @@ def pulse(cfg=None):
             r["agent"] for r in rows if r.get("quota_errors_24h"))
     else:
         status = "pass"
-        bits = [f"{a} {by_name[a].get('note') or 'ok'}" for a in spending
+        bits = [f"{a} {by_name[a].get('flow', 'unknown')}" for a in spending
                 if a in by_name]
         hold = f" · holding {', '.join(held)}" if held else ""
         summary = ("spending " + " · ".join(bits) + hold) if bits else "no vendors"
@@ -399,7 +520,26 @@ def _previous_card():
         return None, None
 
 
-def main():
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    sub = ap.add_subparsers(dest="command")
+    observe = sub.add_parser("observe", help="record a quota reading")
+    observe.add_argument("agent")
+    observe.add_argument("remaining_pct", type=float)
+    reset = observe.add_mutually_exclusive_group()
+    reset.add_argument("--resets-at")
+    reset.add_argument("--resets-in-hours", type=float)
+    observe.add_argument("--source", default="manual")
+    args = ap.parse_args(argv)
+    if args.command == "observe":
+        reset_at = parse_time(args.resets_at)
+        if args.resets_at and reset_at is None:
+            ap.error("--resets-at must be ISO-8601")
+        if args.resets_in_hours is not None:
+            reset_at = now() + timedelta(hours=args.resets_in_hours)
+        print(json.dumps(save_observation(args.agent, args.remaining_pct,
+                                          reset_at, args.source), indent=2))
+        return 0
     prev_status, prev_summary = _previous_card()
     worker, down = pulse()
     publish(worker)
