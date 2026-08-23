@@ -25,7 +25,7 @@
   "pipeline": {
     "_what": "Closes the rota's loop: unprocessed proposals are implemented by grok (or FLEET_BUILDER) on rota/* branches in worktrees, pytest runs, hermes (a different vendor) reviews each diff, and the board lists what awaits a human merge. Nothing merges itself. Autopilot triage (agy, cheap) drops errors and duplicates so telegram does not count 1800 restatements. Building still needs a pick in build.txt.",
     "every_seconds": 3600,
-    "triage_agent": "agy"
+    "triage_agent": "hermes"
   },
   "council": {
     "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied \u2014 a human reads and decides.",
@@ -62,10 +62,13 @@
     "every_seconds": 300
   },
   "quotas": {
-    "_what": "plenty spends scheduled turns (underutilised credits). rare is held unless nobody plentiful is up. The pulse never calls a model.",
+    "_what": "Quota is a flow: fresh remaining/reset observations steer work toward capacity that would otherwise expire, low capacity is reserved, and stale/missing observations fall back to the manual spend table. The pulse never calls a model.",
+    "observation_max_age_hours": 48,
+    "reserve_below_pct": 10,
+    "harvest_within_hours": 24,
     "spend": {
-      "grok": "plenty",
-      "agy": "plenty",
+      "grok": "rare",
+      "agy": "rare",
       "hermes": "plenty",
       "claude": "rare",
       "openclaw": "rare"
