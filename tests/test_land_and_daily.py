@@ -115,6 +115,12 @@ def _no_push(repo):
     return run
 
 
+def test_land_fetch_does_not_update_checked_out_main():
+    src = (BIN / "pipeline.py").read_text()
+    assert '["git", "fetch", "origin", "main:main"]' not in src
+    assert "def remote_main" in src
+
+
 def test_land_runs_even_when_building_is_off():
     """A machine that handed compiling to its brother still merges what it
     verified. Asserted on the source: the landing loop must come before the
@@ -122,6 +128,28 @@ def test_land_runs_even_when_building_is_off():
     src = (BIN / "pipeline.py").read_text()
     body = src[src.index("def _cycle("):]
     assert body.index("land(r)") < body.index("buildgate.enabled()")
+
+
+def test_daily_pipeline_state_uses_the_latest_row(tmp_path, monkeypatch):
+    import daily, json
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    rows = [
+        {"ts": now, "proposal_ts": "t1", "stage": "verify", "ok": False,
+         "branch": "rota/brainfarts", "review": "REJECT mass update"},
+        {"ts": now, "proposal_ts": "t1", "stage": "land", "ok": True,
+         "branch": "rota/brainfarts", "detail": "pushed"},
+        {"ts": now, "proposal_ts": "t2", "stage": "land", "ok": False,
+         "branch": "rota/old", "detail": "conflict: unrelated histories"},
+    ]
+    (tmp_path / "rota").mkdir()
+    (tmp_path / "rota" / "pipeline.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows) + "\n")
+    monkeypatch.setattr(daily, "FLEET", tmp_path)
+    stuck, rejected = daily.pipeline_state()
+    assert rejected == []
+    assert any("unrelated" in s for s in stuck)
+    assert not any("brainfarts" in s for s in stuck)
 
 
 def test_daily_report_is_short_and_has_the_sections():

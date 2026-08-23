@@ -58,14 +58,27 @@ def _run(cmd, cwd=REPO):
 
 
 def landed() -> list[str]:
-    """What actually reached main, in the words of the commit subject."""
-    out = _run(["git", "log", "--since", f"{WINDOW_H} hours ago",
-                "--no-merges", "--pretty=%s", "main"])
-    return [l for l in out.splitlines() if l.strip()][:12]
+    """What actually reached public main, in the commit subject.
+
+    Local `main` on the NUC tracks an old fix branch and does not share
+    history with GitHub, so `git log main` reported zero landings the
+    morning after brainfarts was pushed to origin/main.
+    """
+    for ref in ("origin/main", "main"):
+        out = _run(["git", "log", "--since", f"{WINDOW_H} hours ago",
+                    "--no-merges", "--pretty=%s", ref])
+        lines = [l for l in out.splitlines() if l.strip()]
+        if lines:
+            return lines[:12]
+    return []
 
 
 def pipeline_state() -> tuple[list[str], list[str]]:
-    """Anything the pipeline could not finish, and why — one line each."""
+    """Latest row per proposal in the window, not every earlier reject.
+
+    A verify REJECT then a land OK used to show both, so the morning
+    telegram still said brainfarts was rejected after it had shipped.
+    """
     stuck, rejected = [], []
     p = FLEET / "rota" / "pipeline.jsonl"
     try:
@@ -73,11 +86,17 @@ def pipeline_state() -> tuple[list[str], list[str]]:
     except (OSError, json.JSONDecodeError):
         return stuck, rejected
     cut = _since()
+    latest = {}
     for r in rows:
         t = _ts(r.get("ts"))
         if t and t < cut:
             continue
+        key = r.get("proposal_ts") or r.get("branch") or r.get("ts")
+        latest[key] = r
+    for r in latest.values():
         name = str(r.get("branch", "")).split("/")[-1][:44]
+        if r.get("stage") == "land" and r.get("ok"):
+            continue
         if r.get("stage") == "land" and not r.get("ok"):
             stuck.append(f"{name} could not land: {str(r.get('detail'))[:60]}")
         elif r.get("stage") == "verify" and not r.get("ok"):
@@ -108,8 +127,9 @@ def proposals_open() -> int:
     rows = [r for r in rows if r.get("outcome") != "unusable"]
     try:
         import pipeline
+        seen = pipeline.by_proposal()
         return len([r for r in rows
-                    if r.get("text") and r["ts"] not in pipeline.by_proposal()])
+                    if r.get("text") and pipeline.is_waiting(r, seen)])
     except Exception:
         return len([r for r in rows if r.get("text")])
 

@@ -126,6 +126,48 @@ def by_proposal() -> dict:
     return out
 
 
+CLOSED_STAGES = frozenset({"drop", "land", "build", "verify", "revise"})
+
+
+def is_waiting(prop: dict, seen: dict | None = None) -> bool:
+    """Open work: never touched, or reopened after a stale drop."""
+    seen = by_proposal() if seen is None else seen
+    rec = seen.get(prop.get("ts"))
+    if rec is None:
+        return bool(prop.get("text"))
+    return rec.get("stage") == "reopen"
+
+
+def latest_for(key: str, done: dict | None = None) -> dict | None:
+    """Match a build.txt stamp (16–19 chars) to the latest pipeline row."""
+    done = by_proposal() if done is None else done
+    if key in done:
+        return done[key]
+    prefix = str(key)[:16]
+    return next((v for k, v in done.items() if str(k).startswith(prefix)),
+                None)
+
+
+def already_built(key: str, done: dict | None = None) -> bool:
+    """True when this stamp is closed. Reopen is a new work order."""
+    rec = latest_for(key, done)
+    if rec is None:
+        return False
+    return rec.get("stage") != "reopen"
+
+
+def remote_main() -> str:
+    """Tip to land onto. Fetch updates origin/main, never checked-out main.
+
+    No origin (unit tests) falls back to local main.
+    """
+    run(["git", "fetch", "origin", "main"], cwd=REPO)
+    code, _ = run(
+        ["git", "rev-parse", "--verify", "--quiet", "refs/remotes/origin/main"],
+        cwd=REPO)
+    return "origin/main" if code == 0 else "main"
+
+
 def proposals() -> list[dict]:
     try:
         rows = [json.loads(l) for l in PROPOSALS.read_text().splitlines() if l.strip()]
@@ -178,7 +220,8 @@ def build(prop: dict) -> dict:
         return record(stage="build", proposal_ts=prop["ts"], branch=branch,
                       ok=False, detail=f"branch {branch} already exists — refusing to reuse it")
     WORKTREES.mkdir(exist_ok=True)
-    code, out = run(["git", "worktree", "add", "-b", branch, str(wt), "main"],
+    tip = remote_main()
+    code, out = run(["git", "worktree", "add", "-b", branch, str(wt), tip],
                     cwd=REPO)
     if code != 0:
         return record(stage="build", proposal_ts=prop["ts"], branch=branch,
@@ -339,8 +382,12 @@ def land(verified: dict) -> dict:
     # be. When several branches land in one loop, each push advances the
     # remote and leaves the local ref behind; building on the stale ref is
     # what produced the standing "push: behind its remote" alert.
-    run(["git", "fetch", "origin", "main:main"], cwd=REPO)
-    code, out = run(["git", "worktree", "add", "--detach", str(wt), "main"],
+    #
+    # Never `git fetch origin main:main` while main is checked out — git
+    # refuses that update and the return code was ignored, so land built
+    # on a stale local main (2026-08-19T14:58 proposal, two-vendor KEEP).
+    tip = remote_main()
+    code, out = run(["git", "worktree", "add", "--detach", str(wt), tip],
                     cwd=REPO)
     if code != 0:
         return record(stage="land", proposal_ts=ts, branch=branch, ok=False,
@@ -379,7 +426,7 @@ def land(verified: dict) -> dict:
         code, out = run(["git", "push", "origin", f"{merge_sha}:main"],
                         cwd=wt, timeout=300)
         if code == 0:
-            run(["git", "fetch", "origin", "main:main"], cwd=REPO)
+            run(["git", "fetch", "origin", "main"], cwd=REPO)
             ev.emit("pipeline", "ok",
                     f"[land] {branch} merged to main and pushed")
             return done(True, sha=merge_sha[:12])
@@ -388,8 +435,8 @@ def land(verified: dict) -> dict:
             ev.emit("pipeline", "info",
                     f"[land] {branch}: push refused, rebuilding on new main "
                     f"({out[-120:]})")
-            run(["git", "fetch", "origin", "main:main"], cwd=REPO)
-            rc, rout = run(["git", "reset", "--hard", "main"], cwd=wt)
+            tip = remote_main()
+            rc, rout = run(["git", "reset", "--hard", tip], cwd=wt)
             if rc != 0:
                 return done(False, detail=f"reset: {rout[-200:]}")
             continue
@@ -559,7 +606,7 @@ def _cycle() -> None:
         if built >= MAX_PER_CYCLE:
             break
         key = item["ts"][0]                    # an item is keyed by its first
-        if key in done:
+        if already_built(key, done):
             continue
         if pressure.too_hot():
             ev.emit("pipeline", "info",

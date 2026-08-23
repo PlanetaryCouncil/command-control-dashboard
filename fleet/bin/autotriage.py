@@ -34,6 +34,45 @@ NOISE = {"error", "nothing", "unusable"}
 BATCH = 40
 KEEP_MAX = 8
 STALE_HOURS = 24
+REVIEW_LIMIT = 12
+PICK_MAX = 1
+VOTERS = ("agy", "grok")
+KEEP_LINE = re.compile(r"KEEP\s+(20\d\d-\d\d-\d\dT\d\d:\d\d)", re.I)
+# Specific phrases only. "i'll " is too broad — a real "I'll add X"
+# would be skipped. These are the prompt-echo turns that filled the
+# first review-old batch.
+NARRATION = (
+    "three questions",
+    "play along",
+    "here are my answers",
+    "i'd like to propose answers",
+    "i'll answer the three",
+    "the message seems to be",
+    "the text you provided appears",
+    "here is the reformatted text",
+    "this appears to be a log",
+    "i'll follow the steps",
+    "provide my answers",
+    "i'll do my best to answer",
+    "i'll respond to the questions",
+    "i'm ready to play",
+    "it seems like the team",
+    "based on the provided",
+    "here are the answers",
+    "here are two-line",
+    "session limit",
+    "closing poems",
+    "pick one project",
+    "answer the question",
+    "answering these questions",
+    "i'll take on the challenge",
+    "i'll do my best to follow",
+)
+# A wrapped "here are the answers" that still names a file to write
+# is a proposal, not a Q&A echo.
+ACTION_MARK = ("write `", "write static/", ".html`", ".py`")
+FILE_KEY = re.compile(r"static/[a-z0-9_./-]+", re.I)
+LAST_VOTE_RAW: dict[str, str] = {}
 BAR = re.compile(r"[█▉▊▋▌▍▎▏▐▓▒░]{3,}")
 LINE = re.compile(
     r"(20\d\d-\d\d-\d\dT\d\d:\d\d)\S*.{0,80}?\b(KEEP|DROP)\b",
@@ -57,8 +96,23 @@ def gist(text: str, n: int = 100) -> str:
     return s[:n].lower()
 
 
+def unique_key(text: str) -> str:
+    """Same static path = same idea, even when the wrapper words differ."""
+    m = FILE_KEY.search(str(text))
+    if m:
+        return m.group(0).lower().rstrip("/")
+    return gist(text)
+
+
 def triage_agent() -> str:
-    who = (os.environ.get("FLEET_TRIAGE") or "agy").strip() or "agy"
+    who = (os.environ.get("FLEET_TRIAGE") or "").strip()
+    if not who:
+        try:
+            cfg = json.loads((FLEET / "config.json").read_text())
+            who = str((cfg.get("pipeline") or {}).get("triage_agent") or "")
+        except (OSError, ValueError):
+            who = ""
+    who = (who or "agy").strip() or "agy"
     if who in ("claude", "openclaw"):
         return "agy"
     return who
@@ -92,7 +146,7 @@ def close(prop: dict, reason: str, by: str = "autotriage") -> None:
 
 def open_proposals() -> list[dict]:
     seen = pipeline.by_proposal()
-    return [p for p in pipeline.proposals() if p.get("ts") not in seen]
+    return [p for p in pipeline.proposals() if pipeline.is_waiting(p, seen)]
 
 
 def drain(todo: list[dict] | None = None) -> dict:
@@ -107,6 +161,10 @@ def drain(todo: list[dict] | None = None) -> dict:
         if out in NOISE:
             close(p, f"outcome={out}")
             dropped[out] = dropped.get(out, 0) + 1
+            continue
+        rec = pipeline.by_proposal().get(p.get("ts"))
+        if rec and rec.get("stage") == "reopen":
+            kept.append(p)
             continue
         if too_old(p.get("ts") or ""):
             close(p, f"stale>{STALE_HOURS}h")
@@ -169,6 +227,134 @@ def model_batch(batch: list[dict]) -> dict:
             "unparsed": len(batch) - len(verdicts)}
 
 
+def unique_stale(limit: int = REVIEW_LIMIT) -> list[dict]:
+    """Oldest-dropped unique gists the last day did not repeat."""
+    props = {p["ts"]: p for p in pipeline.proposals()}
+    seen = pipeline.by_proposal()
+    recent = {unique_key(p.get("text") or "")
+              for p in props.values() if not too_old(p.get("ts") or "")}
+    stale = []
+    for ts, rec in seen.items():
+        if rec.get("stage") != "drop":
+            continue
+        if not str(rec.get("detail") or "").startswith("stale"):
+            continue
+        p = props.get(ts)
+        if not p or (p.get("outcome") in NOISE):
+            continue
+        g = gist(p.get("text") or "")
+        k = unique_key(p.get("text") or "")
+        if not k or k in recent:
+            continue
+        narrated = any(n in g for n in NARRATION)
+        action = any(m in g for m in ACTION_MARK)
+        if narrated and not action:
+            continue
+        stale.append(p)
+    stale.sort(key=lambda p: p.get("ts") or "", reverse=True)
+    out, used = [], set()
+    for p in stale:
+        k = unique_key(p.get("text") or "")
+        if k in used:
+            continue
+        used.add(k)
+        out.append(p)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def parse_keep_stamps(blob: str, batch_ts: set[str]) -> set[str]:
+    hits = set()
+    for m in KEEP_LINE.finditer(str(blob)):
+        prefix = m.group(1)
+        for t in batch_ts:
+            if t.startswith(prefix):
+                hits.add(t)
+    return hits
+
+
+def vote_keep(batch: list[dict], who: str) -> set[str]:
+    lines = [f"{p['ts'][:16]} | {gist(p.get('text'), 140)}" for p in batch]
+    prompt = (
+        "Do not use tools. Do not read files. You are voting, not "
+        "implementing. These proposals were marked stale but might "
+        "still be valid. KEEP only a real remaining improvement.\n"
+        "Reply with ONLY lines of the form KEEP YYYY-MM-DDTHH:MM "
+        "or a single line NONE. At most 3 KEEP.\n\n" + "\n".join(lines)
+    )
+    raw = ask_named(who, prompt)
+    LAST_VOTE_RAW[who] = str(raw)[:1500]
+    hits = parse_keep_stamps(raw, {p["ts"] for p in batch})
+    ev.emit("pipeline", "ok",
+            f"[autotriage] {who} KEEP {len(hits)} "
+            f"raw={str(raw).replace(chr(10), ' ')[:160]}")
+    return hits
+
+
+def ask_named(who: str, prompt: str) -> str:
+    noop = lambda *a, **k: None
+    if who == "agy":
+        return chat.ask_agy(prompt, [], noop, timeout=180)
+    if who == "grok":
+        return chat.ask_grok(prompt, [], noop, timeout=180)
+    if who == "hermes":
+        return chat.ask_hermes(prompt, noop, timeout=180)
+    return f"[unknown agent {who}]"
+
+
+def write_picks(items: list[dict]) -> None:
+    """build.txt is what the pipeline will actually build. Cap is the point."""
+    path = FLEET / "rota" / "build.txt"
+    lines = []
+    for i, p in enumerate(items[:PICK_MAX], 1):
+        title = gist(p.get("text"), 60)
+        lines.append(f"# {i}. {title}")
+        lines.append(p["ts"][:19])
+        lines.append("")
+    path.write_text("\n".join(lines) + "\n")
+
+
+def review_old(limit: int = REVIEW_LIMIT, pick: int = PICK_MAX) -> dict:
+    """Two vendors must KEEP. Then at most `pick` items go to build.txt."""
+    LAST_VOTE_RAW.clear()
+    reps = unique_stale(limit)
+    if not reps:
+        return {"reps": 0, "agreed": 0, "picked": 0}
+    votes = {who: vote_keep(reps, who) for who in VOTERS}
+    if any(len(v) == 0 for v in votes.values()):
+        votes["hermes"] = vote_keep(reps, "hermes")
+    nonempty = [v for v in votes.values() if v]
+    agreed_ts = (set.intersection(*nonempty) if len(nonempty) >= 2
+                 else set())
+    agreed = [p for p in reps if p["ts"] in agreed_ts]
+    # reopen agreed so drain will not stale them this hour
+    for p in agreed:
+        pipeline.record(proposal_ts=p["ts"], stage="reopen", ok=True,
+                        detail="unique stale, two vendors KEEP",
+                        agent="autotriage", branch="")
+    picked = agreed[:pick]
+    if picked:
+        write_picks(picked)
+    receipt = {
+        "reps": [{"ts": p["ts"], "gist": gist(p.get("text"), 80)}
+                 for p in reps],
+        "votes": {w: sorted(v) for w, v in votes.items()},
+        "raw": dict(LAST_VOTE_RAW),
+        "agreed": [p["ts"] for p in agreed],
+        "picked": [p["ts"] for p in picked],
+    }
+    (FLEET / "rota" / "review-old.json").write_text(
+        json.dumps(receipt, indent=2) + "\n")
+    ev.emit("pipeline", "ok",
+            f"[autotriage] review-old {len(reps)} unique stale → "
+            f"{len(agreed)} agreed → {len(picked)} picked "
+            f"({', '.join(VOTERS)})")
+    return {"reps": len(reps), "agreed": len(agreed),
+            "picked": len(picked),
+            "votes": {w: len(v) for w, v in votes.items()}}
+
+
 def run(batches: int = 1, drain_only: bool = False) -> dict:
     before = len(open_proposals())
     stats = drain()
@@ -213,8 +399,15 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--drain-only", action="store_true")
     ap.add_argument("--batches", type=int, default=1)
+    ap.add_argument("--review-old", action="store_true",
+                    help="two vendors review unique stale ideas; pick for build")
+    ap.add_argument("--limit", type=int, default=REVIEW_LIMIT)
+    ap.add_argument("--pick", type=int, default=PICK_MAX)
     a = ap.parse_args()
-    res = run(batches=a.batches, drain_only=a.drain_only)
+    if a.review_old:
+        res = review_old(limit=a.limit, pick=a.pick)
+    else:
+        res = run(batches=a.batches, drain_only=a.drain_only)
     print(json.dumps(res, indent=2))
     return 0
 
