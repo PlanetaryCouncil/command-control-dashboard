@@ -23,6 +23,8 @@ spec.loader.exec_module(rota)
 @pytest.fixture
 def sandbox(tmp_path, monkeypatch):
     """Redirect every write path and stub out the machine and the agents."""
+    import heavygate
+    monkeypatch.setattr(heavygate, "enabled", lambda: True)
     monkeypatch.setattr(rota, "STATE", tmp_path / "rota.json")
     monkeypatch.setattr(rota, "LEDGER", tmp_path / "proposals.jsonl")
     events = []

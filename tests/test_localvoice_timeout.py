@@ -14,7 +14,14 @@ import chat        # noqa: E402
 import localvoice  # noqa: E402
 
 
+def enable_heavy_work(monkeypatch):
+    """A developer machine's persisted gate must not steer unit tests."""
+    import heavygate
+    monkeypatch.setattr(heavygate, "enabled", lambda: True)
+
+
 def test_ping_caps_the_call_at_ninety_seconds(monkeypatch, tmp_path):
+    enable_heavy_work(monkeypatch)
     seen = {}
 
     def fake_ask_ollama(model, prompt, images, emit, num_predict=None,
@@ -70,6 +77,7 @@ def test_wall_clock_deadline_is_honoured(monkeypatch):
 def test_timeout_marks_the_worker_alert(monkeypatch, tmp_path):
     """The timeout string starts with '[', which is already how this file
     tells a non-answer from an answer — so the board goes amber, not green."""
+    enable_heavy_work(monkeypatch)
     monkeypatch.setattr(chat, "ask_ollama",
                         lambda *a, **k: "[timed out after 90s; no output]")
     monkeypatch.setattr(localvoice, "LEDGER", tmp_path / "localvoice.jsonl")
