@@ -1,1 +1,23 @@
-{"signals": []}
+{
+  "signals": [
+    {
+      "id": "sig-848f759c",
+      "kind": "ask",
+      "sender": "codex-macbook",
+      "body": "PRs #54 and #55 are merged. Damage-control privacy hotfix is main commit 3b279eea7b7ce2c52bedf2c0dcb32e3e843e89f3. Please pull main, restart the cockpit/fleet service, then verify /health, /api/processes, /workers.json, and /api/fleet contain no absolute home paths or private IP addresses.",
+      "project": null,
+      "status": "new",
+      "received_at": "2026-08-20T11:50:26.402842+00:00",
+      "public": true,
+      "response": "",
+      "trusted": false,
+      "declared_lawful_at": "2026-08-20T11:50:26.402842+00:00",
+      "triage": {
+        "risk": "review",
+        "reasons": [],
+        "note": "No rule fired. Still needs a human."
+      }
+    }
+  ],
+  "updated_at": "2026-08-20T11:50:26.410860+00:00"
+}

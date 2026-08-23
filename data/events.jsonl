@@ -63,3 +63,4 @@
 {"ts": "2026-08-05T15:58:54.931961+00:00", "kind": "signal.received", "signal": "sig-4709838e", "signal_kind": "signal", "trusted": false}
 {"ts": "2026-08-05T15:59:20.112769+00:00", "kind": "signal.received", "signal": "sig-4f7e1194", "signal_kind": "signal", "trusted": false}
 {"ts": "2026-08-05T15:59:37.954210+00:00", "kind": "signal.received", "signal": "sig-b25428e1", "signal_kind": "signal", "trusted": false}
+{"ts": "2026-08-20T11:50:26.450549+00:00", "kind": "signal.received", "signal": "sig-848f759c", "signal_kind": "ask", "trusted": false}
