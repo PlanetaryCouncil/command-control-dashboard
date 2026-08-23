@@ -119,8 +119,15 @@ unit local-voice "Fleet local voice"      "$(daily "$LV_H" "$LV_M")" "$PY" "$FLE
 unit self-improve "Self-improvement loop" "$(daily "$SI_H" "$SI_M")" /bin/bash "$REPO/self-improve/loop/run-cycle.sh"
 
 systemctl --user daemon-reload
+# The sitting set. Writing units without enabling them is how NUC served
+# the board for weeks while running none of the fleet. Load and quota
+# pulse live on board-medic.
+SITTING="rota council heartbeat board-medic pipeline watchdogs"
+for name in $SITTING; do
+  systemctl --user enable --now "fleet-$name.timer" >/dev/null
+  echo "  enabled fleet-$name.timer"
+done
 echo
 echo "units written to $UNITS"
-echo "enable one:   systemctl --user enable --now fleet-watchdogs.timer"
 echo "see them:     systemctl --user list-timers 'fleet-*'"
-echo "read a run:   journalctl --user -u fleet-watchdogs.service -n 50"
+echo "read a run:   journalctl --user -u fleet-rota.service -n 50"

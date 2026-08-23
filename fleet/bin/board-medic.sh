@@ -67,7 +67,11 @@ fi
 
 mkdir -p "$FLEET/state"; echo "$NOW" > "$STAMP"
 say warn "[medic] board silent, load $LOAD, server old enough — kickstarting"
-launchctl kickstart -k "gui/$(id -u)/re.genesis.fleet-server"
+if command -v systemctl >/dev/null 2>&1; then
+  systemctl --user restart ccd-board.service
+else
+  launchctl kickstart -k "gui/$(id -u)/re.genesis.fleet-server"
+fi
 
 for _ in $(seq 1 20); do
   sleep 3
