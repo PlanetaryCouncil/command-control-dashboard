@@ -69,11 +69,13 @@ def server():
     p.wait(timeout=10)
 
 
-def fetch(path, forwarded=None):
+def fetch(path, forwarded=None, extra=None):
     """Returns (status, body). A forwarded address means 'through the funnel'."""
     req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}")
     if forwarded:
         req.add_header("X-Forwarded-For", forwarded)
+    for k, v in (extra or {}).items():
+        req.add_header(k, v)
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
             return r.status, r.read().decode(errors="replace")
@@ -125,6 +127,22 @@ def test_the_intro_page_never_holds_the_token(server):
     for forwarded in (None, "203.0.113.7"):
         _, page = fetch("/intro", forwarded=forwarded)
         assert token not in page
+
+
+@pytest.mark.parametrize("header", [
+    "CF-Connecting-IP", "True-Client-IP", "X-Real-IP",
+])
+def test_proxy_ip_headers_are_treated_as_remote(server, header):
+    """A proxy visitor must not see control routes, even without XFF."""
+    req = urllib.request.Request(f"http://127.0.0.1:{PORT}/terminal")
+    req.add_header(header, "203.0.113.9")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            pytest.fail(f"/terminal answered {r.status} to a CF visitor")
+    except urllib.error.HTTPError as e:
+        assert e.code == 404
+    status, _ = fetch("/", extra={header: "203.0.113.9"})
+    assert status == 200
 
 
 def test_kill_is_refused_through_the_funnel(server):

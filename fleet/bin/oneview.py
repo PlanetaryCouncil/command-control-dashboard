@@ -1689,9 +1689,9 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </section>
   <section>
     <h3>public</h3>
-    <a href="https://[redacted-host]/" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
-    <a href="https://[redacted-host]/legacy-green-cockpit" title="The green cockpit from outside. Same page, same gates.">green cockpit</a>
-    <a href="https://[redacted-host]/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
+    <a href="/" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
+    <a href="/legacy-green-cockpit" title="The green cockpit from outside. Same page, same gates.">green cockpit</a>
+    <a href="/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
   </section>
   <section>
     <h3>repos</h3>

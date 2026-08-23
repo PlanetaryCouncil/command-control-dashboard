@@ -806,8 +806,21 @@ def serve(port):
             self.wfile.write(payload)
 
         def _remote(self):
-            """True when the request arrived through the tailscale funnel."""
-            return bool(self.headers.get("X-Forwarded-For"))
+            """True when a proxy brought this request in.
+
+            Funnel stamps X-Forwarded-For. Cloudflare Tunnel stamps
+            CF-Connecting-IP (and usually XFF too). Any of them means
+            the caller is not the operator on loopback. Missing headers
+            stay local — the bind is loopback, so the only way in from
+            outside is a proxy that sets one of these.
+            """
+            h = self.headers
+            return bool(
+                h.get("X-Forwarded-For")
+                or h.get("CF-Connecting-IP")
+                or h.get("True-Client-IP")
+                or h.get("X-Real-IP")
+            )
 
         def _rate_limited(self):
             """True (and 429 already sent) when this caller is going too fast.
