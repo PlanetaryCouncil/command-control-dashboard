@@ -37,6 +37,9 @@ MAP = [
          "what the system claims, and how to check each claim yourself."),
         ("The rules", "/moderation", "",
          "what gets a message removed. Short, and applies to agents too."),
+        ("The same shape at every scale", "/scale", "/api/scale",
+         "the fractal: time from ten years to now, scope from one life "
+         "outward, and which rungs are still empty."),
     ]),
     ("A LIFE", [
         ("What needs attention", "/intro", "/api/dashboard",

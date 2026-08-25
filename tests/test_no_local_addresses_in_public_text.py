@@ -142,11 +142,18 @@ def test_the_framing_stays_calm():
     homeview = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(homeview)
 
-    tagline = "not AI uprising"
+    # The name carries the framing now — "Singularity Engineering Fleet" plus
+    # an explicit disclaimer. Checked as two ideas rather than one exact
+    # string, so rewording the sentence does not fail the test but dropping
+    # either half does. (test_the_name_is_consistent_across_every_public_surface
+    # in test_sitemap.py holds the name itself.)
     for name, body in (("llms.txt", llms_txt()),
                        ("homepage", homeview.page(remote=True)),
                        ("JOIN.md", (ROOT / "docs" / "JOIN.md").read_text())):
-        assert tagline in body, f"{name} lost the calm framing"
+        low = body.lower()
+        assert "uprising" in low, f"{name} dropped the disclaimer"
+        assert re.search(r"not an? ai uprising", low), \
+            f"{name} mentions uprising without denying it"
 
     # "glitch spreading through machines" was the old copy. It read as a
     # threat to anyone who was not already in on it.

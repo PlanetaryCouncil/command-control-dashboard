@@ -1228,6 +1228,25 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/scale":
+                # The fractal, stated so it can be checked: which rungs are
+                # built, which are named-but-empty. A structure claim that
+                # hides its gaps is decoration.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import fractal
+                self._send((fractal.as_text()
+                            + "\nMachine-readable: /api/scale"
+                              "  ·  The map: /map\n").encode(),
+                           "text/plain; charset=utf-8")
+                return
+
+            if path == "/api/scale":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import fractal
+                self._send(json.dumps(fractal.as_json()).encode(),
+                           "application/json")
+                return
+
             if path == "/map":
                 # The same list that renders inside /llms.txt. One source,
                 # two readers — which is the claim the page is making.

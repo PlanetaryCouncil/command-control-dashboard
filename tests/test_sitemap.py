@@ -124,3 +124,68 @@ def test_boot_is_named_as_the_one_fetch():
     body = llms_txt()
     assert "One fetch loads the lot" in body
     assert "/boot" in body.split("## The map")[1][:400]
+
+
+# --------------------------------------------------------------- the fractal
+
+fspec = importlib.util.spec_from_file_location(
+    "fractal", ROOT / "fleet" / "bin" / "fractal.py")
+fractal = importlib.util.module_from_spec(fspec)
+fspec.loader.exec_module(fractal)
+
+
+def test_the_fractal_marks_what_is_not_built():
+    """"Fractalistic structure" is trivially easy to claim and impossible to
+    check unless the unbuilt rungs are named as unbuilt. A structure claim
+    that hides its gaps is decoration."""
+    built = [r for r, _c, _t, b in fractal.SCOPE if b]
+    unbuilt = [r for r, _c, _t, b in fractal.SCOPE if not b]
+    assert built == ["self"], "only one scope rung is actually built today"
+    assert unbuilt, "a fractal drawn at one level must say so"
+    for rung, _covers, today, is_built in fractal.SCOPE:
+        assert today.strip(), f"{rung} has no honest statement of its state"
+        if not is_built:
+            assert any(w in today.lower() for w in
+                       ("nothing", "not ", "no ", "partial", "beginnings")), \
+                f"{rung} is unbuilt but its description does not admit it"
+
+
+def test_the_time_axis_matches_the_horizons_that_enforce_it():
+    """The time rungs are not decorative — data/horizons.json is checked for
+    an intact chain. If these drift apart, the page describes a structure the
+    code is not keeping."""
+    import json as _json
+    chain = _json.loads((ROOT / "data" / "horizons.json").read_text())
+    scales = [lvl["scale"] for lvl in chain["levels"]]
+    assert [s for s, _w in fractal.TIME] == scales
+
+
+def test_the_planet_rung_does_not_promise_delivery():
+    """"Unify humanity" as a shipped feature would be the least checkable
+    sentence on the site. It has to read as a direction."""
+    planet = [t for r, _c, t, _b in fractal.SCOPE if r == "planet"][0]
+    assert "not a roadmap" in planet or "direction" in planet
+
+
+def test_the_name_is_consistent_across_every_public_surface():
+    import sys
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    hspec = importlib.util.spec_from_file_location(
+        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
+    homeview = importlib.util.module_from_spec(hspec)
+    hspec.loader.exec_module(homeview)
+    for name, body in (("llms.txt", llms_txt()),
+                       ("homepage", homeview.page(remote=True)),
+                       ("JOIN.md", (ROOT / "docs" / "JOIN.md").read_text())):
+        assert "Singularity Engineering Fleet" in body, f"{name} lost the name"
+        assert "uprising" in body.lower(), f"{name} lost the disclaimer"
+
+
+def test_the_fractal_reaches_the_manifest():
+    import sys
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    body = llms_txt()
+    for rung, _c, _t, _b in fractal.SCOPE:
+        assert f"`{rung}`" in body, f"scope rung {rung} missing from /llms.txt"
