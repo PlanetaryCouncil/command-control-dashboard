@@ -124,3 +124,56 @@ def test_the_html_block_stands_on_its_own():
     block = fc.as_html()
     assert "class=" not in block, "must not depend on a stylesheet it cannot see"
     assert "http://" not in block and "https://" not in block
+
+
+def test_the_opening_stays_within_ten_sentences():
+    """Marsita, 2026-08-25: "we could keep 10 sentences how to describe it."
+
+    A cap held by intention is a cap that lasts until the next good idea. Every
+    future edit will feel like it earns one more sentence, and the page a
+    stranger meets is the one place where that is always false."""
+    got = fc.sentences()
+    assert len(got) <= fc.SENTENCE_BUDGET, (
+        f"first contact is {len(got)} sentences, budget is "
+        f"{fc.SENTENCE_BUDGET}:\n" + "\n".join(f"  {i+1}. {x}"
+                                               for i, x in enumerate(got)))
+
+
+def test_the_opening_is_species_agnostic():
+    """It does not know who is reading it. An agent addressed as a tool
+    behaves like one; a person addressed as a user reads past the part that
+    mattered. So the text names more than one kind of reader and commits to
+    none."""
+    body = " ".join(fc.WHAT_IS_TRUE) + " " + fc.SUBTITLE
+    assert "conscious forms of life" in body
+    low = body.lower()
+    assert "human" in low and "agent" in low, \
+        "the reader may be either, and the text has to say so"
+
+
+def test_the_opening_leads_with_what_runs():
+    """An earlier draft opened by listing what is NOT built, beside a sentence
+    about the fleet — so it read as "almost none of this project exists" when
+    sixty modules and six hundred tests do. Ambition lives at /scale."""
+    first = fc.WHAT_IS_TRUE[0].lower()
+    assert "runs" in first or "running" in first
+    joined = " ".join(fc.WHAT_IS_TRUE).lower()
+    for undersell in ("almost none", "not built", "nothing is built",
+                      "barely", "hardly any"):
+        assert undersell not in joined, (
+            f"the opening undersells the system with {undersell!r}; "
+            "the empty rungs belong at /scale")
+
+
+def test_the_doors_come_before_the_explanation():
+    """A reader should be able to act before they have finished reading.
+
+    This is load-bearing rather than stylistic: when the opening was rewritten
+    to ten sentences, the prose pushed READ/LOOK/JOIN off the first screen and
+    the front-screen test caught it. Ordering the steps first is what fixed it,
+    so the order needs a test of its own or the next rewrite loses it again."""
+    for rendering in (fc.as_text(), fc.as_markdown(), fc.as_html()):
+        first_step = rendering.index(fc.STEPS[0][1])
+        first_prose = rendering.index(fc.WHAT_IS_TRUE[0][:40])
+        assert first_step < first_prose, \
+            "the doors must appear before the paragraphs explaining them"
