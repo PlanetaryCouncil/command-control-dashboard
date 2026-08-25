@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import agentcontract
 
 REPO = Path(__file__).resolve().parents[2]
 REPORTS = REPO / "docs" / "development-log-progress-report"
@@ -40,6 +44,9 @@ def render():
         f"HEAD: {git('log', '-1', '--format=%h %s') or 'unknown'}",
         f"Working tree: {changed} changed paths; preserve concurrent work.",
         f"Quota routing: {quota_line()}",
+        "",
+        "## Operating contract",
+        agentcontract.as_markdown(),
         "",
     ]
     if handoff:

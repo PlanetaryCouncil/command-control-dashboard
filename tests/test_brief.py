@@ -39,3 +39,21 @@ def test_model_entry_files_point_to_one_contract():
         text = path.read_text()
         assert "AGENTS.md" in text
         assert "fleet/bin/brief.py" in text
+
+
+def test_agents_file_uses_the_canonical_operating_contract():
+    repo = Path(__file__).resolve().parent.parent
+    agents = (repo / "AGENTS.md").read_text()
+    block = agents.split("<!-- AGENT CONTRACT:", 1)[1]
+    block = block.split("-->", 1)[1].split("<!-- /AGENT CONTRACT -->", 1)[0]
+    assert block.strip() == brief.agentcontract.as_markdown().strip()
+
+
+def test_brief_carries_the_canonical_operating_contract(monkeypatch, tmp_path):
+    monkeypatch.setattr(brief, "latest_handoff", lambda: None)
+    monkeypatch.setattr(brief, "REPO", tmp_path)
+    monkeypatch.setattr(brief, "git", lambda *a: "")
+    monkeypatch.setattr(brief, "quota_line", lambda: "unknown")
+    out = brief.render()
+    for rule in brief.agentcontract.RULES:
+        assert rule in out

@@ -205,6 +205,18 @@ def test_boot_is_not_a_dead_end():
         assert onward in body, f"/boot never mentions {onward}"
 
 
+def test_boot_uses_the_same_operating_contract_as_local_agents():
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import boot              # noqa: PLC0415
+    spec_c = importlib.util.spec_from_file_location(
+        "agentcontract", ROOT / "fleet" / "bin" / "agentcontract.py")
+    contract = importlib.util.module_from_spec(spec_c)
+    spec_c.loader.exec_module(contract)
+    body = boot()
+    for rule in contract.RULES:
+        assert rule in body
+
+
 def test_a_get_on_the_join_endpoint_admits_the_door_exists():
     """404 tells a probing agent the endpoint is not there. It is there; it
     takes POST. /api/pair already answers 405 and the two sit side by side in
