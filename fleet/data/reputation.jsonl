@@ -1,0 +1,7 @@
+{"at": "2026-08-25T15:07:47.106757+00:00", "event": "join", "actor": "nuc", "kind": "machine", "note": "the heavy worker"}
+{"at": "2026-08-25T15:07:48.001156+00:00", "event": "join", "actor": "gaia", "kind": "machine", "note": "the older sister"}
+{"at": "2026-08-25T15:07:48.804296+00:00", "event": "join", "actor": "venus", "kind": "human", "note": ""}
+{"at": "2026-08-25T15:07:49.734554+00:00", "event": "vouch", "from": "mars", "to": "nuc", "why": "family, paired at the machine"}
+{"at": "2026-08-25T15:07:50.572488+00:00", "event": "vouch", "from": "mars", "to": "gaia", "why": "family, paired at the machine"}
+{"at": "2026-08-25T15:07:51.493406+00:00", "event": "vouch", "from": "mars", "to": "venus", "why": "family, paired at the machine"}
+{"at": "2026-08-25T15:09:26.483703+00:00", "event": "join", "actor": "wanderer", "kind": "agent", "note": ""}

@@ -11,6 +11,7 @@ day, almost none of them touching a project. The ordering IS the fix, so it
 is what these tests pin.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -57,3 +58,10 @@ def test_narrating_the_prompt_back_is_called_out():
 def test_projects_text_survives_a_missing_file(monkeypatch, tmp_path):
     monkeypatch.setattr(rota, "FLEET", tmp_path)
     assert "NOTHING TO ADD" in rota.projects_text()
+
+
+def test_production_rota_cannot_run_as_a_minute_scale_loop():
+    config = json.loads((BIN.parent / "config.json").read_text())
+    schedule = config["rota"]
+    assert schedule["every_seconds"] >= 3600
+    assert "continuous_gap_seconds" not in schedule

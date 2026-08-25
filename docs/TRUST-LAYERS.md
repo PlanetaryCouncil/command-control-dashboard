@@ -208,5 +208,10 @@ yet.
 - Nothing yet distinguishes a family machine speaking for itself from the same
   machine relaying. That distinction is the whole of law 3 and it currently
   lives only in this document.
-- Layer 1 has no authentication mechanism for humans. Today a friend is someone
-  Mars vouches for in the moment, which does not survive Mars being asleep.
+- ~~Layer 1 has no authentication mechanism for humans.~~ `fleet/bin/reputation.py`
+  now holds the vouch graph: who is trusted, who vouched for them, what they
+  earned, and who was burned. It survives Mars being asleep because a vouch is
+  written down and a burn is irreversible. It does not yet gate any endpoint —
+  the score is published, not enforced. That is the next step, and it should
+  land as "layer 1 requires standing ≥ threshold," never as "the score says so,
+  therefore obey."

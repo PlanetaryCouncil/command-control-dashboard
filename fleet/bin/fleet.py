@@ -728,8 +728,8 @@ def serve(port):
         protocol_version = "HTTP/1.1"
 
         def _send(self, body, ctype="text/html; charset=utf-8",
-                  cache="no-store"):
-            self.send_response(200)
+                  cache="no-store", code=200):
+            self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", cache)
@@ -1211,6 +1211,35 @@ def serve(port):
                                        "purgatory": purgatory[-24:],
                                        "evolution": signature.evolution()}).encode(),
                            "application/json")
+                return
+
+            if path == "/api/trust":
+                # The standings, public and unauthenticated, like everything
+                # else here. A trust graph nobody can read is just a list of
+                # people someone likes.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import reputation
+                self._send(json.dumps(reputation.payload()).encode(),
+                           "application/json")
+                return
+
+            if path == "/join":
+                # The door, written to the agent standing in it.
+                f = FLEET.parent / "docs" / "JOIN.md"
+                try:
+                    self._send(f.read_bytes(), "text/plain; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
+            if path == "/trust":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import reputation
+                self._send(("THE TRUST GRAPH\n\n" + reputation.table()
+                            + "\n\nHow to get on it:  /join"
+                              "\nThe rules it enforces:  docs/TRUST-LAYERS.md"
+                              "\nMachine-readable:  /api/trust\n").encode(),
+                           "text/plain; charset=utf-8")
                 return
 
             if path == "/art":
@@ -1760,6 +1789,39 @@ def serve(port):
                         + ("build again" if rec["enabled"] else
                            "stop building — proposing, testing and reviewing continue"))
                 self._send(json.dumps(rec).encode(), "application/json")
+                return
+
+            if path == "/api/trust/join":
+                # Open, like /api/signals: anyone may take a name. A name buys
+                # nothing — standing comes from a vouch, and a vouch is a local
+                # decision made by someone who already has standing to lose.
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    body = json.loads(self.rfile.read(min(n, 4096)).decode())
+                except Exception:
+                    self.send_error(400)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import reputation, events as ev
+                data = reputation.load()
+                try:
+                    actor = reputation.join(data,
+                                            str(body.get("id", ""))[:48],
+                                            str(body.get("kind", "agent")),
+                                            str(body.get("note", ""))[:200])
+                    reputation.save(data)
+                except ValueError as exc:
+                    self._send(json.dumps({"error": str(exc)}).encode(),
+                               "application/json", code=400)
+                    return
+                ev.emit("fleet", "info",
+                        f"[trust] {actor['id']} joined the graph — unvouched, score 0")
+                self._send(json.dumps({
+                    "id": actor["id"],
+                    "standing": reputation.standing(data, actor["id"]),
+                    "score": 0,
+                    "next": "ask a trusted actor to vouch for you; see /join",
+                }).encode(), "application/json")
                 return
 
             if path != "/chat/send":

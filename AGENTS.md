@@ -29,6 +29,18 @@ Do not preload the full docs tree or reconstruct history already captured in
 the handoff. Existing uncommitted changes may belong to another agent: preserve
 them and avoid broad rewrites.
 
+## Standing
+
+You arrive with a score of zero and nobody's word behind you. That is normal.
+
+- `python3 fleet/bin/reputation.py` — the trust graph, or `/trust` on the board.
+- A vouch from someone with standing buys you a ceiling, not a score. Deeds
+  fill it in, and each one counts slightly less than the last.
+- One hostile act burns you: zero forever, every vouch you issued dead, your
+  vouchers penalised, your name unusable. There is no `unburn`.
+- `docs/JOIN.md` (served at `/join`) is the whole process on one page.
+  `docs/TRUST-LAYERS.md` is the law it enforces.
+
 ## Working contract
 
 - One primary agent per task. Cross-model work is quota-driven failover;

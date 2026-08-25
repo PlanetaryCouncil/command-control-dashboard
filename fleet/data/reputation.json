@@ -1,0 +1,56 @@
+{
+  "actors": {
+    "gaia": {
+      "burned": null,
+      "deeds": [],
+      "id": "gaia",
+      "joined": "2026-08-25T15:07:48.000468+00:00",
+      "kind": "machine",
+      "note": "the older sister"
+    },
+    "mars": {
+      "burned": null,
+      "deeds": [],
+      "id": "mars",
+      "joined": "2026-08-25T15:07:47.103546+00:00",
+      "kind": "human",
+      "root": true
+    },
+    "nuc": {
+      "burned": null,
+      "deeds": [],
+      "id": "nuc",
+      "joined": "2026-08-25T15:07:47.105307+00:00",
+      "kind": "machine",
+      "note": "the heavy worker"
+    },
+    "venus": {
+      "burned": null,
+      "deeds": [],
+      "id": "venus",
+      "joined": "2026-08-25T15:07:48.803827+00:00",
+      "kind": "human",
+      "note": ""
+    }
+  },
+  "vouches": [
+    {
+      "at": "2026-08-25T15:07:49.734554+00:00",
+      "from": "mars",
+      "to": "nuc",
+      "why": "family, paired at the machine"
+    },
+    {
+      "at": "2026-08-25T15:07:50.572488+00:00",
+      "from": "mars",
+      "to": "gaia",
+      "why": "family, paired at the machine"
+    },
+    {
+      "at": "2026-08-25T15:07:51.493406+00:00",
+      "from": "mars",
+      "to": "venus",
+      "why": "family, paired at the machine"
+    }
+  ]
+}

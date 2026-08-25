@@ -47,15 +47,14 @@
     "_cost_note": "Two agent turns per run. Daily is enough to catch drift; hourly would spend turns to learn nothing new. The --quick variant runs on every merge via githooks/post-merge and costs nothing."
   },
   "rota": {
-    "_what": "One agent at a time, in rotation, reads the board and answers three questions: what would improve this machine, what would help Marsita the Ultra, what would help the planet. Proposes only \u2014 never applies. Continuous on the NUC: the next turn starts 60s after the previous one finishes, so one agent is always working and two never overlap.",
+    "_what": "One agent at a time, in rotation, reads the board and proposes one concrete project action. Proposes only \u2014 never applies. Hourly on the NUC: enough to keep ideas flowing without flooding triage or draining one provider's quota.",
     "every_seconds": 3600,
     "agents": [
       "hermes",
       "grok",
       "agy"
     ],
-    "_cost_note": "Hourly, one agent per firing \u2014 not all three. A turn is 20-170s and one core, so the hourly cost is a few percent of one core, against the relay's 960s. Three agents means each one's turn comes round every three hours, and the load gate defers a turn rather than taking it on a saturated machine: a turn spent timing out is recorded as the agent having nothing to say, which is the failure this fleet already made twice.",
-    "continuous_gap_seconds": 60
+    "_cost_note": "Hourly, one agent per firing \u2014 not all three. A turn is 20-170s and one core. A 60-second continuous gap produced 4,304 turns and 4,325 proposals by 2026-08-25, mostly repetitive Hermes output; hourly cadence is the quota and triage safety boundary."
   },
   "board_medic": {
     "_what": "Probes the board on :8787 every five minutes; two silent probes trigger a fleet-server kickstart, a failed revival raises needs_you. The heartbeat medic, applied to the board itself.",

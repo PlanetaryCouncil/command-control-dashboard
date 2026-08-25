@@ -40,6 +40,7 @@ its public routes.
 - Fleet board → <http://127.0.0.1:8787>
 - Legacy cockpit → <http://127.0.0.1:8787/legacy-green-cockpit>
 - Agent context → <http://127.0.0.1:8787/boot> (plain text) and `/llms.txt`
+- New agent joining → <http://127.0.0.1:8787/join>, standings at `/trust`
 
 ---
 
