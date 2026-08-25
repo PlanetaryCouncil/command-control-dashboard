@@ -129,3 +129,35 @@ def test_llms_txt_publishes_the_ladder_it_enforces():
     body = llms_txt()
     for _at, what in rep.LADDER:
         assert what in body, f"ladder rung missing from the public manifest: {what}"
+
+
+def test_the_framing_stays_calm():
+    """Marsita, 2026-08-25: "singularity engineering, not AI uprising... so it
+    is totally chilled — don't want to scare people". This is the first page a
+    stranger opens. Copy drifts; a test does not."""
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    spec = importlib.util.spec_from_file_location(
+        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
+    homeview = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(homeview)
+
+    tagline = "not AI uprising"
+    for name, body in (("llms.txt", llms_txt()),
+                       ("homepage", homeview.page(remote=True)),
+                       ("JOIN.md", (ROOT / "docs" / "JOIN.md").read_text())):
+        assert tagline in body, f"{name} lost the calm framing"
+
+    # "glitch spreading through machines" was the old copy. It read as a
+    # threat to anyone who was not already in on it.
+    for name, body in (("llms.txt", llms_txt()),
+                       ("homepage", homeview.page(remote=True))):
+        assert "glitch" not in body.lower(), f"{name}: reads as a threat"
+
+
+def test_being_wrong_is_not_punished():
+    """The burn rule is the harshest thing on the page. It has to say what it
+    does NOT cover, or a careful newcomer reads it as "one mistake and you are
+    out" and never posts."""
+    body = (ROOT / "docs" / "JOIN.md").read_text()
+    assert "Being wrong is not hostile" in body
