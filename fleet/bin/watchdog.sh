@@ -47,27 +47,64 @@ fi
 
 write_status() {  # status summary detail digest_path tests_passed tests_failed
   STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  python3 - "$OUT" "$NAME" "$TARGET" "$STAMP" "$1" "$2" "$3" "$4" "$5" "$6" "$DURATION" <<'PY'
+  python3 - "$OUT" "$NAME" "$TARGET" "$STAMP" "$1" "$2" "$3" "$4" "$5" "$6" "$DURATION" "$HEAD" <<'PY'
 import json, sys
 (out, name, target, stamp, status, summary, detail,
- digest, passed, failed, duration) = sys.argv[1:12]
+ digest, passed, failed, duration, head) = sys.argv[1:13]
 json.dump({
     "worker": name, "kind": "watchdog", "target": target,
     "last_run": stamp, "status": status, "summary": summary,
     "detail": detail[:1500], "digest": digest or None,
     "tests_passed": int(passed or 0), "tests_failed": int(failed or 0),
     "duration_s": round(float(duration or 0), 2),
+    "head": head or None,
 }, open(out, "w"), indent=2)
 PY
 }
 
 if [[ -z "$CMD" ]]; then
   DURATION=0
+  HEAD=""
   write_status "skip" "No test command detected" \
     "Looked for .venv*/bin/pytest, uv+pyproject, npm test, make test." "" 0 0
   echo "[$NAME] no test command detected"
   python3 "$FLEET/bin/events.py" "$NAME" warn "no test command detected" 2>/dev/null
   exit 0
+fi
+
+# --- skip an identical tree --------------------------------------------------
+# 310 seconds of four pegged cores, hourly, over a tree that has not changed a
+# byte. On an 8GB laptop that swaps, that is an afternoon spent re-proving
+# yesterday.
+#
+# The only safe version of this skip says what it is: "unchanged since <sha>",
+# carrying forward the real result from when the code last moved. A skip that
+# reported a fresh "pass" would be a green board with no evidence behind it,
+# which is the exact failure this repo already ate when the NUC reported "no
+# test command detected" for a week and nobody noticed.
+#
+# Re-run anyway when: the tree is dirty (uncommitted work is what most needs
+# testing), there is no previous result, or the previous result was a FAILURE
+# — a fail keeps shouting until the code changes. WATCHDOG_FORCE=1 overrides.
+HEAD="$(git -C "$TARGET" rev-parse HEAD 2>/dev/null || true)"
+DIRTY="$(git -C "$TARGET" status --porcelain 2>/dev/null | head -1)"
+if [[ -n "$HEAD" && -z "$DIRTY" && -f "$OUT" && "${WATCHDOG_FORCE:-}" != "1" ]]; then
+  PREV="$(python3 "$FLEET/bin/watchdog-prev.py" "$OUT")"
+  if [[ -n "$PREV" ]]; then
+    PREV_HEAD="$(echo "$PREV" | cut -f1)"
+    PREV_SUMMARY="$(echo "$PREV" | cut -f2)"
+    PREV_WHEN="$(echo "$PREV" | cut -f3)"
+    if [[ "$PREV_HEAD" == "$HEAD" ]]; then
+      DURATION=0
+      write_status "pass" "$PREV_SUMMARY - unchanged since ${HEAD:0:7}" \
+        "Tests not re-run: HEAD ${HEAD:0:7} is identical to the last green run at $PREV_WHEN and the tree is clean. Force with WATCHDOG_FORCE=1." \
+        "" 0 0
+      echo "[$NAME] skipped - unchanged since ${HEAD:0:7}"
+      python3 "$FLEET/bin/events.py" "$NAME" info \
+        "tests skipped - unchanged since ${HEAD:0:7} ($PREV_SUMMARY)" 2>/dev/null
+      exit 0
+    fi
+  fi
 fi
 
 # --- run it ------------------------------------------------------------------
