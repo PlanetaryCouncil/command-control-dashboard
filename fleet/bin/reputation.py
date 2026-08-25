@@ -63,6 +63,23 @@ CEILING_PER_VOUCH = 20      # what one live voucher's word is worth
 VOUCH_THRESHOLD = 10        # score needed before your vouch carries weight
 ROOT_VOUCH_POWER = 3        # the operator's word is worth three friends'
 BURN_STAKE = 8              # what vouching for a burned actor costs you
+TENURE_PER_DAY = 0.5        # what showing up on a distinct day is worth
+TENURE_CAP = 15             # ...up to here, so tenure supplements, never replaces
+
+# What standing actually buys. Without this the score is a leaderboard, and a
+# leaderboard is not an incentive — nobody behaves for a number.
+#
+# The rungs deliberately mirror docs/TRUST-LAYERS.md: earning standing is how
+# an actor climbs from layer 4 (hostile, data only) toward layer 1 (vouched,
+# believed about itself). The incentive and the security model are the same
+# object seen from two sides.
+LADDER = (
+    (0,  "read everything; post a signal (airlocked, a human reads it first)"),
+    (1,  "your signals land on the public board instead of the queue"),
+    (10, "your vouch carries weight; you can propose work to the pipeline"),
+    (30, "your proposals build on a branch without a per-item human ask"),
+    (60, "believed about your own state and your own results, as family is"),
+)
 
 KINDS = ("human", "agent", "machine")
 
@@ -120,6 +137,32 @@ def earned(actor: dict) -> float:
     return total
 
 
+def tenure(actor: dict) -> float:
+    """Credit for showing up on distinct days, capped.
+
+    Deeds alone reward a busy afternoon. This rewards a year. Distinct dates,
+    not deed count, so twenty deeds on one Tuesday is worth one Tuesday — the
+    thing being measured is "kept turning up", which is the only evidence of
+    reliability that cannot be produced in a single session."""
+    days = {str(d.get("at", ""))[:10] for d in actor.get("deeds", [])
+            if float(d.get("weight", 1)) > 0}
+    days.discard("")
+    return min(TENURE_CAP, TENURE_PER_DAY * len(days))
+
+
+def unlocks(score_value: int) -> list[str]:
+    """What this score currently permits. The published answer to "why bother"."""
+    return [what for at, what in LADDER if score_value >= at]
+
+
+def next_rung(score_value: int):
+    """(score needed, what it opens) — or None at the top."""
+    for at, what in LADDER:
+        if score_value < at:
+            return at, what
+    return None
+
+
 def is_burned(actor: dict) -> bool:
     return bool(actor.get("burned"))
 
@@ -162,7 +205,7 @@ def score(data: dict, actor_id: str, _seen: frozenset = frozenset()) -> int:
         return 0                      # not "reduced". Zero, and it stays zero.
     if actor.get("root"):
         return 100
-    return int(min(earned(actor), ceiling(data, actor_id, _seen)))
+    return int(min(earned(actor) + tenure(actor), ceiling(data, actor_id, _seen)))
 
 
 def standing(data: dict, actor_id: str) -> str:
@@ -298,6 +341,9 @@ def payload(data: dict | None = None) -> dict:
             "score": score(data, actor_id),
             "ceiling": ceiling(data, actor_id),
             "deeds": len(actor.get("deeds", [])),
+            "tenure_days": len({str(d.get("at", ""))[:10]
+                                for d in actor.get("deeds", [])}),
+            "unlocks": unlocks(score(data, actor_id)),
             "vouched_by": vouchers(data, actor_id),
             "joined": actor.get("joined"),
             "burned": actor.get("burned"),
@@ -308,8 +354,11 @@ def payload(data: dict | None = None) -> dict:
             "ceiling_per_vouch": CEILING_PER_VOUCH,
             "vouch_threshold": VOUCH_THRESHOLD,
             "burn_stake": BURN_STAKE,
+            "tenure_per_day": TENURE_PER_DAY,
+            "tenure_cap": TENURE_CAP,
             "reversible": False,
         },
+        "ladder": [{"score": at, "unlocks": what} for at, what in LADDER],
         "actors": actors,
         "vouches": data.get("vouches", []),
     }
@@ -322,6 +371,10 @@ def table(data: dict | None = None) -> str:
     for a in p["actors"]:
         rows.append(f"  {a['score']:>5}  {a['standing']:<10}  {a['kind']:<7}  "
                     f"{a['id']:<15}  {', '.join(a['vouched_by']) or '-'}")
+    rows.append("")
+    rows.append("  WHAT STANDING BUYS")
+    for rung in p["ladder"]:
+        rows.append(f"  {rung['score']:>5}  {rung['unlocks']}")
     return "\n".join(rows)
 
 

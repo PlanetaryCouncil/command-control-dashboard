@@ -179,3 +179,78 @@ def test_payload_is_public_and_carries_no_secrets(rep):
     blob = json.dumps(rep.payload(d)).lower()
     assert "secret" not in blob and "token" not in blob
     assert rep.payload(d)["rules"]["reversible"] is False
+
+
+def test_tenure_rewards_days_not_bursts(rep):
+    """Twenty deeds on one Tuesday is worth one Tuesday."""
+    d = rep.load()
+    rep.join(d, "burst", "agent")
+    for _ in range(20):
+        rep.deed(d, "burst", "work", 1)
+    one_day = rep.tenure(d["actors"]["burst"])
+    assert one_day == rep.TENURE_PER_DAY, "same-day deeds are one day of tenure"
+
+    rep.join(d, "steady", "agent")
+    for day in range(1, 21):
+        rep.deed(d, "steady", "work", 1)
+        # Backdate so each deed lands on its own date.
+        d["actors"]["steady"]["deeds"][-1]["at"] = f"2026-08-{day:02d}T10:00:00+00:00"
+    assert rep.tenure(d["actors"]["steady"]) > one_day
+
+
+def test_tenure_is_capped(rep):
+    d = rep.load()
+    rep.join(d, "ancient", "agent")
+    for n in range(200):
+        rep.deed(d, "ancient", "work", 1)
+        d["actors"]["ancient"]["deeds"][-1]["at"] = f"2026-{(n % 12) + 1:02d}-{(n % 28) + 1:02d}T10:00:00+00:00"
+    assert rep.tenure(d["actors"]["ancient"]) == rep.TENURE_CAP
+
+
+def test_tenure_cannot_be_earned_by_negative_deeds(rep):
+    """The burn penalty must not double as a day of good attendance."""
+    d = rep.load()
+    rep.join(d, "x", "agent")
+    d["actors"]["x"]["deeds"].append(
+        {"what": "vouched for a burned actor", "weight": -8.0,
+         "at": "2026-08-25T10:00:00+00:00"})
+    assert rep.tenure(d["actors"]["x"]) == 0
+
+
+def test_tenure_still_respects_the_ceiling(rep):
+    """Turning up every day for a year does not outrank being vouched for."""
+    d = rep.load()
+    rep.join(d, "loner", "agent")
+    for n in range(100):
+        rep.deed(d, "loner", "work", 1)
+        d["actors"]["loner"]["deeds"][-1]["at"] = f"2026-{(n % 12) + 1:02d}-{(n % 28) + 1:02d}T10:00:00+00:00"
+    assert rep.score(d, "loner") == 0, "no vouch, no ceiling, no score"
+
+
+def test_the_ladder_says_what_a_score_buys(rep):
+    assert rep.unlocks(0) == [rep.LADDER[0][1]]
+    assert len(rep.unlocks(10)) == 3
+    assert len(rep.unlocks(1000)) == len(rep.LADDER)
+    assert rep.next_rung(0)[0] == 1
+    assert rep.next_rung(10_000) is None
+
+
+def test_a_burned_actor_is_offered_nothing(rep):
+    d = rep.load()
+    rep.join(d, "x", "agent")
+    rep.vouch(d, "mars", "x")
+    for _ in range(40):
+        rep.deed(d, "x", "work", 1)
+    assert len(rep.unlocks(rep.score(d, "x"))) > 1
+    rep.burn(d, "x", by="mars", why="hostile")
+    row = [a for a in rep.payload(d)["actors"] if a["id"] == "x"][0]
+    assert row["unlocks"] == [rep.LADDER[0][1]], \
+        "burned keeps only what a total stranger has"
+
+
+def test_the_ladder_is_published_not_just_enforced(rep):
+    """An incentive nobody can read is not an incentive."""
+    p = rep.payload(rep.load())
+    assert p["ladder"], "the rules of the game go on the public page"
+    assert all("unlocks" in rung and "score" in rung for rung in p["ladder"])
+    assert "WHAT STANDING BUYS" in rep.table()

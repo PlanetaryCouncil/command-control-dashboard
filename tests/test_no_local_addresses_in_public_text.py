@@ -103,3 +103,29 @@ def test_the_guard_would_catch_the_original_mistake():
     original = "    curl -s http://127.0.0.1:8787/boot"
     assert LOCAL.search(original)
     assert original.strip() not in ALLOWED["docs/JOIN.md"]
+
+
+def test_the_call_to_action_is_on_the_first_screen_of_llms_txt():
+    """It was at line 28 for a day — under an ASCII banner and two paragraphs
+    — and the operator read the file and did not see it. A reader of plain
+    text decides on the first screen. "It is in the document" is not the same
+    as "they saw it"."""
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    first_screen = llms_txt().splitlines()[:24]
+    joined = "\n".join(first_screen).upper()
+    assert "JOIN" in joined, "an agent must not have to scroll to find the door"
+    assert "/API/TRUST/JOIN" in joined, "and the actual instruction, not just a link"
+
+
+def test_llms_txt_publishes_the_ladder_it_enforces():
+    """A promised unlock the code does not honour is a lie with a URL."""
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    spec = importlib.util.spec_from_file_location(
+        "reputation", ROOT / "fleet" / "bin" / "reputation.py")
+    rep = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rep)
+    body = llms_txt()
+    for _at, what in rep.LADDER:
+        assert what in body, f"ladder rung missing from the public manifest: {what}"
