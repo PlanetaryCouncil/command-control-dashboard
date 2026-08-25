@@ -135,7 +135,13 @@ def as_markdown() -> str:
 
 def as_html() -> str:
     """A self-contained block. No classes from elsewhere, no dependencies —
-    it has to survive being pasted into any page that needs a front door."""
+    it has to survive being pasted into any page that needs a front door.
+
+    It is a <details>, collapsed by default. This text always lives in the UI
+    because it is what the place stands for, but standing for something does
+    not earn half the screen every load: collapsed it is one row, and the
+    caret is the whole affordance. Open/closed is remembered per browser so a
+    reader who opened it once is not re-asked on every page."""
     e = html.escape
     steps = "".join(
         f'<li><b>{e(v)}</b> <a href="{e(p)}"><code>{e(p)}</code></a>'
@@ -143,17 +149,34 @@ def as_html() -> str:
         for v, p, n in STEPS)
     paras = "".join(f"<p>{e(t)}</p>" for t in WHAT_IS_TRUE)
     return (
-        '<section id="firstcontact" style="border:1px solid currentColor;'
-        'border-radius:8px;padding:.9rem 1.1rem;margin:0 0 1rem;'
+        '<details id="firstcontact" style="border:1px solid currentColor;'
+        'border-radius:8px;padding:.5rem .9rem;margin:0 0 1rem;'
         'font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
         'font-size:.82rem;line-height:1.6">'
-        f'<div style="letter-spacing:.14em;font-weight:700">{e(TITLE)} '
-        f'&mdash; {e(BANNER)}</div>'
+        '<summary style="cursor:pointer;list-style:none;letter-spacing:.14em;'
+        'font-weight:700;display:flex;gap:.6rem;align-items:baseline">'
+        '<span data-fc="shut" style="opacity:.6">&#9656;</span>'
+        '<span data-fc="open" style="opacity:.6">&#9662;</span>'
+        f'<span>{e(TITLE)} &mdash; {e(BANNER)}</span></summary>'
+        '<style>#firstcontact>summary::-webkit-details-marker{display:none}'
+        '#firstcontact>summary::marker{content:""}'
+        '#firstcontact>summary [data-fc=open]{display:none}'
+        '#firstcontact[open]>summary [data-fc=open]{display:inline}'
+        '#firstcontact[open]>summary [data-fc=shut]{display:none}'
+        '</style>'
+        '<div style="margin-top:.6rem">'
         f'<div style="margin:.35rem 0 .6rem;opacity:.85">{e(SUBTITLE)}</div>'
         f'<ul style="margin:.5rem 0;padding-left:1.1rem">{steps}</ul>'
         f'<div style="opacity:.8">{paras}</div>'
         f'<div style="opacity:.7">{e(CLOSING)}</div>'
-        '</section>')
+        '</div>'
+        '<script>(function(){var d=document.getElementById("firstcontact");'
+        'if(!d)return;try{if(localStorage.getItem("fc.open")==="1")'
+        'd.open=true;}catch(e){}'
+        'd.addEventListener("toggle",function(){try{'
+        'localStorage.setItem("fc.open",d.open?"1":"0");}catch(e){}});'
+        '})();</script>'
+        '</details>')
 
 
 def _wrap(text: str, width: int) -> str:
