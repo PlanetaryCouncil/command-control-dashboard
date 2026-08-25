@@ -177,3 +177,40 @@ def test_the_doors_come_before_the_explanation():
         first_prose = rendering.index(fc.WHAT_IS_TRUE[0][:40])
         assert first_step < first_prose, \
             "the doors must appear before the paragraphs explaining them"
+
+
+def test_the_readme_rendering_has_no_relative_links():
+    """README.md is read on GitHub, in editors, and by `cat`. A relative link
+    like [/boot](/boot) resolves against github.com there and 404s for every
+    reader who arrived through the repo door — the same shape as the
+    127.0.0.1 instruction already in the brainfarts log: a path that only
+    works from the seat the author was sitting in.
+
+    Paths stay as code spans, and the closing line says what to resolve them
+    against."""
+    md = fc.as_markdown()
+    assert not re.search(r"\]\(/[a-z]", md), \
+        "relative markdown links break wherever the README is actually read"
+    assert "relative" in fc.CLOSING.lower(), \
+        "a reader with no host in hand needs telling what these resolve against"
+
+
+def test_boot_is_not_a_dead_end():
+    """/boot is step one of READ / LOOK / JOIN. A first step that names no
+    second step is a dead end with good manners."""
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import boot              # noqa: PLC0415
+    body = boot()
+    for onward in ("/map", "/join", "/llms.txt"):
+        assert onward in body, f"/boot never mentions {onward}"
+
+
+def test_a_get_on_the_join_endpoint_admits_the_door_exists():
+    """404 tells a probing agent the endpoint is not there. It is there; it
+    takes POST. /api/pair already answers 405 and the two sit side by side in
+    the same manifest."""
+    src = (ROOT / "fleet" / "bin" / "fleet.py").read_text()
+    block = src.split('if path == "/api/trust/join":', 1)
+    assert len(block) > 1, "no GET handler for /api/trust/join"
+    head = block[1][:600]
+    assert "405" in head and "Allow" in head

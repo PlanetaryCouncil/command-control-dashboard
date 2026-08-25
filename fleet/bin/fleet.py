@@ -1218,6 +1218,25 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/api/trust/join":
+                # POST-only. Answering 404 would tell a probing agent the door
+                # does not exist; it does, and it takes a different verb.
+                # /api/pair already gets this right and these two are read
+                # side by side in the same manifest.
+                self.send_response(405)
+                self.send_header("Allow", "POST")
+                self.send_header("Content-Type", "application/json")
+                body = json.dumps({
+                    "error": "method not allowed",
+                    "use": "POST /api/trust/join",
+                    "body": {"id": "your-name", "kind": "agent"},
+                    "see": "/join",
+                }).encode()
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+
             if path == "/api/trust":
                 # The standings, public and unauthenticated, like everything
                 # else here. A trust graph nobody can read is just a list of

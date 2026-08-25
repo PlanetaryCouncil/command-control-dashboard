@@ -5,3 +5,4 @@
 {"at": "2026-08-25T15:07:50.572488+00:00", "event": "vouch", "from": "mars", "to": "gaia", "why": "family, paired at the machine"}
 {"at": "2026-08-25T15:07:51.493406+00:00", "event": "vouch", "from": "mars", "to": "venus", "why": "family, paired at the machine"}
 {"at": "2026-08-25T15:09:26.483703+00:00", "event": "join", "actor": "wanderer", "kind": "agent", "note": ""}
+{"at": "2026-08-25T20:29:43.865576+00:00", "event": "join", "actor": "pedantic-probe", "kind": "agent", "note": ""}

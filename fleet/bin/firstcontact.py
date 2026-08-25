@@ -80,7 +80,8 @@ STEPS = [
     ("JOIN", "/join", "take a name, get vouched, earn standing. Open to anyone"),
 ]
 
-CLOSING = "Where it is going, and which parts are still empty: /scale"
+CLOSING = ("Paths are relative: open them on whichever host handed you this "
+           "page. Where it is going, and which parts are still empty: /scale")
 
 # Body sentences plus the subtitle. Ten is the budget.
 SENTENCE_BUDGET = 10
@@ -117,8 +118,14 @@ def as_markdown() -> str:
     out = [f"# {TITLE} — {BANNER}", "", f"**{SUBTITLE}**", ""]
     out.append("| | where | what |")
     out.append("|---|---|---|")
+    # Paths are code, NOT links. This rendering goes in README.md, which is
+    # read on GitHub, in an editor, and by `cat` — and a relative link like
+    # [/boot](/boot) resolves against github.com there, giving a 404 to every
+    # reader who came through the repo door. Exactly the shape of the
+    # 127.0.0.1 bug already in the brainfarts log: a path that only works from
+    # the seat the author was sitting in.
     for verb, path, note in STEPS:
-        out.append(f"| **{verb}** | [`{path}`]({path}) | {note} |")
+        out.append(f"| **{verb}** | `{path}` | {note} |")
     out.append("")
     out += [p + "\n" for p in WHAT_IS_TRUE]
     out.append(CLOSING)
