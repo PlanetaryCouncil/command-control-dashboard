@@ -115,7 +115,12 @@ def test_the_call_to_action_is_on_the_first_screen_of_llms_txt():
     first_screen = llms_txt().splitlines()[:24]
     joined = "\n".join(first_screen).upper()
     assert "JOIN" in joined, "an agent must not have to scroll to find the door"
-    assert "/API/TRUST/JOIN" in joined, "and the actual instruction, not just a link"
+    # The raw `POST /api/trust/join` used to be required here too. It moved
+    # down when the opening was cut to three lines — READ / LOOK / JOIN —
+    # because "simple onboarding" and "the whole protocol in the first screen"
+    # are the same space fighting over it, and a stranger needs the door
+    # before they need the payload schema. /join carries the payload.
+    assert "/JOIN" in joined, "the door itself has to be on the first screen"
 
 
 def test_llms_txt_publishes_the_ladder_it_enforces():

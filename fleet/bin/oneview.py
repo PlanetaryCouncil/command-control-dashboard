@@ -1497,6 +1497,26 @@ def _for_script(json_text: str) -> str:
                      .replace(">", "\\u003e"))
 
 
+def _first_contact() -> str:
+    """The shared opening, shown only to a remote visitor.
+
+    `/` is Marsita's board and they read it all day — a front-door banner
+    there would be furniture in the way of the actual instrument. But `/` is
+    also where a stranger with a browser lands, and we do not get to choose
+    which door first contact arrives at. So: same message as llms.txt and the
+    README, rendered as HTML, remote only."""
+    import importlib.util
+    from pathlib import Path as _P
+    spec = importlib.util.spec_from_file_location(
+        "firstcontact", _P(__file__).resolve().parent / "firstcontact.py")
+    try:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.as_html()
+    except Exception:
+        return ""
+
+
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
     import html as _html
     import nav
@@ -1553,6 +1573,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </span>
 </div>
 
+{_first_contact() if remote else ""}
 {WELCOME if remote else ""}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>

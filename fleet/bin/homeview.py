@@ -149,6 +149,20 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
 <script>if(!localStorage.getItem('welcomed'))document.getElementById('welcome').style.display='flex';</script>"""
 
 
+def _first_contact() -> str:
+    """Same block as `/` and llms.txt. See oneview._first_contact."""
+    import importlib.util
+    from pathlib import Path as _P
+    spec = importlib.util.spec_from_file_location(
+        "firstcontact", _P(__file__).resolve().parent / "firstcontact.py")
+    try:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.as_html()
+    except Exception:
+        return ""
+
+
 def page(remote: bool = False) -> str:
     return f"""<!doctype html>
 <html lang="en" data-theme="dark"><head>
@@ -172,6 +186,7 @@ def page(remote: bool = False) -> str:
       and you can join it.</small></h1>
   </header>
 
+  {_first_contact() if remote else ''}
   {WELCOME if remote else ''}
 
   <div class="col-left">
