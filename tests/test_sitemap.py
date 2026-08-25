@@ -1,0 +1,126 @@
+"""The map may not name a door that is not there.
+
+A link map is the one document where being wrong is invisible to the author
+and total for the reader: every path looks fine in the source, and the person
+who finds out is a stranger who followed it. This repo has already shipped one
+front-door instruction that only worked from the author's seat.
+
+So the map is checked two ways. Every path it names must be a route that
+exists, and every route worth advertising must be on the map — the second half
+being the one that catches "we built it and nobody could find it", which is
+how /api/agents and /brainfarts.json spent months answering only on a port
+nobody outside can reach.
+"""
+
+import importlib.util
+import re
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+
+spec = importlib.util.spec_from_file_location(
+    "sitemap", ROOT / "fleet" / "bin" / "sitemap.py")
+sitemap = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(sitemap)
+
+FLEET_SRC = (ROOT / "fleet" / "bin" / "fleet.py").read_text()
+COCKPIT_SRC = (ROOT / "legacy" / "app" / "main.py").read_text()
+
+
+def fleet_routes() -> set[str]:
+    """Paths fleet.py answers itself."""
+    out = set()
+    for m in re.finditer(r'if path == "([^"]+)"', FLEET_SRC):
+        out.add(m.group(1))
+    for m in re.finditer(r'if path in \(([^)]*)\)', FLEET_SRC):
+        out.update(re.findall(r'"([^"]+)"', m.group(1)))
+    return out
+
+
+def forwarded() -> set[str]:
+    """Paths fleet.py hands to the cockpit — exact entries and prefixes."""
+    block = re.search(r"FORWARD_EXACT = \{(.*?)\}", FLEET_SRC, re.S)
+    exact = set(re.findall(r'"([^"]+)"', block.group(1))) if block else set()
+    pre = re.search(r"FORWARD_PREFIX = \(([^)]*)\)", FLEET_SRC, re.S)
+    prefixes = tuple(re.findall(r'"([^"]+)"', pre.group(1))) if pre else ()
+    return exact, prefixes
+
+
+def cockpit_routes() -> set[str]:
+    return set(re.findall(r'@app\.(?:get|post)\("([^"{]+)"', COCKPIT_SRC))
+
+
+def reachable(path: str) -> bool:
+    """Reachable from the front door — the only door anyone outside uses."""
+    if path in fleet_routes():
+        return True
+    exact, prefixes = forwarded()
+    if path in exact:
+        return path in cockpit_routes()
+    if any(path.startswith(p) for p in prefixes):
+        return True
+    return False
+
+
+@pytest.mark.parametrize("path", sorted(sitemap.paths()))
+def test_every_mapped_path_is_reachable_from_the_front_door(path):
+    assert reachable(path), (
+        f"the map advertises {path}, which the fleet server does not answer. "
+        "Either add the route, forward it, or take it off the map.")
+
+
+def test_both_views_are_offered_wherever_they_exist():
+    """The claim is that a person and a machine are equal here. A row with
+    neither view is a row about nothing."""
+    for section, subject, human, machine, note in sitemap.rows():
+        assert human or machine or "docs/" in note, \
+            f"{section}/{subject} offers no way in at all"
+        assert note.strip(), f"{section}/{subject} has no explanation"
+
+
+def test_the_map_covers_the_things_worth_finding():
+    """Not every route — plumbing and controls stay off it. But if one of
+    these is missing, an arriving agent cannot find the thing it most needs."""
+    essential = {"/boot", "/join", "/trust", "/api/trust", "/api/dashboard",
+                 "/api/horizons", "/api/signals", "/workers.json", "/llms.txt",
+                 "/about", "/moderation"}
+    missing = essential - sitemap.paths()
+    assert not missing, f"missing from the map: {sorted(missing)}"
+
+
+def test_control_surfaces_stay_off_the_map():
+    """The kill switch and the terminal are not tourist attractions."""
+    for hidden in ("/api/kill", "/terminal", "/ws/terminal", "/api/kill-token"):
+        assert hidden not in sitemap.paths()
+
+
+def test_the_map_renders_for_both_readers():
+    text, markdown = sitemap.as_text(), sitemap.as_markdown()
+    assert "look at:" in text and "parse:" in text
+    assert "| subject | a person looks at | a machine parses |" in markdown
+    for _s, subject, _h, _m, _n in sitemap.rows():
+        assert subject in text and subject in markdown, \
+            f"{subject} is missing from one of the two renderings"
+
+
+def test_llms_txt_carries_the_map_rather_than_a_copy_of_it():
+    import sys
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    body = llms_txt()
+    assert "map unavailable" not in body, "the map failed to load into /llms.txt"
+    for _s, subject, _h, _m, _n in sitemap.rows():
+        assert subject in body, f"{subject} did not reach the manifest"
+
+
+def test_boot_is_named_as_the_one_fetch():
+    """The whole onboarding claim is "load the context in one go". If /boot
+    stops being the answer, this is the sentence that has to change."""
+    import sys
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    body = llms_txt()
+    assert "One fetch loads the lot" in body
+    assert "/boot" in body.split("## The map")[1][:400]

@@ -199,7 +199,8 @@ def page(remote: bool = False) -> str:
       <li><strong>Take a name</strong> — <code>POST /api/trust/join</code>.</li>
       <li><strong>Get vouched</strong>, then earn it slowly. <a href="/trust">the standings</a></li>
     </ol>
-    <p class="cta"><a href="/join">the whole process, one page &rarr;</a></p>
+    <p class="cta"><a href="/join">the whole process, one page &rarr;</a>
+      &nbsp;·&nbsp; <a href="/map">the map of everything &rarr;</a></p>
   </section>
 
   <nav class="rail">
@@ -210,6 +211,7 @@ def page(remote: bool = False) -> str:
     <a href="/art">submit art</a>
     <a href="/about">what this is</a>
     <a href="/moderation">the rules</a>
+    <a href="/map">the map</a>
     <a href="/trust">the trust graph</a>
     <a href="/llms.txt">llms.txt</a>
   </nav>

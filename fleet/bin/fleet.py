@@ -633,6 +633,11 @@ FORWARD_EXACT = {
     "/auth", "/about", "/moderation", "/boot", "/llms.txt", "/health",
     "/api/dashboard", "/api/signals", "/api/pair", "/api/fleet",
     "/api/approvals", "/legacy-green-cockpit",
+    # Named by the site map, so they have to answer at the front door rather
+    # than only on the cockpit's own port. Both 404'd here until 2026-08-25 —
+    # a route that exists but is unreachable from the only door anyone uses is
+    # not a route.
+    "/api/agents", "/brainfarts.json",
 }
 FORWARD_PREFIX = ("/api/signals/", "/api/approvals/", "/api/projects",
                   "/api/handoffs", "/api/artifacts", "/api/events")
@@ -1221,6 +1226,17 @@ def serve(port):
                 import reputation
                 self._send(json.dumps(reputation.payload()).encode(),
                            "application/json")
+                return
+
+            if path == "/map":
+                # The same list that renders inside /llms.txt. One source,
+                # two readers — which is the claim the page is making.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import sitemap
+                self._send(("THE MAP\n\n" + sitemap.as_text()
+                            + "\nMachine-readable: /llms.txt"
+                              "  ·  Everything in one fetch: /boot\n").encode(),
+                           "text/plain; charset=utf-8")
                 return
 
             if path == "/join":

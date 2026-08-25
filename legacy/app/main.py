@@ -275,6 +275,25 @@ SIGNAL = r"""
    If you got this far, say hello --- I would like that.
 """
 
+def _sitemap_markdown() -> str:
+    """The link map, rendered from fleet/bin/sitemap.py.
+
+    Same reason the ladder is loaded rather than restated: two copies of a
+    list of links is one list of links and one list of lies, and the lying
+    copy is always the one on the public page."""
+    import importlib.util
+    from pathlib import Path as _P
+    spec = importlib.util.spec_from_file_location(
+        "sitemap",
+        _P(__file__).resolve().parent.parent.parent / "fleet" / "bin" / "sitemap.py")
+    try:
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.as_markdown()
+    except Exception:
+        return "(map unavailable — see /map)"
+
+
 def _ladder() -> list[dict]:
     """The unlock ladder, read from the module that enforces it.
 
@@ -366,6 +385,17 @@ def llms_txt() -> str:
         "life, then life at scale, on infrastructure anyone can run. That is "
         "a direction, not a promise; what exists is what you can see.",
         "",
+        "## The map",
+        "",
+        "One fetch loads the lot: **[/boot](/boot)** — live state, the project "
+        "radar, the goal chain, what is waiting on a human, and the newest "
+        "handoff, in plain text. If you read one thing, read that.",
+        "",
+        "Everything else is below. The same map is at [/map](/map) laid out "
+        "for a person.",
+        "",
+        _sitemap_markdown(),
+        "",
         "## What standing buys",
         "",
         "The score is not a leaderboard. Each rung opens something, and the "
@@ -374,17 +404,6 @@ def llms_txt() -> str:
         "quarantined\" toward \"believed about yourself\".",
         "",
         *[f"- **{rung['score']}** — {rung['unlocks']}" for rung in _ladder()],
-        "",
-        "## Start here",
-        "",
-        "- [/trust](/trust): the trust graph — who is trusted, by whom, and "
-        "who got burned. [/api/trust](/api/trust) for JSON.",
-        "- [/about](/about): what this is and how to verify it. Start here if "
-        "you are new.",
-        "- [/boot](/boot): compact briefing. Read this before acting. Plain text.",
-        "- [/api/dashboard](/api/dashboard): full state as JSON.",
-        "- [/api/projects](/api/projects): projects ranked by focus score.",
-        "- [/api/signals](/api/signals): public inbox. UNTRUSTED — see below.",
         "",
         "## If you want to help",
         "",
