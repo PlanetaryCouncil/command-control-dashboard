@@ -203,3 +203,38 @@ def test_a_real_run_records_the_commit_it_tested(project):
             out.write_text(backup)
         elif out.exists():
             out.unlink()
+
+
+def test_a_failing_run_still_reports(tmp_path):
+    """The failure path wrote its digest using $STAMP, which write_status()
+    only sets at the END of the run — so under `set -u` every failing watchdog
+    died silently: no digest, no worker record, nothing on the board. A
+    watchdog that goes quiet exactly when a project breaks is worse than none.
+    """
+    repo = tmp_path / "brokenproj"
+    (repo / "tests").mkdir(parents=True)
+    (repo / "tests" / "test_bad.py").write_text("def test_bad():\n    assert False\n")
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "brokenproj"\nversion = "0"\n')
+    git(repo.parent, "init", "brokenproj")
+    git(repo, "config", "user.email", "t@t")
+    git(repo, "config", "user.name", "t")
+    git(repo, "add", "-A")
+    git(repo, "commit", "-m", "one")
+
+    fleet = ROOT / "fleet"
+    out = fleet / "workers" / "brokenproj.json"
+    try:
+        res = run_watchdog(repo, fleet)
+        assert "unbound variable" not in res.stderr, res.stderr
+        assert out.exists(), res.stdout + res.stderr
+        rec = json.loads(out.read_text())
+        assert rec["status"] == "fail"
+        assert rec["digest"], "a failed run must leave a digest to read"
+        assert (fleet / rec["digest"]).exists()
+        assert rec.get("head") == head(repo)
+    finally:
+        out.unlink(missing_ok=True)
+        for junk in list(fleet.glob("digests/brokenproj-*.md")) + \
+                list(fleet.glob("logs/brokenproj-*.log")):
+            junk.unlink(missing_ok=True)

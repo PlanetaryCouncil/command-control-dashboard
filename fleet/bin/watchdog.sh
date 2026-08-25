@@ -21,6 +21,12 @@ NAME="$(basename "$TARGET")"
 # finish time — which made the staleness check invalid.
 START_STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 FILE_STAMP="$(date +%Y-%m-%dT%H-%M-%S)"
+# STAMP is normally set by write_status() at the end of the run. The
+# failure digest is written BEFORE that call and also reads it, so under
+# `set -u` every failing run died on an unbound variable — no digest, no
+# worker record, nothing on the board. Exactly the silence this script
+# exists to prevent. Seed it so the digest always has a time.
+STAMP="$START_STAMP"
 OUT="$FLEET/workers/$NAME.json"
 LOG="$FLEET/logs/$NAME-$FILE_STAMP.log"
 mkdir -p "$FLEET/workers" "$FLEET/digests" "$FLEET/logs"
