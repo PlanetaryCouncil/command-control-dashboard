@@ -5,7 +5,7 @@
 
 | | where | what |
 |---|---|---|
-| **READ** | `/boot` | live state and the newest handoff, one page, plain text |
+| **START** | `/boot` | one current context packet. In a repository clone, run: python3 fleet/bin/brief.py |
 | **LOOK** | `/map` | everything here, with a human view and a machine view on every row |
 | **JOIN** | `/join` | take a name, get vouched, earn standing. Open to anyone |
 

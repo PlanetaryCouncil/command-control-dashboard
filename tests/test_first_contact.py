@@ -76,6 +76,8 @@ def test_every_door_carries_the_whole_message_not_a_pointer():
         assert fc.SUBTITLE in body, f"{name} is missing the one-line what-is-this"
         for _verb, path, _note in fc.STEPS:
             assert path in body, f"{name} does not offer {path}"
+        assert "python3 fleet/bin/brief.py" in body, \
+            f"{name} does not state the repository starting command"
 
 
 def test_the_opening_claims_no_more_than_the_system_does():

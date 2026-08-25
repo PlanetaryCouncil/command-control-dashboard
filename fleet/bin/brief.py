@@ -26,6 +26,19 @@ def latest_handoff():
     return files[0] if files else None
 
 
+def handoff_context(path: Path) -> str:
+    """Return operational state without an older handoff's copied rules."""
+    text = path.read_text().strip()
+    marker = "## Read first"
+    if marker not in text:
+        return text
+    before, rest = text.split(marker, 1)
+    next_section = rest.find("\n## ")
+    if next_section < 0:
+        return before.rstrip()
+    return (before.rstrip() + "\n\n" + rest[next_section + 1:].lstrip()).strip()
+
+
 def quota_line():
     try:
         card = json.loads(QUOTAS.read_text())
@@ -51,7 +64,7 @@ def render():
     ]
     if handoff:
         lines.extend([f"Source: {handoff.relative_to(REPO)}", "",
-                      handoff.read_text().strip()])
+                      handoff_context(handoff)])
     else:
         lines.append("No handoff found. Read README.md.")
     return "\n".join(lines) + "\n"

@@ -15,6 +15,16 @@ def test_latest_handoff_is_newest_name(monkeypatch, tmp_path):
     assert brief.latest_handoff() == newest
 
 
+def test_handoff_context_drops_copied_rules_but_keeps_live_state(tmp_path):
+    handoff = tmp_path / "handoff.md"
+    handoff.write_text(
+        "# Handoff\n\n## Read first\n\n- stale copied rule\n\n"
+        "## Current system\n\nRota is hourly.\n")
+    out = brief.handoff_context(handoff)
+    assert "stale copied rule" not in out
+    assert "Rota is hourly" in out
+
+
 def test_brief_is_small_live_context_not_another_state_store(monkeypatch,
                                                               tmp_path):
     handoff = tmp_path / "handoff-2026-08-23.md"
