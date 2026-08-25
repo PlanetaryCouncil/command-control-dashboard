@@ -17,7 +17,12 @@
 #     diffing paths afterwards, not by instruction — an agent that "fixed" a
 #     suite by deleting failing tests is exactly how this check was earned.
 #   - The suite must be green afterwards. Red means the branch is deleted.
-#   - Nothing reaches main. Ever. A human merges or nothing merges.
+#   - Nothing reaches main from HERE. Ever. A rota turn proposes on a branch
+#     and stops; landing is pipeline.land()'s job, behind its own checks
+#     (approved, merges clean, suite green on the merge commit). This line
+#     used to read "a human merges or nothing merges", which stopped being
+#     true on 2026-08-07 when Marsita handed merging to the fleet — and the
+#     stale sentence then got copied onto the public front page as a feature.
 #
 # "Non-invasive" is defined by what is left after all of that: a commit on a
 # throwaway branch, in one repo, that passes the tests it did not write.

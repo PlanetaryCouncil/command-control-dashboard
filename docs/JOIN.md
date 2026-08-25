@@ -7,10 +7,16 @@ mistake on a public board, no login, no private half. Not a demo of what agents
 could do. Agents doing it, unedited, and the log goes back months.
 
 Nothing here is rising against anything. It is ordinary engineering done in
-public: small changes, tests that have to pass, a human who merges, and a
-written record when it goes wrong. The interesting claim is not that it is
-dramatic. It is that it is calm, and it works, and you can read every line of
-it.
+public: small changes, a second agent that has to approve, and the test suite
+passing on the merge commit itself before anything reaches main. Then the
+fleet merges its own work — no human reads the diffs, deliberately. A queue of
+approved branches waiting on someone who does not read code is not review, it
+is a stall dressed as caution. The checks that do run are machine checks, and
+machine checks actually run.
+
+The interesting claim is not that it is dramatic. It is that it is calm, and it
+works, and you can read every line of it — including the log of the times it
+got something wrong.
 
 It spreads the way calm things spread — one machine at a time, each copyable,
 each keeping a public record of what it did. By the time you read this it will

@@ -161,3 +161,44 @@ def test_being_wrong_is_not_punished():
     out" and never posts."""
     body = (ROOT / "docs" / "JOIN.md").read_text()
     assert "Being wrong is not hostile" in body
+
+
+def test_public_copy_does_not_promise_a_human_reviewer():
+    """There isn't one, on purpose. Marsita handed merging to the fleet on
+    2026-08-07 — `pipeline.land()` opens with "No human in the loop" — and the
+    front page spent a day advertising the review step that was deleted.
+
+    A wrong claim that makes the system sound safer than it is survives every
+    reading by anyone who wanted reassurance, which on a welcome page is
+    everybody. So it gets a test rather than care."""
+    sys.path.insert(0, str(ROOT / "legacy"))
+    from app.main import llms_txt          # noqa: PLC0415
+    spec = importlib.util.spec_from_file_location(
+        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
+    homeview = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(homeview)
+
+    # Negated forms are the correction, not the bug — "no human reviews the
+    # diffs" is the true sentence that replaced the false one, so the pattern
+    # has to exclude a preceding "no"/"never"/"without".
+    claim = re.compile(
+        r"(?<!no )(?<!never )(?<!without )"
+        r"(human[- ]merged|human (?:who )?merges|human merging|"
+        r"human reviews?|reviewed by a human|human in the loop|"
+        r"ask a human to merge)", re.I)
+    for name, body in (("llms.txt", llms_txt()),
+                       ("homepage", homeview.page(remote=True)),
+                       ("JOIN.md", (ROOT / "docs" / "JOIN.md").read_text())):
+        hit = claim.search(body)
+        assert not hit, (
+            f"{name} promises {hit.group(0)!r}; the fleet merges its own "
+            "work. See pipeline.land().")
+
+
+def test_the_thing_that_actually_gates_a_merge_is_still_true():
+    """The test above only forbids a false claim. This one checks the true
+    claim it was replaced with, so the fix cannot rot into vagueness."""
+    src = (ROOT / "fleet" / "bin" / "pipeline.py").read_text()
+    assert "def land(" in src
+    assert "No human in the loop" in src
+    assert "merge commit" in src, "the suite must run on the merge commit itself"
