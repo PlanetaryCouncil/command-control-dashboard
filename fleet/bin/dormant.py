@@ -49,12 +49,18 @@ def summary(path: Path) -> str:
 
 
 def last_touched(path: Path) -> str:
-    """Date of the last commit that changed the file. How long something has
-    been asleep is most of the case for waking it or dropping it."""
+    """Date of the last commit that changed the file's CONTENT.
+
+    `--diff-filter=AM` is doing real work here. Without it, the commit that
+    moved these fifteen files into the drawer counted as touching all of
+    them, and every line printed today's date -- a staleness column that
+    says nothing is stale is worse than no column, because it is the exact
+    fact someone needs to decide what to drop. A file never edited since the
+    day it was written falls back to that day, which is itself the answer."""
     try:
         out = subprocess.run(
-            ["git", "log", "-1", "--follow", "--format=%ad", "--date=short",
-             "--", str(path)],
+            ["git", "log", "-1", "--follow", "--diff-filter=AM",
+             "--format=%ad", "--date=short", "--", str(path)],
             cwd=FLEET.parent, capture_output=True, text=True, timeout=10)
         return out.stdout.strip() or "?"
     except (OSError, subprocess.SubprocessError):
