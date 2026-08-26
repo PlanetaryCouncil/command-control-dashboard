@@ -1271,7 +1271,9 @@ def serve(port):
                 # two readers — which is the claim the page is making.
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import sitemap
-                self._send(("THE MAP\n\n" + sitemap.as_text()
+                # The renderer owns the title now. This handler used to add
+                # its own, and the page shipped with "THE MAP" twice.
+                self._send((sitemap.as_text()
                             + "\nMachine-readable: /llms.txt"
                               "  ·  Everything in one fetch: /boot\n").encode(),
                            "text/plain; charset=utf-8")
