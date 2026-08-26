@@ -54,7 +54,14 @@ WHAT_IS_TRUE = [
     "Every proposal, every review and every mistake is on a public board — no "
     "login, no private half, nothing to sign up for.",
 
-    "Reading needs no permission and never will.",
+    # Was "Reading needs no permission and never will." Cut 2026-08-26:
+    # the sentence above it already says no login, no private half, nothing
+    # to sign up for, so it restated a fact and then implied a false one --
+    # that reading is the permissionless half. Writing is open too. What is
+    # actually load-bearing is what open writing does NOT buy you.
+    "Writing is open too — anyone can post, anyone can take a name — but "
+    "neither buys standing; only a vouch does, and it costs the voucher "
+    "their own if they are wrong.",
 
     "It runs one life today: one operator, their machines, and their goals "
     "from ten years down to what is happening right now.",
