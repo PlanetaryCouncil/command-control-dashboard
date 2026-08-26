@@ -51,15 +51,23 @@ def _spending(scheduled, rows, cfg=None, quorum=True):
     return quotas.eligible(scheduled, cfg=cfg or {}, rows=rows, quorum=quorum)
 
 
-def test_two_agents_from_one_company_are_not_a_quorum():
-    """hermes and openclaw are both OpenAI. Counting healthy AGENTS says two
-    and everything looks fine; counting VENDORS says one and the pipeline
-    cannot review across vendors. The second count is the true one."""
+def test_two_agents_from_one_company_are_not_a_quorum(monkeypatch):
+    """Counting healthy AGENTS says two and everything looks fine; counting
+    VENDORS says one and the pipeline cannot review across vendors. The
+    second count is the true one.
+
+    The pairing is stubbed rather than taken from the live table. This test
+    used to name hermes and openclaw as "both OpenAI" and broke the day
+    vendors.py started reading the real config -- openclaw turned out to be
+    anthropic/claude-sonnet-5. A test about quorum arithmetic must not also
+    be an assertion about the operator's config file.
+    """
+    monkeypatch.setattr(quotas.vendors, "vendor",
+                        lambda a: {"hermes": "acme", "openclaw": "acme"}.get(a, a))
     rows = _rows(hermes=(True, "plenty"), openclaw=(True, "plenty"))
     spending = _spending(["hermes", "openclaw"], rows)
     assert len(spending) == 2, "both agents are healthy"
     vendors_in_room = {quotas.vendors.vendor(a) for a in spending}
-    assert vendors_in_room == {"openai"}
     assert len(vendors_in_room) < 2, "two agents, one company, no quorum"
 
 
@@ -110,9 +118,11 @@ def test_eligibility_spends_a_rare_turn_rather_than_lose_the_second_company():
         "spend the tight plans it is thrift's whole job to protect")
 
 
-def test_a_single_company_roster_is_left_alone():
+def test_a_single_company_roster_is_left_alone(monkeypatch):
     """Nothing to restore when there is no second company to reach. This must
     not loop, invent an agent, or start admitting unhealthy ones."""
+    monkeypatch.setattr(quotas.vendors, "vendor",
+                        lambda a: {"hermes": "acme", "openclaw": "acme"}.get(a, a))
     rows = _rows(hermes=(True, "plenty"), openclaw=(True, "rare"))
     cfg = _cfg(openclaw="rare")
     assert _spending(["hermes", "openclaw"], rows, cfg) == ["hermes"]
