@@ -362,11 +362,18 @@ def verify(built: dict) -> dict:
     # cut at 09:00 was verified against a main that had moved by the time
     # anyone merged. So merge main in first. A conflict is a rejection with
     # a real reason, not a surprise at merge time.
-    code, out = run(["git", "merge", "--no-edit", "main"], cwd=wt)
+    # Merge the SAME ref the branch was cut from. This said "main" while the
+    # branch was created from remote_main() -- normally the same commit, but
+    # on a checkout whose local main has drifted onto a different lineage
+    # they are unrelated histories, and every single build was rejected with
+    # "fatal: refusing to merge unrelated histories". The branch was fine;
+    # the pipeline was comparing it against a different repository.
+    base = remote_main()
+    code, out = run(["git", "merge", "--no-edit", base], cwd=wt)
     if code != 0:
         run(["git", "merge", "--abort"], cwd=wt)
         ev.emit("pipeline", "warn",
-                f"[pipeline] {branch}: conflicts with current main — rejected")
+                f"[pipeline] {branch}: conflicts with {base} — rejected")
         run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
         return record(stage="verify", proposal_ts=built["proposal_ts"],
                       branch=branch, ok=False, tests="not run",
