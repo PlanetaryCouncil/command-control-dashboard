@@ -473,6 +473,32 @@ def pulse(cfg=None):
     logged_out = [a for a in down_scheduled if a not in dry]
     held = [r["agent"] for r in rows if r.get("spend") == "rare"]
     spending = eligible(scheduled, cfg=cfg, rows=by_name)
+
+    # Quorum. Every integrity claim this fleet makes rests on more than one
+    # company being in the room: the council refuses to sit with fewer than
+    # two participants, and the pipeline's whole promise is that the agent
+    # who reviews a diff works for a different vendor than the one who wrote
+    # it. One vendor is not a fleet, it is a model with a cron job.
+    #
+    # Nothing watched for this until 2026-08-26, and the cost was three
+    # weeks: on the NUC, grok reported ok=True with the note "session
+    # expired" and agy reported ok=True as "google" -- neither was DOWN, so
+    # neither tripped the logged-out alert. They were merely `rare`, and
+    # eligible() prefers a plentiful vendor whenever one exists, so hermes
+    # took 40 rota turns out of 40 while the council logged "needs at least
+    # two participants, got 1" every three hours and nobody was told.
+    #
+    # Held is not down, which is why this counts VENDORS AMONG THE ELIGIBLE
+    # rather than agents among the healthy. hermes and openclaw are both
+    # OpenAI: two agents, one company, no quorum.
+    # Only a roster that INTENDS several companies can lose quorum. An
+    # operator who deliberately schedules one agent has made a choice, and a
+    # monitor that nags about a choice gets muted, taking the real alarms
+    # with it.
+    rostered_vendors = {vendors.vendor(a) for a in scheduled}
+    quorum_vendors = sorted({vendors.vendor(a) for a in spending})
+    no_quorum = len(rostered_vendors) >= 2 and len(quorum_vendors) < 2
+
     if dry:
         status = "alert"
         summary = "scheduled dry: " + ", ".join(dry)
@@ -483,6 +509,19 @@ def pulse(cfg=None):
         status = "warn"
         summary = "quota-shaped errors: " + ", ".join(
             r["agent"] for r in rows if r.get("quota_errors_24h"))
+    elif no_quorum:
+        # Last, on purpose. "grok is out of credit" tells you what to do;
+        # "no quorum" is the consequence of that, and a consequence that
+        # hides its cause is a worse alert than no alert. This branch is for
+        # the case with no named cause at all -- everyone healthy, everyone
+        # held -- which is precisely the state nothing was watching for.
+        status = "alert"
+        only = quorum_vendors[0] if quorum_vendors else "nobody"
+        summary = (f"no vendor quorum — {len(rostered_vendors)} companies "
+                   f"rostered, only {only} can spend a turn "
+                   f"({', '.join(spending) or 'no agents eligible'}); "
+                   f"council cannot sit and the pipeline cannot review "
+                   f"across vendors")
     else:
         status = "pass"
         bits = [f"{a} {by_name[a].get('flow', 'unknown')}" for a in spending
@@ -503,7 +542,13 @@ def pulse(cfg=None):
         "tests_failed": sum(1 for r in rows if not r.get("ok")),
         "duration_s": 0,
     }
-    return worker, down_scheduled
+    # What main() escalates on. A lost quorum has to be in here or the alert
+    # is a colour on a card nobody is looking at -- which is exactly how the
+    # fleet ran single-vendor for three weeks.
+    needs_you = list(down_scheduled)
+    if no_quorum:
+        needs_you = needs_you or ["quorum"]
+    return worker, needs_you
 
 
 def publish(worker):
