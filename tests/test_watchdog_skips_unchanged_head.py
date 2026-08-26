@@ -99,6 +99,16 @@ def run_watchdog(project, fleet_home, env_extra=None):
     import os
     env = dict(os.environ)
     env.pop("WATCHDOG_FORCE", None)
+    # These tests run against the REAL fleet directory on purpose (the
+    # watchdog derives it from its own location and the worker files are
+    # backed up and restored around each case). The event log is the one
+    # thing that must not be shared: without this redirect every full run
+    # put eleven records on the LIVE public board, inventing failures for
+    # "proj" and "brokenproj", projects that have never existed. The board
+    # was showing a red "3 NEED YOU" written by its own test suite.
+    import tempfile
+    env["FLEET_EVENTS"] = str(
+        Path(tempfile.mkdtemp(prefix="watchdog-events-")) / "events.jsonl")
     env.update(env_extra or {})
     return subprocess.run(["bash", str(WATCHDOG), str(project)],
                           capture_output=True, text=True, env=env, timeout=300)

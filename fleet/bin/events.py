@@ -18,7 +18,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 FLEET = Path(__file__).resolve().parent.parent
-LOG = FLEET / "events.jsonl"
+
+# FLEET_EVENTS redirects the log. This exists because the test suite drives
+# the real watchdog.sh, which derives its own FLEET from its own location and
+# so wrote into the live board: on 2026-08-26 the public page showed a red
+# "3 NEED YOU -- proj2 tests failed" about two projects that have never
+# existed, invented by a passing test. A board that cries wolf from its own
+# CI is worse than a board with no alerts, because the operator learns to
+# scroll past red.
+LOG = Path(os.environ.get("FLEET_EVENTS", FLEET / "events.jsonl"))
 MAX_BYTES = 4_000_000          # ~20k events; rotate rather than grow forever
 
 LEVELS = {"info", "ok", "warn", "error", "needs_you"}
