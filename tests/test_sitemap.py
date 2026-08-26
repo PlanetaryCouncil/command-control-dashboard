@@ -97,12 +97,47 @@ def test_control_surfaces_stay_off_the_map():
 
 
 def test_the_map_renders_for_both_readers():
+    """Two renderings, two audiences, one list.
+
+    The human page is a table of addresses -- one line per link, nothing to
+    decide except where to click. The machine manifest keeps both columns,
+    because an agent wants the endpoint next to the page. Marsita, on the
+    old /map, which showed a person both columns: "needs to be easier to
+    parse visually for a human... no need to think."
+    """
     text, markdown = sitemap.as_text(), sitemap.as_markdown()
-    assert "look at:" in text and "parse:" in text
     assert "| subject | a person looks at | a machine parses |" in markdown
     for _s, subject, _h, _m, _n in sitemap.rows():
-        assert subject in text and subject in markdown, \
-            f"{subject} is missing from one of the two renderings"
+        assert subject in markdown, f"{subject} is missing from the manifest"
+
+
+def test_the_human_map_is_a_table_of_addresses_and_never_drifts():
+    """A table that is off by one character reads as broken software, which
+    is a poor first impression for a page whose claim is that everything on
+    it can be checked."""
+    text = sitemap.as_text()
+    table = [l for l in text.splitlines() if l.startswith(("|", "+"))]
+    assert table, "the map should render as a table"
+    assert len(set(len(l) for l in table)) == 1, "the table drifted"
+    assert not [c for l in table for c in l if ord(c) > 127], \
+        "ASCII only inside the table -- wide glyphs drift the right border"
+
+
+def test_the_human_map_names_the_default_action():
+    """A map that lists twenty links and no next step makes the reader do the
+    deciding. There is exactly one default action and it is free."""
+    text = sitemap.as_text()
+    assert "/join" in text
+    assert "no downside" in text.lower()
+
+
+def test_every_row_of_the_human_map_carries_an_address():
+    """One line per link. A row whose subject has neither a page nor an
+    endpoint is a thing nobody can open, and it does not belong on a map."""
+    for _section, entries in sitemap._link_rows():
+        for subject, url, _note in entries:
+            assert url.startswith(("/", "POST /")), \
+                f"{subject} has no address a reader can open"
 
 
 def test_llms_txt_carries_the_map_rather_than_a_copy_of_it():
