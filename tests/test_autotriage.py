@@ -18,6 +18,10 @@ def pile(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "STATE", tmp_path / "pipeline.jsonl")
     monkeypatch.setattr(pipeline, "WORKER", tmp_path / "pipeline.json")
     monkeypatch.setattr(autotriage, "FLEET", tmp_path)
+    # pipeline reads build.txt through its OWN FLEET. Patching only
+    # autotriage's let a test read the operator's real queue -- which is how
+    # the first autopick test failed: it saw a pick made on this machine.
+    monkeypatch.setattr(pipeline, "FLEET", tmp_path)
     (tmp_path / "rota").mkdir()
     monkeypatch.setattr(pipeline, "ev",
                         type("E", (), {"emit": staticmethod(lambda *a, **k: None)}))
@@ -333,3 +337,33 @@ def test_unexpire_is_idempotent():
     """Running it twice must not stack reopen records. The second run finds
     nothing still closed for age, because the first one reopened them."""
     assert autotriage.unexpire()["unexpired"] == 0
+
+
+def test_autopick_takes_the_oldest_and_never_overwrites_a_human_pick(pile):
+    """Automating the pick changes how much gets built, not who decides what
+    ships: the builder works in a throwaway worktree and a human still lands
+    every branch.
+
+    Oldest first, because a queue that always takes the newest is how a
+    backlog becomes permanent -- 1715 proposals sat behind a build.txt whose
+    last pick was a week old.
+    """
+    from datetime import datetime, timedelta, timezone
+    older = (datetime.now(timezone.utc) - timedelta(hours=50)).isoformat(
+        timespec="seconds")
+    newer = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat(
+        timespec="seconds")
+    write_props(pile, [
+        {"ts": newer, "agent": "grok", "outcome": "proposed",
+         "text": "A recent idea"},
+        {"ts": older, "agent": "agy", "outcome": "proposed",
+         "text": "An idea that has waited two days"},
+    ])
+    res = autotriage.autopick(1)
+    assert res["picked"] == 1
+    assert res["oldest"] == older, "the one that waited longest goes first"
+
+    # A pick is now queued; running again must not clobber it.
+    again = autotriage.autopick(1)
+    assert again["picked"] == 0
+    assert "queue" in again["reason"]

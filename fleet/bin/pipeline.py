@@ -79,9 +79,58 @@ def builder_name() -> str:
     """Who implements. Default grok: it is here, it has credits, it edits.
 
     Claude stays selectable via FLEET_BUILDER=claude when that plan is alive
-    again. The reviewer is always hermes, a different company.
+    again.
     """
     return os.environ.get("FLEET_BUILDER", "grok").strip() or "grok"
+
+
+def reviewer_name(builder: str | None = None) -> str:
+    """Who grades. Any healthy agent from a company other than the builder's.
+
+    This used to be the literal string "hermes", chosen because hermes was a
+    different company from grok. On 2026-08-26 the NUC's hermes turned out to
+    be a llama3.2:3b on loopback -- so the merge gate on every branch was a
+    3B local model reading diffs, while the log recorded "hermes approved"
+    and the docstring promised a different vendor.
+
+    Naming an agent freezes an assumption about what that agent is. Naming
+    the PROPERTY -- not the builder's company, and currently up -- survives
+    the backend changing underneath it, which is the thing that actually
+    happened.
+    """
+    builder = builder or builder_name()
+    override = os.environ.get("FLEET_REVIEWER", "").strip()
+    if override:
+        return override
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import vendors, quotas  # noqa: E402 — siblings, path set above
+    pool = [a for a in ("agy", "grok", "hermes", "claude", "openclaw")
+            if a != builder]
+    live = quotas.eligible(pool, quorum=True)
+    independent = vendors.independent_of(builder, live or pool)
+    for cand in independent:
+        cv = vendors.vendor(cand)
+        if cv == vendors.vendor(builder):
+            continue
+        # A local model is a different "vendor" and not a different opinion.
+        # Without this the NUC picks its llama3.2:3b again -- "local" != "xai"
+        # passes a vendor comparison while failing the thing the comparison
+        # was standing in for, which is a second capable reader. The merge
+        # gate is the last check before code lands; it does not get to be the
+        # cheapest thing on the machine.
+        if cv in ("local", "unknown"):
+            continue
+        return cand
+    return ""
+
+
+ASKERS = {
+    "hermes": lambda chat, prompt, noop: chat.ask_hermes(prompt, noop),
+    "agy": lambda chat, prompt, noop: chat.ask_agy(prompt, [], noop),
+    "grok": lambda chat, prompt, noop: chat.ask_grok(prompt, [], noop),
+    "claude": lambda chat, prompt, noop: chat.ask_claude(prompt, [], noop),
+    "openclaw": lambda chat, prompt, noop: chat.ask_openclaw(prompt, noop),
+}
 
 
 def run_builder(prompt, cwd, timeout=BUILD_TIMEOUT):
@@ -331,7 +380,21 @@ def verify(built: dict) -> dict:
                cwd=REPO)[1][:DIFF_CLIP]
     import chat  # noqa: E402 — sibling module, path set at import time
     noop = lambda *a, **k: None
-    review = chat.ask_hermes(
+    who = reviewer_name()
+    if not who or who not in ASKERS:
+        # No independent reviewer available. Refusing is the only honest
+        # move: approving without one would record a cross-vendor verdict
+        # that never happened, and rejecting would blame the branch for the
+        # roster. The proposal stays waiting.
+        ev.emit("pipeline", "needs_you",
+                f"[pipeline] {branch}: no reviewer from a company other than "
+                f"{builder_name()}'s — branch left unreviewed")
+        run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+        return record(stage="verify", proposal_ts=built["proposal_ts"],
+                      branch=branch, ok=False, tests=tests_line,
+                      review="no independent reviewer available")
+    review = ASKERS[who](
+        chat,
         "You are the verify stage of a pipeline. Another agent implemented a "
         "proposal on a branch, which has been merged with current main "
         "before testing — so these results reflect the tree that would "
@@ -343,7 +406,7 @@ def verify(built: dict) -> dict:
     verdict = "approved" if (tests_ok and approved) else "rejected"
     ev.emit("pipeline", "needs_you" if verdict == "approved" else "warn",
             f"[pipeline] {branch}: tests {'pass' if tests_ok else 'FAIL'}, "
-            f"hermes {verdict} — {' '.join(str(review).split())[:140]}")
+            f"{who} {verdict} — {' '.join(str(review).split())[:140]}")
     run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
     return record(stage="verify", proposal_ts=built["proposal_ts"],
                   branch=branch, ok=verdict == "approved",

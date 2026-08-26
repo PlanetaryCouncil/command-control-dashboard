@@ -406,6 +406,48 @@ def run(batches: int = 1, drain_only: bool = False) -> dict:
             "kept": len(short)}
 
 
+def autopick(limit: int = 1) -> dict:
+    """Fill build.txt from the KEPT shortlist when nothing is queued.
+
+    Picking what to BUILD was a human step. That is the right default when a
+    human is around, and it is why 1715 proposals sat untouched: build.txt
+    still named a pick from 2026-08-19 and nothing had been queued since.
+
+    What it does NOT touch is the invariant that matters. The builder works
+    in a throwaway git worktree on a rota/* branch, never pushes, and never
+    merges. A human still lands every branch. Automating the pick changes
+    how much gets built; it does not change who decides what ships.
+
+    Only writes when the queue is genuinely empty, so a pick a human made by
+    hand is never overwritten.
+    """
+    queued = [i for i in pipeline._picked_items()
+              if any(t not in pipeline.by_proposal() for t in i["ts"])]
+    if queued:
+        return {"picked": 0, "reason": "queue already has unbuilt items"}
+
+    seen = pipeline.by_proposal()
+    waiting = [p for p in pipeline.proposals()
+               if pipeline.is_waiting(p, seen) and (p.get("text") or "").strip()]
+    if not waiting:
+        return {"picked": 0, "reason": "nothing waiting"}
+
+    # Oldest first. These have waited longest and were never read; a queue
+    # that always takes the newest is how a backlog becomes permanent.
+    waiting.sort(key=lambda p: p.get("ts") or "")
+    picks = waiting[:limit]
+    lines = []
+    for n, p in enumerate(picks, 1):
+        title = " ".join((p.get("text") or "").split())[:70]
+        lines.append(f"# {n}. {title}")
+        lines.append(p["ts"])
+    (FLEET / "rota" / "build.txt").write_text("\n".join(lines) + "\n")
+    ev.emit("autotriage", "info",
+            f"[triage] auto-picked {len(picks)} proposal(s) for build; "
+            f"{len(waiting)} still waiting")
+    return {"picked": len(picks), "oldest": picks[0]["ts"]}
+
+
 def unexpire(dry_run: bool = False) -> dict:
     """Bring back every proposal that was closed for being old.
 
@@ -453,8 +495,12 @@ def main() -> int:
     ap.add_argument("--unexpire", action="store_true",
                     help="reopen proposals that were closed only for age")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--autopick", type=int, default=0,
+                    help="fill build.txt from the backlog when nothing queued")
     a = ap.parse_args()
-    if a.unexpire:
+    if a.autopick:
+        res = autopick(limit=a.autopick)
+    elif a.unexpire:
         res = unexpire(dry_run=a.dry_run)
     elif a.review_old:
         res = review_old(limit=a.limit, pick=a.pick)
