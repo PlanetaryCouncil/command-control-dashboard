@@ -427,7 +427,7 @@ def last_pulse_rows():
         return {}
 
 
-def eligible(requested, cfg=None, rows=None):
+def eligible(requested, cfg=None, rows=None, quorum=False):
     """Who may spend a turn. Dry vendors are skipped. Rare vendors
     (Claude, while that plan is tight) only run if no plentiful one is up.
     Never calls a model — reads the last pulse and the spend table.
@@ -444,6 +444,29 @@ def eligible(requested, cfg=None, rows=None):
         live.append(a)
     plentiful = [a for a in live if effective_spend(a, rows.get(a), cfg) != "rare"]
     chosen = plentiful or live
+
+    # quorum=True: spend a rare turn rather than lose the second company.
+    #
+    # Only the callers that CANNOT work single-vendor ask for this, because
+    # overriding thrift by default would quietly spend the tight plans that
+    # `rare` exists to protect. The council refuses to sit with one
+    # participant; the pipeline's reviewer must work for a different company
+    # than the builder. On 2026-08-26 hermes was the only agent marked
+    # plenty, so both failed silently, hourly, for three weeks -- while
+    # every agent reported healthy, which is why nothing caught it.
+    #
+    # One rare agent per missing vendor: the cheapest quorum there is.
+    have = {vendors.vendor(a) for a in chosen}
+    if quorum and len(have) < 2:
+        for a in live:
+            if a in chosen:
+                continue
+            v = vendors.vendor(a)
+            if v not in have:
+                chosen = chosen + [a]
+                have.add(v)
+                if len(have) >= 2:
+                    break
     # Fruit nearest ripeness first: quota about to reset has the highest
     # required burn rate. Stable sorting preserves configured order otherwise.
     return sorted(chosen, key=lambda a: (

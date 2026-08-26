@@ -875,7 +875,10 @@ def main():
 
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
     import quotas
-    agents = quotas.eligible(agents)
+    # quorum=True: a council of one is not a council. It refuses to sit
+    # below two participants, so holding every rare agent does not save a
+    # turn here -- it cancels the sitting entirely and saves nothing.
+    agents = quotas.eligible(agents, quorum=True)
     if not agents:
         print("no eligible agents (dry or rare)"); return 0
     import heavygate

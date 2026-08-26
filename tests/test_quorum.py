@@ -44,8 +44,11 @@ def _cfg(**spend):
     return {"quotas": {"spend": spend}}
 
 
-def _spending(scheduled, rows, cfg=None):
-    return quotas.eligible(scheduled, cfg=cfg or {}, rows=rows)
+def _spending(scheduled, rows, cfg=None, quorum=True):
+    """quorum defaults True here because these tests are about the callers
+    that cannot work single-vendor. thrift's own behaviour is pinned in
+    tests/test_quotas.py, which asserts the default stays untouched."""
+    return quotas.eligible(scheduled, cfg=cfg or {}, rows=rows, quorum=quorum)
 
 
 def test_two_agents_from_one_company_are_not_a_quorum():
@@ -60,16 +63,20 @@ def test_two_agents_from_one_company_are_not_a_quorum():
     assert len(vendors_in_room) < 2, "two agents, one company, no quorum"
 
 
-def test_held_is_not_down_and_that_is_the_whole_bug():
-    """A `rare` agent reports ok=True. It is healthy and it is never picked,
-    because eligible() prefers plentiful vendors whenever one exists. Any
-    check that watches for unhealthy agents sees nothing wrong here."""
+def test_held_is_not_down_and_that_is_how_it_hid():
+    """The shape of the outage, kept as a test because the lesson outlives
+    the bug: a `rare` agent reports ok=True. Nothing is unhealthy. Any
+    monitor watching for unhealthy agents sees a green board while the
+    fleet has quietly become one company.
+
+    Thrift still applies once the second company is in the room -- agy stays
+    held here, because quorum is reached without it."""
     rows = _rows(hermes=(True, "plenty"), grok=(True, "rare"),
                  agy=(True, "rare"))
     cfg = _cfg(grok="rare", agy="rare")
     assert all(r["ok"] for r in rows.values()), "nobody is down"
     spending = _spending(["hermes", "grok", "agy"], rows, cfg)
-    assert spending == ["hermes"], "and yet only one agent can spend a turn"
+    assert "agy" not in spending, "quorum reached, thrift resumes"
 
 
 def test_a_lone_rare_vendor_still_gets_to_work():
@@ -85,3 +92,44 @@ def test_quorum_needs_two_distinct_vendors():
     rows = _rows(hermes=(True, "plenty"), grok=(True, "plenty"))
     spending = _spending(["hermes", "grok"], rows)
     assert len({quotas.vendors.vendor(a) for a in spending}) >= 2
+
+
+def test_eligibility_spends_a_rare_turn_rather_than_lose_the_second_company():
+    """The fix for the three-week outage. hermes is the only plentiful agent;
+    holding every rare one leaves a single company in the room, which is the
+    one state the council and the pipeline cannot work in. One rare agent is
+    admitted -- the cheapest quorum there is."""
+    rows = _rows(hermes=(True, "plenty"), grok=(True, "rare"),
+                 agy=(True, "rare"))
+    cfg = _cfg(grok="rare", agy="rare")
+    spending = _spending(["hermes", "grok", "agy"], rows, cfg)
+    assert "hermes" in spending
+    assert len({quotas.vendors.vendor(a) for a in spending}) >= 2
+    assert len(spending) == 2, (
+        "quorum, not a free-for-all -- admitting every rare agent would "
+        "spend the tight plans it is thrift's whole job to protect")
+
+
+def test_a_single_company_roster_is_left_alone():
+    """Nothing to restore when there is no second company to reach. This must
+    not loop, invent an agent, or start admitting unhealthy ones."""
+    rows = _rows(hermes=(True, "plenty"), openclaw=(True, "rare"))
+    cfg = _cfg(openclaw="rare")
+    assert _spending(["hermes", "openclaw"], rows, cfg) == ["hermes"]
+
+
+def test_quorum_never_admits_a_down_agent():
+    """Thrift may be overridden. Health may not: a logged-out agent that gets
+    handed a turn burns the turn and reports nothing."""
+    rows = _rows(hermes=(True, "plenty"), grok=(False, "rare"))
+    cfg = _cfg(grok="rare")
+    assert _spending(["hermes", "grok"], rows, cfg) == ["hermes"]
+
+
+def test_quorum_is_opt_in_so_thrift_stays_the_default():
+    """Overriding `rare` by default would spend the tight plans it exists to
+    protect. Only a caller that cannot function single-vendor asks."""
+    rows = _rows(hermes=(True, "plenty"), grok=(True, "rare"))
+    cfg = _cfg(grok="rare")
+    assert _spending(["hermes", "grok"], rows, cfg, quorum=False) == ["hermes"]
+    assert "grok" in _spending(["hermes", "grok"], rows, cfg, quorum=True)
