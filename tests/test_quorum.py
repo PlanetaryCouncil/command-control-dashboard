@@ -133,3 +133,33 @@ def test_quorum_is_opt_in_so_thrift_stays_the_default():
     cfg = _cfg(grok="rare")
     assert _spending(["hermes", "grok"], rows, cfg, quorum=False) == ["hermes"]
     assert "grok" in _spending(["hermes", "grok"], rows, cfg, quorum=True)
+
+
+def test_the_alert_measures_what_can_be_reached_not_what_is_spent():
+    """The monitor must not argue with the mechanism it monitors.
+
+    The first version of this alert read the thrift view and announced
+    "council cannot sit" while the council was sitting fine, because the
+    council asks for quorum and thrift does not. A board that contradicts
+    the running system twice is a board nobody reads a third time.
+
+    Adapt first, alert only when adaptation is exhausted.
+    """
+    rows = _rows(hermes=(True, "plenty"), grok=(True, "rare"))
+    cfg = _cfg(grok="rare")
+    thrift = _spending(["hermes", "grok"], rows, cfg, quorum=False)
+    reachable = _spending(["hermes", "grok"], rows, cfg, quorum=True)
+    assert len({quotas.vendors.vendor(a) for a in thrift}) < 2, \
+        "thrift alone is single-vendor -- this is what used to alert"
+    assert len({quotas.vendors.vendor(a) for a in reachable}) >= 2, \
+        "and quorum reaches a second company, so there is nothing to report"
+
+
+def test_alert_still_fires_when_no_second_company_can_be_reached():
+    """The state a human genuinely must fix: everyone else down or absent.
+    Adaptation is exhausted, so the alarm is real."""
+    rows = _rows(hermes=(True, "plenty"), grok=(False, "rare"),
+                 agy=(False, "rare"))
+    cfg = _cfg(grok="rare", agy="rare")
+    reachable = _spending(["hermes", "grok", "agy"], rows, cfg, quorum=True)
+    assert len({quotas.vendors.vendor(a) for a in reachable}) < 2

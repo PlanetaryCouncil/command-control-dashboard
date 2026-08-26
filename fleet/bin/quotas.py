@@ -519,7 +519,22 @@ def pulse(cfg=None):
     # monitor that nags about a choice gets muted, taking the real alarms
     # with it.
     rostered_vendors = {vendors.vendor(a) for a in scheduled}
-    quorum_vendors = sorted({vendors.vendor(a) for a in spending})
+
+    # Ask what the fleet can REACH, not what it is currently spending.
+    #
+    # `spending` is the thrift view: who takes a turn when a cheap vendor can
+    # cover it. The council does not live in that view -- it asks for quorum
+    # and gets a rare agent admitted. Alerting on the thrift view therefore
+    # said "council cannot sit" while the council was sitting fine, which is
+    # a monitor arguing with the mechanism it monitors. Whoever reads that
+    # twice stops reading the board.
+    #
+    # Adapt first, alert only when adaptation is exhausted: this fires when
+    # even quorum mode cannot find a second company -- everyone else logged
+    # out, dry, or off the roster. That is the state a human must fix, and
+    # it is the only one worth waking up for.
+    reachable = eligible(scheduled, cfg=cfg, rows=by_name, quorum=True)
+    quorum_vendors = sorted({vendors.vendor(a) for a in reachable})
     no_quorum = len(rostered_vendors) >= 2 and len(quorum_vendors) < 2
 
     if dry:
@@ -550,7 +565,14 @@ def pulse(cfg=None):
         bits = [f"{a} {by_name[a].get('flow', 'unknown')}" for a in spending
                 if a in by_name]
         hold = f" · holding {', '.join(held)}" if held else ""
-        summary = ("spending " + " · ".join(bits) + hold) if bits else "no vendors"
+        # Name the reserve. "holding grok, agy" reads as absence; what it
+        # actually means is that a second company is one call away whenever
+        # the council needs one. A held agent that quorum can reach is
+        # capacity, not a gap, and the board should say which it is.
+        reserve = [a for a in reachable if a not in spending]
+        ready = f" · quorum ready via {', '.join(reserve)}" if reserve else ""
+        summary = (("spending " + " · ".join(bits) + hold + ready)
+                   if bits else "no vendors")
 
     worker = {
         "worker": "quotas",
