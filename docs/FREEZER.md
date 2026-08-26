@@ -55,7 +55,7 @@ the life signal are the same `REQ`. Do not build two.
 
 ## Dead-man switch as a product
 
-*Frozen 2026-08-08. Prompted by the personal switch in `fleet/bin/deadman.py`.*
+*Frozen 2026-08-08. Prompted by the personal switch in `fleet/dormant/deadman.py`.*
 
 A monitoring service with a human in the middle, sold alongside crypto
 inheritance. The market is real and unwon — Casa, Vault12, Inheriti and Safe

@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-BIN = Path(__file__).resolve().parent.parent / "fleet" / "bin"
+BIN = Path(__file__).resolve().parent.parent / "fleet" / "dormant"
 sys.path.insert(0, str(BIN))
 
 import trim  # noqa: E402

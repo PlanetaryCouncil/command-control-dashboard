@@ -14,7 +14,7 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-BIN = Path(__file__).resolve().parent.parent / "fleet" / "bin" / "morning.py"
+BIN = Path(__file__).resolve().parent.parent / "fleet" / "dormant" / "morning.py"
 spec = importlib.util.spec_from_file_location("morning", BIN)
 morning = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(morning)

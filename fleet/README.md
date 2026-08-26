@@ -47,7 +47,7 @@ establishes ground truth shouldn't share a process with something that changes
 the code being measured. Auto-proposing fix branches is a separate worker, and
 worth adding only once you've seen the watchdog catch something real.
 
-The optional NUC browser worker is `bin/nuc-bridge.py`. Set `FLEET_NUC`
+The optional NUC browser worker is `dormant/nuc-bridge.py`. Set `FLEET_NUC`
 (`user@host`) on the machine that SSHes in; the script refuses to run
 without it and never writes SSH errors onto the public board.
 

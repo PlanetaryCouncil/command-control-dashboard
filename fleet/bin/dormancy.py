@@ -34,7 +34,7 @@ from pathlib import Path
 FLEET = Path(__file__).resolve().parent.parent
 ROOT = FLEET.parent
 
-SOURCE_DIRS = ("fleet/bin", "legacy/app", "self-improve/loop")
+SOURCE_DIRS = ("fleet/bin", "fleet/dormant", "legacy/app", "self-improve/loop")
 
 # Things this machine starts on its own. A module reached from one of these
 # runs whether or not anyone is watching, which is exactly when an untested

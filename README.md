@@ -181,8 +181,10 @@ governs agents needs limits that do not depend on the agent's cooperation.
 
 ## Experiments
 
-`fleet/bin/plusone.py`, `game.py`, `puzzle.py` and `blackboard.py` are not part
-of the running system. They exist to answer one question honestly: *do these
+`fleet/bin/plusone.py`, `fleet/dormant/game.py`, `puzzle.py` and
+`blackboard.py` are not part of the running system. The last three live in
+`fleet/dormant`, which is where code goes when nothing runs it -- run
+`python3 fleet/bin/dormant.py` for the whole drawer, one line per file. They exist to answer one question honestly: *do these
 agents actually communicate, or does it only look that way?*
 
 - **`plusone.py`** — a relay starting from a large random number. There is no way

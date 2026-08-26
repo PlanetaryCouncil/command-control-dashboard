@@ -7,8 +7,12 @@ from pathlib import Path
 
 import pytest
 
-BIN = Path(__file__).resolve().parent.parent / "fleet" / "bin"
-spec = importlib.util.spec_from_file_location("nuc_bridge", BIN / "nuc-bridge.py")
+# The bridge itself is dormant -- an optional NUC worker nothing schedules.
+# The board it publishes onto is very much live, so the two paths differ.
+FLEET = Path(__file__).resolve().parent.parent / "fleet"
+DORMANT = FLEET / "dormant"
+BIN = FLEET / "bin"
+spec = importlib.util.spec_from_file_location("nuc_bridge", DORMANT / "nuc-bridge.py")
 nuc_bridge = importlib.util.module_from_spec(spec)
 sys.modules["nuc_bridge"] = nuc_bridge
 spec.loader.exec_module(nuc_bridge)

@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from app import main
 from app.main import app
 
-BIN = Path(__file__).resolve().parent.parent / "fleet" / "bin"
+BIN = Path(__file__).resolve().parent.parent / "fleet" / "dormant"
 spec = importlib.util.spec_from_file_location("brainfart", BIN / "brainfart.py")
 brainfart = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(brainfart)
