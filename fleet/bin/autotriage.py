@@ -166,10 +166,21 @@ def drain(todo: list[dict] | None = None) -> dict:
         if rec and rec.get("stage") == "reopen":
             kept.append(p)
             continue
-        if too_old(p.get("ts") or ""):
-            close(p, f"stale>{STALE_HOURS}h")
-            dropped["stale"] += 1
-            continue
+        # No expiry. Age is not evidence. A proposal is closed because it is
+        # empty, duplicated, narration, or a cheap model read it and said
+        # DROP -- all judgements about the CONTENT. "Filed more than a day
+        # ago" is a judgement about the queue's throughput, charged to the
+        # proposal.
+        #
+        # It closed 140 proposals in 24 hours on 2026-08-26, more than half
+        # of everything the pipeline touched, and none of them were ever
+        # read. Marsita: "died of old age? I don't want to expire... Bad
+        # design... Old proposals remain valid."
+        #
+        # The tell was already in this file: unique_stale() below exists to
+        # dig stale-closed proposals back out for review. A queue that closes
+        # items and then maintains machinery to recover them has admitted the
+        # closing was wrong.
         g = gist(p.get("text") or "")
         if not g or g == "nothing to add":
             close(p, "empty")
@@ -395,6 +406,42 @@ def run(batches: int = 1, drain_only: bool = False) -> dict:
             "kept": len(short)}
 
 
+def unexpire(dry_run: bool = False) -> dict:
+    """Bring back every proposal that was closed for being old.
+
+    Expiry is gone from the drain, but the ledger still carries the ones it
+    already took -- 140 in a single day. They were never read, never judged,
+    and never wrong; they were late. This reopens exactly those: closures
+    whose stated reason is age, and nothing else. A proposal a model actually
+    read and dropped stays dropped.
+
+    Append-only. The stale record stays in the ledger and a reopen is written
+    after it, so the history still shows what happened rather than pretending
+    it did not.
+    """
+    props = {p["ts"]: p for p in pipeline.proposals() if p.get("ts")}
+    seen = pipeline.by_proposal()
+    back = []
+    for ts, rec in seen.items():
+        if rec.get("stage") != "drop":
+            continue
+        if not str(rec.get("detail") or "").startswith("stale"):
+            continue
+        if ts not in props:
+            continue
+        back.append(ts)
+    if not dry_run:
+        for ts in back:
+            pipeline.record(proposal_ts=ts, stage="reopen", ok=True,
+                            detail="unexpired: age is not a verdict",
+                            agent="autotriage", branch="")
+        if back:
+            ev.emit("autotriage", "info",
+                    f"[triage] {len(back)} proposals unexpired -- "
+                    f"closed for age, never read")
+    return {"unexpired": len(back), "dry_run": dry_run}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--drain-only", action="store_true")
@@ -403,8 +450,13 @@ def main() -> int:
                     help="two vendors review unique stale ideas; pick for build")
     ap.add_argument("--limit", type=int, default=REVIEW_LIMIT)
     ap.add_argument("--pick", type=int, default=PICK_MAX)
+    ap.add_argument("--unexpire", action="store_true",
+                    help="reopen proposals that were closed only for age")
+    ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
-    if a.review_old:
+    if a.unexpire:
+        res = unexpire(dry_run=a.dry_run)
+    elif a.review_old:
         res = review_old(limit=a.limit, pick=a.pick)
     else:
         res = run(batches=a.batches, drain_only=a.drain_only)

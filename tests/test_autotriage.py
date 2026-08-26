@@ -256,10 +256,18 @@ def test_already_built_preserves_seconds_when_proposals_share_a_minute():
     assert pipeline.already_built("2026-08-07T13:00:45", done) is False
 
 
-def test_stale_proposals_drop_without_a_model(pile, monkeypatch):
+def test_age_alone_never_closes_a_proposal(pile, monkeypatch):
+    """A proposal filed 36 hours ago is exactly as valid as one filed now.
+
+    This used to close on age and it was the single biggest consumer of the
+    queue: 140 proposals in one day, more than half of everything the
+    pipeline touched, none of them ever read. Age describes the queue's
+    throughput, not the idea -- charging the idea for the queue's backlog is
+    how a fleet quietly discards its own best work.
+    """
     from datetime import datetime, timedelta, timezone
     monkeypatch.setattr(autotriage, "ask_cheap", lambda p: (_ for _ in ()).throw(
-        AssertionError("stale drain is free")))
+        AssertionError("drain must not call a model")))
     old = (datetime.now(timezone.utc) - timedelta(hours=36)).isoformat(
         timespec="seconds")
     fresh = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -271,7 +279,7 @@ def test_stale_proposals_drop_without_a_model(pile, monkeypatch):
     ])
     autotriage.run(drain_only=True)
     seen = pipeline.by_proposal()
-    assert seen[old]["detail"].startswith("stale")
+    assert old not in seen, "the old proposal must still be waiting, not closed"
     assert fresh not in seen
 
 
@@ -288,3 +296,40 @@ def test_model_drop_closes_without_building(pile, monkeypatch):
     rec = pipeline.by_proposal()[ts]
     assert rec["stage"] == "drop"
     assert rec.get("branch") == ""
+
+
+def test_unexpire_reopens_only_what_the_clock_closed(pile):
+    """Age-closures come back. Judgement-closures do not.
+
+    The distinction is the whole point: a proposal a model actually read and
+    dropped was assessed, and reopening it would relitigate a decision. A
+    proposal closed for being late was never read at all.
+    """
+    from datetime import datetime, timedelta, timezone
+    old = (datetime.now(timezone.utc) - timedelta(hours=40)).isoformat(
+        timespec="seconds")
+    judged = (datetime.now(timezone.utc) - timedelta(hours=41)).isoformat(
+        timespec="seconds")
+    write_props(pile, [
+        {"ts": old, "agent": "hermes", "outcome": "proposed",
+         "text": "An idea nobody ever read"},
+        {"ts": judged, "agent": "grok", "outcome": "proposed",
+         "text": "An idea a model read and rejected"},
+    ])
+    pipeline.record(proposal_ts=old, stage="drop", ok=True,
+                    detail="stale>24h", agent="autotriage", branch="")
+    pipeline.record(proposal_ts=judged, stage="drop", ok=True,
+                    detail="cheap-model DROP", agent="triage-hermes", branch="")
+
+    assert autotriage.unexpire(dry_run=True)["unexpired"] == 1
+    assert autotriage.unexpire()["unexpired"] == 1
+
+    seen = pipeline.by_proposal()
+    assert seen[old]["stage"] == "reopen", "the clock's victim comes back"
+    assert seen[judged]["stage"] == "drop", "a real judgement is not relitigated"
+
+
+def test_unexpire_is_idempotent():
+    """Running it twice must not stack reopen records. The second run finds
+    nothing still closed for age, because the first one reopened them."""
+    assert autotriage.unexpire()["unexpired"] == 0
