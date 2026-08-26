@@ -42,3 +42,25 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "legacy"]
+
+# Coverage. 645 tests passing said nothing about which lines run: on
+# 2026-08-26 the first measurement came back 44%, with 25 files at zero.
+# The number is recorded here so it can only be argued with, not forgotten.
+#
+#   .venv/bin/python -m coverage run -m pytest -q
+#   .venv/bin/python -m coverage report -m
+#
+# No fail_under yet. A gate set above the truth turns every unrelated pull
+# request red, and a gate set at the truth is the truth with extra steps.
+[tool.coverage.run]
+source = ["fleet/bin", "legacy/app", "self-improve/loop"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]

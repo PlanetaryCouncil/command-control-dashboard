@@ -81,3 +81,10 @@ fleet/data/telegram-session
 
 # Build output from pip install .
 *.egg-info/
+
+# Coverage data. The .coverage file records absolute paths of everything it
+# measured, so committing it leaks the operator home prefix -- the release
+# privacy gate catches this, which is how it was found.
+.coverage
+.coverage.*
+htmlcov/
