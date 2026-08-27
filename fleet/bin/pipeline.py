@@ -383,8 +383,13 @@ def verify(built: dict) -> dict:
     tests_ok = code == 0
     tests_line = out.strip().splitlines()[-1] if out.strip() else "no output"
 
-    diff = run(["git", "diff", f"main...{branch}", "--stat", "-p"],
-               cwd=REPO)[1][:DIFF_CLIP]
+    # The reviewer reads this diff. It used to be `main...{branch}` from
+    # REPO — the same wrong ref as the merge, before remote_main(). On a
+    # checkout whose local main is an unrelated history, three-dot diff
+    # prints `fatal: no merge base` and the reviewer rejects "no diff was
+    # provided". Same base as the merge, from the worktree we just tested.
+    diff = run(["git", "diff", f"{base}...HEAD", "--stat", "-p"],
+               cwd=wt)[1][:DIFF_CLIP]
     import chat  # noqa: E402 — sibling module, path set at import time
     noop = lambda *a, **k: None
     who = reviewer_name()
