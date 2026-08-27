@@ -117,3 +117,83 @@ def test_api_fleet_sanitizes_worker_and_event_host_details(monkeypatch, tmp_path
 def test_api_dashboard_contract_unchanged():
     """Agents read /api/dashboard; merging the fleet must not alter it."""
     assert "fleet" not in client.get("/api/dashboard").json()
+
+
+def test_a_green_laggard_is_not_still_passing(tmp_path):
+    """command-control-dashboard sat at `pass` with last_run 2026-08-07T16:56:28Z
+    while the rest of the fleet kept reporting. The cockpit painted that as
+    healthy, so the public dashboard spread a ten-day-old result as current.
+    """
+    root = _make_fleet(tmp_path, workers=[
+        {"worker": "command-control-dashboard", "kind": "watchdog",
+         "status": "pass", "summary": "337 passed",
+         "last_run": "2026-08-07T16:56:28Z"},
+        {"worker": "visitors", "kind": "meter", "status": "pass",
+         "summary": "841 hits/24h", "last_run": "2026-08-23T04:59:00Z"},
+    ])
+    by_name = {w["name"]: w for w in fleet.workers(root)}
+    assert by_name["command-control-dashboard"]["status"] == "stale"
+    assert by_name["command-control-dashboard"]["stale_hours"] >= 24
+    assert by_name["visitors"]["status"] == "pass"
+    snap = fleet.snapshot(root)
+    assert snap["counts"]["healthy"] == 1
+    assert snap["counts"]["attention"] == 1
+
+
+def test_six_hours_behind_is_a_warning_not_a_dead_card(tmp_path):
+    root = _make_fleet(tmp_path, workers=[
+        {"worker": "agent-comms", "status": "pass", "summary": "3/3 hops",
+         "last_run": "2026-08-03T19:18:38Z"},
+        {"worker": "watchdog", "status": "pass", "summary": "244 passed",
+         "last_run": "2026-08-04T12:40:15Z"},
+    ])
+    by_name = {w["name"]: w for w in fleet.workers(root)}
+    assert by_name["agent-comms"]["status"] == "warn"
+    assert by_name["agent-comms"]["stale_hours"] == 17
+    assert by_name["watchdog"]["status"] == "pass"
+    assert fleet.snapshot(root)["counts"]["attention"] == 0
+
+
+def test_workers_running_in_step_are_never_stale(tmp_path):
+    """A laptop asleep all weekend ages every check together; that is not one
+    worker's fault and must not light the dashboard up."""
+    root = _make_fleet(tmp_path, workers=[
+        {"worker": "a", "status": "pass", "last_run": "2026-08-01T10:00:00Z"},
+        {"worker": "b", "status": "pass", "last_run": "2026-08-01T10:30:00+00:00"},
+    ])
+    assert all("stale_hours" not in w for w in fleet.workers(root))
+    assert all(w["status"] == "pass" for w in fleet.workers(root))
+
+
+def test_a_loud_status_is_not_softened_by_staleness(tmp_path):
+    root = _make_fleet(tmp_path, workers=[
+        {"worker": "agent-comms", "status": "fail", "summary": "0/3 hops",
+         "last_run": "2026-08-07T16:56:28Z"},
+        {"worker": "visitors", "status": "pass",
+         "last_run": "2026-08-23T04:59:00Z"},
+    ])
+    by_name = {w["name"]: w for w in fleet.workers(root)}
+    assert by_name["agent-comms"]["status"] == "fail"
+    assert by_name["agent-comms"]["stale_hours"] >= 24
+
+
+def test_stale_sorts_with_the_failures(tmp_path):
+    root = _make_fleet(tmp_path, workers=[
+        {"worker": "quiet", "status": "pass",
+         "last_run": "2026-08-23T04:59:00Z"},
+        {"worker": "laggard", "status": "pass",
+         "last_run": "2026-08-07T16:56:28Z"},
+        {"worker": "broken", "status": "fail",
+         "last_run": "2026-08-23T04:59:00Z"},
+    ])
+    assert [w["name"] for w in fleet.workers(root)] == [
+        "broken", "laggard", "quiet"]
+
+
+def test_the_cockpit_paints_stale_as_trouble():
+    """The JSON downgrade is wasted if the template still paints stale green."""
+    from pathlib import Path
+    html = (Path(__file__).resolve().parent.parent
+            / "legacy" / "app" / "templates" / "dashboard.html").read_text()
+    assert 'w.status === "stale"' in html
+    assert "stale ${w.stale_hours}h" in html

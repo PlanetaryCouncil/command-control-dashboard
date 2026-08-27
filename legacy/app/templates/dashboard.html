@@ -808,18 +808,20 @@ function fleetZone(d) {
   }
 
   const rows = f.workers.map(w => {
-    const bad = w.status === "fail" || w.status === "alert";
+    const bad = w.status === "fail" || w.status === "alert" || w.status === "stale";
     const tag = bad ? "red" : (w.status === "pass" ? "green" : "amber");
     const age = w.age_s === null || w.age_s === undefined ? "" :
       (w.age_s < 90 ? `${Math.round(w.age_s)}s ago`
         : w.age_s < 5400 ? `${Math.round(w.age_s / 60)}m ago`
-        : `${Math.round(w.age_s / 3600)}h ago`);
+        : w.age_s < 172800 ? `${Math.round(w.age_s / 3600)}h ago`
+        : `${Math.round(w.age_s / 86400)}d ago`);
+    const lag = w.stale_hours != null ? ` · stale ${w.stale_hours}h` : "";
     return `<div class="item"><div class="top">
       <span class="led ${bad ? "red" : ""}" style="width:6px;height:6px"></span>
       <span class="who b">${esc(w.name)}</span>
       <span class="tag">${esc(w.kind)}</span>
       <span class="tag ${tag}">${esc(w.status)}</span>
-    </div><p>${esc(w.summary)}${age ? ` · ${age}` : ""}</p></div>`;
+    </div><p>${esc(w.summary)}${age ? ` · ${age}` : ""}${lag}</p></div>`;
   }).join("") || '<p class="empty">// no workers reporting</p>';
 
   const evts = f.events.slice(-14).reverse().map(e => {
