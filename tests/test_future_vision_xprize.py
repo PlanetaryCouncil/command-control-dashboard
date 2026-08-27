@@ -149,3 +149,15 @@ def test_the_page_carries_the_unreleased_score_and_the_spotify_alternate():
     assert 'href="https://t.me/MarsitaTheUltra/79"' in published
     assert "currently unreleased" in published.lower()
     assert 'href="https://open.spotify.com/track/6xHqj6pSYViFns3U764Mt1"' in published
+
+
+def test_the_page_carries_the_films_logline():
+    """The treatment's cover sheet is a logline; the porch named the film without it.
+
+    Logline: The greatest minds of humanity share their wisdom through
+    empowering stories.
+    """
+    b = _block()
+    assert "logline: The greatest minds of humanity share their wisdom through empowering stories." in b
+    published = _sections(PAGE.read_text())["What it has published"]
+    assert "the greatest minds of humanity share their wisdom through empowering stories" in published.lower()
