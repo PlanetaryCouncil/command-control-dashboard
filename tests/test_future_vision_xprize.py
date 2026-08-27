@@ -133,3 +133,19 @@ def test_the_page_carries_the_treatment_and_the_films_own_vote():
     how = sections["How to take part"]
     assert 'href="https://planetarycouncil.org/vote/"' in how
     assert "that is the ask for this film" in how.lower()
+
+
+def test_the_page_carries_the_unreleased_score_and_the_spotify_alternate():
+    """The treatment already names the score; the porch did not.
+
+    Background song, currently unreleased: t.me/MarsitaTheUltra/79.
+    Released alternate: Spotify track 6xHqj6pSYViFns3U764Mt1.
+    """
+    b = _block()
+    assert "music: https://t.me/MarsitaTheUltra/79" in b
+    assert "music_alt: https://open.spotify.com/track/6xHqj6pSYViFns3U764Mt1" in b
+    h = PAGE.read_text()
+    published = _sections(h)["What it has published"]
+    assert 'href="https://t.me/MarsitaTheUltra/79"' in published
+    assert "currently unreleased" in published.lower()
+    assert 'href="https://open.spotify.com/track/6xHqj6pSYViFns3U764Mt1"' in published
