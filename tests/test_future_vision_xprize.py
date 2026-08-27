@@ -77,3 +77,21 @@ def test_fleet_answers_the_project_url():
     src = SRC.read_text()
     assert 'if path == "/future-vision-xprize"' in src
     assert "future-vision-xprize" in src and "index.html" in src
+
+
+def test_the_project_list_names_the_film():
+    b = _block()
+    assert "film: New Hope, Permission Not Required?" in b
+    assert "watch: https://www.youtube.com/watch?v=mjeihsU0M-8" in b
+
+
+def test_the_page_names_the_film():
+    h = PAGE.read_text()
+    assert "New Hope, Permission Not Required?" in h
+    assert "https://www.youtube.com/watch?v=mjeihsU0M-8" in h
+    sections = _sections(h)
+    published = sections["What it has published"]
+    assert "New Hope, Permission Not Required?" in published
+    assert 'href="https://www.youtube.com/watch?v=mjeihsU0M-8"' in published
+    how = sections["How to take part"]
+    assert "New Hope, Permission Not Required?" in how
