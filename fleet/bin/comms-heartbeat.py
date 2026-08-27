@@ -62,6 +62,25 @@ def worker_path(name):
     return FLEET / "workers" / f"{name}.json"
 
 
+def miss_line(hop):
+    """One missed hop, with the error text when the harness caught one.
+
+    The outcome word is still the split (wrong vs silent vs error). For
+    `error`, the board also needs the text — `Errno 2` is something you can
+    act on; the word `error` is not.
+    """
+    why = hop.get("outcome") or "miss"
+    extra = ""
+    if why == "error":
+        raw = " ".join(str(hop.get("raw") or "").split())
+        if raw.lower().startswith("[error]"):
+            raw = raw[7:].strip()
+        if raw:
+            extra = f": {raw[:100]}"
+    return (f"{hop.get('agent', '?')} lap{hop.get('lap', '?')} "
+            f"({hop.get('received')}->{hop.get('got')}, {why}{extra})")
+
+
 def _acquire_lock(name):
     """Refuse to start if a previous run is still going.
 
@@ -201,10 +220,10 @@ def main():
 
     # "missed: hermes lap1 (92659->None)" could not say whether hermes was
     # slow or gone — the outcome word ("slow" vs "timeout" vs "silent") is
-    # the split the board was missing.
-    misses = [f"{h['agent']} lap{h['lap']} "
-              f"({h['received']}->{h['got']}, {h['outcome']})"
-              for h in res["hops"] if not h["ok"]]
+    # the split the board was missing. A later miss still hid the cause:
+    # 2026-08-07 the card read `openclaw lap1 (22275->None, error)` while
+    # `[Errno 2] No such file or directory` sat only in already_proposed.
+    misses = [miss_line(h) for h in res["hops"] if not h["ok"]]
     # Per-agent latency, not just correctness: hermes runs ~4x slower than claude
     # and the old summary made a healthy-but-slow agent invisible.
     per = {}
