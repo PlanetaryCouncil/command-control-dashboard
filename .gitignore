@@ -54,6 +54,8 @@ fleet/data/homies-real.txt
 fleet/projects.txt
 !fleet/static/gallery/
 !fleet/static/gallery/*
+!fleet/static/future-vision-xprize/
+!fleet/static/future-vision-xprize/*
 
 # local: names the reachable host — not for the repo
 .live

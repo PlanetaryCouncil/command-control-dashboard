@@ -1288,6 +1288,16 @@ def serve(port):
                     self.send_error(404)
                 return
 
+            if path == "/future-vision-xprize":
+                # The prize was on the dashboard with url: TODO, so the
+                # name rendered and nothing opened. One static page.
+                f = FLEET / "static" / "future-vision-xprize" / "index.html"
+                try:
+                    self._send(f.read_bytes(), "text/html; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
             if path == "/trust":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import reputation
@@ -1383,6 +1393,7 @@ def serve(port):
                     self.send_error(404)
                     return
                 ctype = {"css": "text/css", "js": "application/javascript",
+                         "html": "text/html; charset=utf-8",
                          "png": "image/png", "jpg": "image/jpeg",
                          "jpeg": "image/jpeg", "webp": "image/webp",
                          "gif": "image/gif", "svg": "image/svg+xml",
@@ -1393,7 +1404,7 @@ def serve(port):
                 # Code may NOT: a fix to signature.js sat invisible in a
                 # browser for an hour because the file was still cached
                 # while the page it belonged to was no-store (2026-08-05).
-                cache = ("no-store" if name.endswith((".js", ".css"))
+                cache = ("no-store" if name.endswith((".js", ".css", ".html"))
                          else "public, max-age=86400")
                 self._send(f.read_bytes(), ctype, cache=cache)
                 return

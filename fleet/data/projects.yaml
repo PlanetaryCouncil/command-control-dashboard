@@ -65,7 +65,7 @@ projects:
 
   - name: Future Vision XPRIZE
     scope: mars
-    url: TODO
+    url: /future-vision-xprize
     tagline: Imagination athlete — expanding the horizons of the imaginable
     status: active
     tags: [futures, prize]
