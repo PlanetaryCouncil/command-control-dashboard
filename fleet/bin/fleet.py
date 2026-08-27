@@ -22,6 +22,9 @@ from pathlib import Path
 FLEET = Path(__file__).resolve().parent.parent
 WORKERS = FLEET / "workers"
 CHARGES = FLEET / "data" / "charges.jsonl"
+WAITLIST = FLEET / "data" / "basex-waitlist.jsonl"
+WAITLIST_EMAIL = re.compile(
+    r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 
 # Per-install, so the same visitor is one hand here and an unrelated one
 # somewhere else. Regenerated if absent; losing it only resets the counting.
@@ -51,6 +54,29 @@ def _clean(v, limit):
     event underneath their own.
     """
     return re.sub(r"[\x00-\x1f\x7f]", " ", str(v or ""))[:limit].strip()
+
+
+def accept_waitlist_email(raw) -> str:
+    """One address, lowercased, or ValueError.
+
+    The waitlist is not a public list. Validation is only so we do not store
+    junk that can never be mailed; it is not a promise that the mailbox exists.
+    """
+    email = _clean(raw, 120).lower()
+    if not WAITLIST_EMAIL.fullmatch(email):
+        raise ValueError("need an email")
+    return email
+
+
+def record_waitlist(email: str) -> dict:
+    """Append one join. The address never goes on a GET, and never into events."""
+    rec = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "email": accept_waitlist_email(email),
+    }
+    WAITLIST.parent.mkdir(parents=True, exist_ok=True)
+    _append_capped(WAITLIST, rec)
+    return {"ok": True}
 
 
 def charge_tally():
@@ -1544,6 +1570,32 @@ def serve(port):
                         origin="visitor" if self._remote() else "operator",
                         layer=4 if self._remote() else 0)
                 self._send(json.dumps({"ok": True}).encode(), "application/json")
+                return
+
+            if path == "/api/basex/waitlist":
+                # Emails are stored, not published. A GET of this path 404s on
+                # purpose. The address is never copied into events.jsonl, which
+                # is prompt-bound: one join is enough signal, the mailbox is not.
+                if self._flooding("basex-waitlist"):
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    raw = self.rfile.read(min(n, 4096)).decode()
+                    ctype = self.headers.get("Content-Type") or ""
+                    if "json" in ctype:
+                        email = json.loads(raw).get("email")
+                    else:
+                        from urllib.parse import parse_qs
+                        email = (parse_qs(raw).get("email") or [""])[0]
+                    out = record_waitlist(email)
+                except ValueError:
+                    self._send(json.dumps({"error": "need an email"}).encode(),
+                               "application/json", code=400)
+                    return
+                except Exception:
+                    self.send_error(400)
+                    return
+                self._send(json.dumps(out).encode(), "application/json")
                 return
 
             if path == "/api/selfies":

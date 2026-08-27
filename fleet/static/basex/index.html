@@ -1,7 +1,16 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>BaseX — a new definition of value</title>
-<style>body{max-width:70ch;margin:2rem auto;font:17px/1.5 Georgia,serif}h1,h2{font-family:monospace}a{color:#0E7C74}</style>
+<style>
+body{max-width:70ch;margin:2rem auto;font:17px/1.5 Georgia,serif}
+h1,h2{font-family:monospace}
+a{color:#0E7C74}
+label{display:block;margin:.6rem 0}
+input,button{font:inherit}
+input[type=number],input[type=email]{width:14ch}
+svg{display:block;width:100%;height:auto;margin:1rem 0}
+output{font-family:monospace}
+</style>
 <h1>BaseX</h1>
 <p>a new definition of value — triple bottom line (people, planet, prosperity)</p>
 <p>Status: awaiting deployment — 27 August 2026. The domain is registered; this page is the first thing a visitor can actually read.</p>
@@ -11,4 +20,75 @@
 <p>BaseX counts the planet as a bottom line because a surplus that depletes the ground it stands on is a delay, not a profit. What is counted: energy, materials, land, water, living systems, and the waste and risk left after a use. Every claim of value must say what was drawn down, what was restored, and over what horizon the remainder is someone else's problem. Carbon is one line, not the only line. Extractive throughput that looks cheap because the sink is unpriced fails this column. Regenerative work that keeps soil, habitat, and climate within bounds succeeds even when it is slower. Planet is not an offset against prosperity. It is the condition that makes the other two columns possible next year, and the year after that.</p>
 <h2>Prosperity</h2>
 <p>BaseX counts prosperity as the capacity to keep going — livelihoods, tools, surplus that can be shared — without converting people or planet into the input. What is counted is whether the activity produces enough to pay its workers, maintain its tools, and leave a remainder that can be reinvested in the other two columns. Money is a meter, not the definition. A cash profit that required unpaid harm in People or an uncounted drawdown in Planet is not prosperity; it is a transfer this ledger refuses to call a gain. Prosperity includes time, skill, and durable infrastructure. It excludes extraction dressed as growth. The three columns are not weighted after the fact. A result is valuable only when it can be stated in all three without a remainder that has to be hidden.</p>
+<h2>Architecture</h2>
+<p>An activity is recorded on three ledgers at once. Nothing is netted across them. The impact score is the geometric mean of People, Planet, and Prosperity, so a zero in any column is a zero overall.</p>
+<svg viewBox="0 0 560 240" role="img" aria-labelledby="arch-title">
+<title id="arch-title">BaseX architecture: an activity feeds People, Planet and Prosperity, which combine into one impact score</title>
+<g fill="none" stroke="#0E7C74" stroke-width="2">
+<rect x="180" y="8" width="200" height="40"/>
+<rect x="8" y="96" width="160" height="40"/>
+<rect x="200" y="96" width="160" height="40"/>
+<rect x="392" y="96" width="160" height="40"/>
+<rect x="180" y="192" width="200" height="40"/>
+<path d="M280 48v20M88 116V80h384v36M88 136v32h384v-32M280 168v24"/>
+</g>
+<g fill="#111" font-family="Georgia,serif" font-size="15" text-anchor="middle">
+<text x="280" y="34">activity</text>
+<text x="88" y="122">People</text>
+<text x="280" y="122">Planet</text>
+<text x="472" y="122">Prosperity</text>
+<text x="280" y="218">impact score</text>
+</g>
+</svg>
+<h2>Impact score</h2>
+<p>Founders and project stewards enter three metrics from 0 to 100: community (People), ecological (Planet), and financial (Prosperity). The BaseX impact score is their geometric mean, rounded. Examples: 100, 100, 100 → 100. 8, 27, 64 → 24. 0, 100, 100 → 0.</p>
+<form id="score">
+<label>Community (People) <input name="people" type="number" min="0" max="100" step="1" value="50"></label>
+<label>Ecological (Planet) <input name="planet" type="number" min="0" max="100" step="1" value="50"></label>
+<label>Financial (Prosperity) <input name="prosperity" type="number" min="0" max="100" step="1" value="50"></label>
+<p>BaseX impact score: <output id="impact" name="impact">50</output></p>
+</form>
+<h2>Waitlist</h2>
+<p>Leave an email to hear when the next working version is ready. The address is stored here, not published, and not fed to agents.</p>
+<form id="waitlist" method="post" action="/api/basex/waitlist">
+<label>Email <input type="email" name="email" required maxlength="120" autocomplete="email"></label>
+<button type="submit">Join the waitlist</button>
+</form>
+<p id="waitlist-status"></p>
 <p><a href="https://calendly.com/marsxr/basex">book a conversation — Calendly</a></p>
+<script>
+function impactScore(people, planet, prosperity) {
+  people = Number(people); planet = Number(planet); prosperity = Number(prosperity);
+  if ([people, planet, prosperity].some(function (v) {
+    return !isFinite(v) || v < 0 || v > 100;
+  })) return null;
+  if (Math.min(people, planet, prosperity) <= 0) return 0;
+  return Math.round(Math.cbrt(people * planet * prosperity));
+}
+(function () {
+  var form = document.getElementById("score");
+  var out = document.getElementById("impact");
+  function refresh() {
+    var n = impactScore(form.people.value, form.planet.value, form.prosperity.value);
+    out.textContent = n === null ? "—" : String(n);
+  }
+  form.addEventListener("input", refresh);
+  refresh();
+  document.getElementById("waitlist").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var status = document.getElementById("waitlist-status");
+    status.textContent = "sending";
+    fetch("/api/basex/waitlist", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({email: this.email.value.trim()})
+    }).then(function (r) {
+      return r.json().then(function (j) { return {ok: r.ok, j: j}; });
+    }).then(function (x) {
+      status.textContent = x.ok ? "on the list" : (x.j.error || "could not join");
+    }).catch(function () {
+      status.textContent = "could not reach the list";
+    });
+  });
+})();
+</script>
