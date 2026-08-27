@@ -51,6 +51,7 @@ def public_files():
         "docs/SUBMIT-ART.md",  # /art
         "docs/AUTH.md",        # /auth
         "fleet/static/future-vision-xprize/index.html",
+        "fleet/static/basex/index.html",
     ]
 
 

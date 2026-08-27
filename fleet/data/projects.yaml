@@ -44,7 +44,7 @@ projects:
 
   - name: BaseX
     scope: mars
-    url: https://basex.com
+    url: /basex
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
     status: awaiting-deployment   # awaiting initial deployment
     tags: [economics, value, climate]
