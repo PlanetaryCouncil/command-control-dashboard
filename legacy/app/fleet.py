@@ -86,6 +86,61 @@ def _age_seconds(iso: str | None) -> float | None:
     return max(0.0, (datetime.now(timezone.utc) - t).total_seconds())
 
 
+# Same thresholds as the fleet board. Six hours behind the freshest check is
+# "someone should look"; a full day is no longer a result, it is silence.
+# Relative to the fleet, not the wall clock, so a machine that slept ages
+# every card together instead of lighting the whole dashboard.
+STALE_AFTER_S = 6 * 3600
+DEAD_AFTER_S = 24 * 3600
+
+
+def _when(iso) -> datetime | None:
+    if not iso:
+        return None
+    try:
+        t = datetime.fromisoformat(str(iso).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+def stale_hours(workers: list[dict]) -> dict[str, int]:
+    """worker name -> whole hours behind the freshest last_run, when far behind."""
+    stamps = {}
+    for w in workers:
+        t = _when(w.get("last_run"))
+        name = w.get("name")
+        if t and name:
+            stamps[name] = t
+    if not stamps:
+        return {}
+    newest = max(stamps.values())
+    return {name: int((newest - t).total_seconds() // 3600)
+            for name, t in stamps.items()
+            if (newest - t).total_seconds() > STALE_AFTER_S}
+
+
+def warn_stale(workers: list[dict], lags: dict[str, int]) -> list[dict]:
+    """A worker that has not run is not passing.
+
+    The cockpit used to paint the last on-disk status as current, so a
+    command-control-dashboard card that last wrote `pass` on 2026-08-07
+    stayed green for ten days. The board already downgrades that; this
+    is the same rule on the instrument panel the public actually reads.
+    fail/alert keep their louder status. busy/thinking are claims about
+    right now, so they are never overwritten.
+    """
+    for w in workers:
+        lag_h = lags.get(w.get("name"))
+        if lag_h is None:
+            continue
+        w["stale_hours"] = lag_h
+        if w.get("status") != "pass":
+            continue
+        w["status"] = "stale" if lag_h * 3600 >= DEAD_AFTER_S else "warn"
+    return workers
+
+
 def workers(root: Path | None = None) -> list[dict]:
     """Every worker the fleet publishes, worst status first."""
     root = root or fleet_path()
@@ -126,8 +181,13 @@ def workers(root: Path | None = None) -> list[dict]:
             "last_run": None, "age_s": None, "digest": None,
         })
 
-    rank = {"fail": 0, "alert": 1, "skip": 2, "pass": 3, "idle": 4}
-    return sorted(out, key=lambda w: (rank.get(w["status"], 5), w["name"]))
+    warn_stale(out, stale_hours(out))
+
+    # `stale` sits with the failures: a check that has not run in a day is
+    # not a minor note. `warn` is the six-hour laggard, still not green.
+    rank = {"fail": 0, "stale": 1, "alert": 2, "warn": 3,
+            "thinking": 4, "busy": 5, "skip": 6, "pass": 7, "idle": 8}
+    return sorted(out, key=lambda w: (rank.get(w["status"], 7), w["name"]))
 
 
 def events(limit: int = 40, root: Path | None = None) -> list[dict]:
@@ -188,6 +248,7 @@ def snapshot(root: Path | None = None) -> dict:
         "counts": {
             "total": len(ws),
             "healthy": sum(1 for w in ws if w["status"] == "pass"),
-            "attention": sum(1 for w in ws if w["status"] in ("fail", "alert")),
+            "attention": sum(1 for w in ws
+                             if w["status"] in ("fail", "alert", "stale")),
         },
     }
