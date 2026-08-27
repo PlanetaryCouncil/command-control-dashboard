@@ -1,6 +1,4 @@
 logs/
-# Rendered board snapshot (`fleet.py render`). Project one-pagers under
-# static/ are source, not that snapshot.
 index.html
 !static/*/index.html
 .DS_Store
