@@ -58,9 +58,10 @@ projects:
 
   - name: Network State Genesis
     scope: mars
-    url: TODO
+    url: /network-state-genesis
     tagline: A new model of a state with aligned values
     status: active
+    socials: { twitter: "@genesisdotre" }
     tags: [governance, network-state]
 
   - name: Future Vision XPRIZE

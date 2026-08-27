@@ -55,6 +55,7 @@ def public_files():
         "fleet/static/independent-tribunal/index.html",
         "fleet/static/artizen/index.html",
         "fleet/static/solarpunk-estates/index.html",
+        "fleet/static/network-state-genesis/index.html",
     ]
 
 
