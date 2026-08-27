@@ -68,6 +68,7 @@ data/sync_conflicts.json
 data/oplog/
 data/inbox/
 data/poems.jsonl
+data/brainfarts.jsonl
 fleet/rota/
 fleet/state/
 self-improve/state/
