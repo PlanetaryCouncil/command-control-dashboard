@@ -100,7 +100,7 @@ projects:
 
   - name: Artizen.fund projects
     scope: mars
-    url: https://artizen.fund
+    url: /artizen
     tagline: Art funded on Artizen
     status: active
     members:

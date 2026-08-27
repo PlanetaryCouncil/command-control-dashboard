@@ -31,7 +31,7 @@ CONTROL = ["/terminal", "/chat", "/api/kill-token", "/api/ask"]
 # asserting on it here would hang the suite rather than test anything.
 PUBLIC = ["/", "/board", "/workers.json", "/agents", "/procs",
           "/future-vision-xprize", "/basex", "/independent-tribunal",
-          "/poems", "/poems.json"]
+          "/artizen", "/poems", "/poems.json"]
 
 
 @pytest.fixture(scope="module")
