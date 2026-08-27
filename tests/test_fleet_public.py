@@ -32,7 +32,7 @@ CONTROL = ["/terminal", "/chat", "/api/kill-token", "/api/ask"]
 PUBLIC = ["/", "/board", "/workers.json", "/agents", "/procs",
           "/future-vision-xprize", "/basex", "/independent-tribunal",
           "/artizen", "/solarpunk-estates", "/api/solarpunk-estates/demand",
-          "/network-state-genesis", "/poems", "/poems.json"]
+          "/network-state-genesis", "/ministry-of-memes", "/poems", "/poems.json"]
 
 
 @pytest.fixture(scope="module")
