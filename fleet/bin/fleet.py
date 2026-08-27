@@ -1318,6 +1318,14 @@ def serve(port):
                     self.send_error(404)
                 return
 
+            if path == "/independent-tribunal":
+                f = FLEET / "static" / "independent-tribunal" / "index.html"
+                try:
+                    self._send(f.read_bytes(), "text/html; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
             if path == "/trust":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import reputation

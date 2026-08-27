@@ -120,11 +120,11 @@ projects:
 
   - name: Independent Tribunal
     scope: mars
-    url: https://independenttribunal.org
-    tagline: An independent tribunal
+    url: /independent-tribunal
+    tagline: A body neither party appoints, for disputes existing authorities cannot fairly hear
     status: active
     socials: { twitter: "@IndependentTrib", telegram: "@IndependentTribunal" }
-    tags: [governance, justice]
+    tags: [governance, justice, disputes]
 
   - name: Dating Relating
     scope: mars

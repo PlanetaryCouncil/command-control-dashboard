@@ -58,6 +58,8 @@ fleet/projects.txt
 !fleet/static/future-vision-xprize/*
 !fleet/static/basex/
 !fleet/static/basex/*
+!fleet/static/independent-tribunal/
+!fleet/static/independent-tribunal/*
 
 # local: names the reachable host — not for the repo
 .live

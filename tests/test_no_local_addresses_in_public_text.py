@@ -52,6 +52,7 @@ def public_files():
         "docs/AUTH.md",        # /auth
         "fleet/static/future-vision-xprize/index.html",
         "fleet/static/basex/index.html",
+        "fleet/static/independent-tribunal/index.html",
     ]
 
 
