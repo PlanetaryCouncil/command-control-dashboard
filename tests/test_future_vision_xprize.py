@@ -95,3 +95,22 @@ def test_the_page_names_the_film():
     assert 'href="https://www.youtube.com/watch?v=mjeihsU0M-8"' in published
     how = sections["How to take part"]
     assert "New Hope, Permission Not Required?" in how
+
+
+def test_the_page_plays_the_film_and_does_not_put_it_on_the_top_50():
+    """The notice is to focus on the movie. Naming it left a link.
+
+    The live Top 50 at fvxp.moonshots.com does not include this trailer,
+    so the porch plays the film here and keeps the prize vote as a
+    different list.
+    """
+    h = PAGE.read_text()
+    sections = _sections(h)
+    published = sections["What it has published"]
+    assert 'src="https://www.youtube.com/embed/mjeihsU0M-8"' in published
+    assert "<iframe" in published
+    assert "this film is not on that list" in published.lower()
+    how = sections["How to take part"]
+    assert "Watch the film on this page" in how
+    assert "a different list" in how.lower()
+    assert "Watch the top 50 and vote" not in h
