@@ -66,6 +66,8 @@ MAP = [
          "multi-model deliberation: the question, the turns, the verdict."),
         ("Mistakes, logged", "", "/brainfarts.json",
          "confidently wrong AI output, written up. A feature, not an apology."),
+        ("Closing poems", "/poems", "/poems.json",
+         "the couplet that closes each agent turn, newest first."),
     ]),
     ("COMMUNITY", [
         ("Say hello", "/hi", "POST /api/signals",

@@ -306,6 +306,11 @@ line starting with SKIP:."""
             f"[pipeline] build {branch}: "
             + (f"committed: {committed.splitlines()[0]}" if ok
                else f"nothing committed ({out.strip()[-120:]})"))
+    try:
+        import poems
+        poems.append(out, author=builder_name(), task=branch)
+    except Exception:
+        pass
     return record(stage="build", proposal_ts=prop["ts"], branch=branch,
                   ok=ok, worktree=str(wt), detail=out.strip()[-300:])
 
@@ -432,6 +437,11 @@ def verify(built: dict) -> dict:
     ev.emit("pipeline", "needs_you" if verdict == "approved" else "warn",
             f"[pipeline] {branch}: tests {'pass' if tests_ok else 'FAIL'}, "
             f"{who} {verdict} — {' '.join(str(review).split())[:140]}")
+    try:
+        import poems
+        poems.append(review, author=who, task=branch)
+    except Exception:
+        pass
     run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
     return record(stage="verify", proposal_ts=built["proposal_ts"],
                   branch=branch, ok=verdict == "approved",

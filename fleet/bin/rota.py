@@ -363,6 +363,11 @@ def main() -> int:
         ev.emit(agent, "ok", f"[rota] nothing to add ({secs}s)")
     else:
         ev.emit(agent, "ok", f"[rota] proposed ({secs}s): {record['text'][:150]}")
+        try:
+            import poems
+            poems.append(out, author=agent, task="rota")
+        except Exception:
+            pass
 
     print(f"{agent}: {record['outcome']} in {secs}s")
     return 0

@@ -1713,6 +1713,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="/" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
     <a href="/legacy-green-cockpit" title="The green cockpit from outside. Same page, same gates.">green cockpit</a>
     <a href="/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
+    <a href="/poems" title="Two-line poems that close each agent turn, newest first.">poems</a>
   </section>
   <section>
     <h3>repos</h3>
