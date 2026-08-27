@@ -11,7 +11,9 @@ previous result, a previous failure.
 
 import importlib.util
 import json
+import stat
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -30,14 +32,27 @@ def git(repo, *args):
                    capture_output=True)
 
 
+def give_it_pytest(repo):
+    """Watchdog looks for `.venv/bin/pytest` first, then `uv run pytest`.
+    This machine has no `uv`, so a venv-less fixture reports 'no test
+    command detected' and never reaches the skip/run paths under test.
+    Commit the stub with the tree so a later skip still sees a clean HEAD.
+    """
+    stub = repo / ".venv" / "bin" / "pytest"
+    stub.parent.mkdir(parents=True)
+    stub.write_text(f"#!/bin/sh\nexec {sys.executable} -m pytest \"$@\"\n")
+    stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
+
+
 @pytest.fixture
 def project(tmp_path):
-    """A tiny git repo with one passing test and its own venv-less runner."""
+    """A tiny git repo with one passing test and a local pytest stub."""
     repo = tmp_path / "proj"
     (repo / "tests").mkdir(parents=True)
     (repo / "tests" / "test_ok.py").write_text("def test_ok():\n    assert True\n")
     (repo / "pyproject.toml").write_text(
         '[project]\nname = "proj"\nversion = "0"\n')
+    give_it_pytest(repo)
     git(repo.parent, "init", "proj")
     git(repo, "config", "user.email", "t@t")
     git(repo, "config", "user.name", "t")
@@ -226,6 +241,7 @@ def test_a_failing_run_still_reports(tmp_path):
     (repo / "tests" / "test_bad.py").write_text("def test_bad():\n    assert False\n")
     (repo / "pyproject.toml").write_text(
         '[project]\nname = "brokenproj"\nversion = "0"\n')
+    give_it_pytest(repo)
     git(repo.parent, "init", "brokenproj")
     git(repo, "config", "user.email", "t@t")
     git(repo, "config", "user.name", "t")
