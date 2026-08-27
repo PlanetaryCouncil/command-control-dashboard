@@ -817,6 +817,12 @@ def run(agents: list[str], rounds: int, dry_run: bool = False,
                      "text": " ".join(str(text).split())[:1200]}
             turns.append(entry)
             record(entry)
+            if not nothing:
+                try:
+                    import poems
+                    poems.append(text, author=agent, task="council")
+                except Exception:
+                    pass
 
             # A claim cut mid-word is unreadable and unactionable. Clip on a
             # sentence boundary instead, and give it room: these are ~500

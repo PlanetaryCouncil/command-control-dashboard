@@ -34,6 +34,7 @@ source. A fresh clone boots without them: the loaders default to empty.
 
 - `data/inbox.json`, `data/pairing.json`, `data/sync_conflicts.json`
 - `data/oplog/`, `data/inbox/`
+- `data/poems.jsonl` (closing couplets; served live at `/poems.json`)
 - `fleet/rota/*`, `fleet/state/*`
 - `self-improve/state/*`
 - `fleet/data/selfies.jsonl`, `fleet/data/localvoice.jsonl`

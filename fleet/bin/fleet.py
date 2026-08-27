@@ -966,6 +966,20 @@ def serve(port):
                     self.send_error(404)
                 return
 
+            if path == "/poems.json":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import poems
+                self._send(poems.as_json().encode(), "application/json")
+                return
+
+            if path == "/poems":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, poems
+                self._send(poems.page(nav.html("/poems",
+                                               remote=self._remote()),
+                                      nav.CSS).encode())
+                return
+
             if path == "/events":
                 self._stream_events()
                 return
