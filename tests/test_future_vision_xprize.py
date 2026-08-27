@@ -83,6 +83,8 @@ def test_the_project_list_names_the_film():
     b = _block()
     assert "film: New Hope, Permission Not Required?" in b
     assert "watch: https://www.youtube.com/watch?v=mjeihsU0M-8" in b
+    assert "treatment: https://planetarycouncil.org/xprize.pdf" in b
+    assert "ask: https://planetarycouncil.org/vote/" in b
 
 
 def test_the_page_names_the_film():
@@ -114,3 +116,20 @@ def test_the_page_plays_the_film_and_does_not_put_it_on_the_top_50():
     assert "Watch the film on this page" in how
     assert "a different list" in how.lower()
     assert "Watch the top 50 and vote" not in h
+
+
+def test_the_page_carries_the_treatment_and_the_films_own_vote():
+    """Naming and playing the trailer left the rest of the movie unpublished.
+
+    The live film publishes a twelve-page treatment at
+    planetarycouncil.org/xprize.pdf and asks for a vote at
+    planetarycouncil.org/vote — not the prize top 50.
+    """
+    h = PAGE.read_text()
+    sections = _sections(h)
+    published = sections["What it has published"]
+    assert 'href="https://planetarycouncil.org/xprize.pdf"' in published
+    assert "twelve pages" in published.lower()
+    how = sections["How to take part"]
+    assert 'href="https://planetarycouncil.org/vote/"' in how
+    assert "that is the ask for this film" in how.lower()
