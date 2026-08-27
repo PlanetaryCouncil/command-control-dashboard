@@ -150,6 +150,7 @@ projects:
 
   - name: Ministry of Memes and Better Propaganda
     scope: mars
+    url: /ministry-of-memes
     tagline: The good guys need better propaganda than the bad guys — memes to end the war through awareness and education
     status: active
     part_of: Planetary Council

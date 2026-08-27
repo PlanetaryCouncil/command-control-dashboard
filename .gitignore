@@ -66,6 +66,8 @@ fleet/projects.txt
 !fleet/static/solarpunk-estates/*
 !fleet/static/network-state-genesis/
 !fleet/static/network-state-genesis/*
+!fleet/static/ministry-of-memes/
+!fleet/static/ministry-of-memes/*
 
 # local: names the reachable host — not for the repo
 .live

@@ -56,6 +56,8 @@ def public_files():
         "fleet/static/artizen/index.html",
         "fleet/static/solarpunk-estates/index.html",
         "fleet/static/network-state-genesis/index.html",
+        "fleet/static/ministry-of-memes/index.html",
+
     ]
 
 
