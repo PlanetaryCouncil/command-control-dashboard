@@ -1470,6 +1470,14 @@ def serve(port):
                     self.send_error(404)
                 return
 
+            if path == "/network-state-genesis":
+                f = FLEET / "static" / "network-state-genesis" / "index.html"
+                try:
+                    self._send(f.read_bytes(), "text/html; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
             if path == "/api/solarpunk-estates/demand":
                 # Counts only. Emails stay in the intake file.
                 self._send(json.dumps(estates_demand()).encode(),

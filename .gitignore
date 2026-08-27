@@ -64,6 +64,8 @@ fleet/projects.txt
 !fleet/static/artizen/*
 !fleet/static/solarpunk-estates/
 !fleet/static/solarpunk-estates/*
+!fleet/static/network-state-genesis/
+!fleet/static/network-state-genesis/*
 
 # local: names the reachable host — not for the repo
 .live
