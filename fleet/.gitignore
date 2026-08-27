@@ -1,5 +1,6 @@
 logs/
 index.html
+!static/*/index.html
 .DS_Store
 __pycache__/
 *.pyc

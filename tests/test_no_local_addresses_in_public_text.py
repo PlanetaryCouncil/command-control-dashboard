@@ -50,6 +50,7 @@ def public_files():
         "docs/MODERATION.md",  # /moderation
         "docs/SUBMIT-ART.md",  # /art
         "docs/AUTH.md",        # /auth
+        "fleet/static/future-vision-xprize/index.html",
     ]
 
 
