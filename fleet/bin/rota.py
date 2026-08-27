@@ -200,6 +200,47 @@ def ask(agent: str, prompt: str, session: str) -> str:
     return f"[unknown agent {agent}]"
 
 
+def turn_hash(board: dict) -> str:
+    """Hash of the board fields that would change what this turn says.
+
+    Six proposals landed in 63 minutes on 2026-08-07 (13:00–14:03) while
+    `pipeline` sat in `alert` with the same merge queue, the dashboard the
+    same "341 passed", visitors the same 24h line. Three of the six restated
+    the same two points. The rota kept firing and every agent spent a turn
+    on a picture that had not moved.
+
+    Worker identity/status/summary/alert_since, unmerged branches, and an
+    operator question. Not `last_run` or the event tail — those tick without
+    the situation changing. Not `already_proposed` either: this hash is
+    stored ON that list, so counting it would make every filing look like
+    the board moved.
+    """
+    return council.board_fingerprint({**board, "already_proposed": []})
+
+
+def last_board_hash() -> str | None:
+    """Fingerprint stored with the most recent already_proposed ledger row.
+
+    Unusable turns stay off this check the same way they stay off the board:
+    they are not something anyone proposed, so they must not pin the skip.
+    An error row has no hash, so a failed turn does not lock the next one out.
+    """
+    if not LEDGER.exists():
+        return None
+    last = None
+    for line in LEDGER.read_text(errors="replace").splitlines():
+        try:
+            p = json.loads(line)
+        except ValueError:
+            continue
+        if p.get("outcome") == "unusable":
+            continue
+        last = p
+    if not last:
+        return None
+    return last.get("board_hash") or None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--agents", default="hermes,grok,agy")
@@ -252,6 +293,13 @@ def main() -> int:
         return 0
 
     board = council.board_state()
+    fingerprint = turn_hash(board)
+    # The timer still fires; this just refuses to spend an agent on a board
+    # that has not moved since the last already_proposed row.
+    if not a.dry_run and fingerprint == last_board_hash():
+        ev.emit("fleet", "info", "[rota] board unchanged — skipped")
+        print("board unchanged — skipped")
+        return 0
     prompt = prompt_for(agent, board)
 
     if a.dry_run:
@@ -292,6 +340,10 @@ def main() -> int:
         "load_at_start": round(load1, 2),
         "text": " ".join(out.split()),
     }
+    # Pin the skip to a turn that actually looked at the board. An error or
+    # a narrated prompt must not freeze the next agent out of the slot.
+    if not failed and not unusable:
+        record["board_hash"] = fingerprint
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER.open("a") as fh:
         fh.write(json.dumps(record) + "\n")
