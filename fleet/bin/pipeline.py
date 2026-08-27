@@ -297,7 +297,10 @@ message. Do NOT push. Do NOT merge. Do NOT touch other branches. If the
 proposal is not implementable as code, commit nothing and say why in one
 line starting with SKIP:."""
     code, out = run_builder(prompt, wt)
-    committed = run(["git", "log", "--oneline", "main..HEAD"], cwd=wt)[1].strip()
+    # Unique work is commits beyond the tip we branched from, not local
+    # main. On the NUC that ref is an unrelated history, so a SKIP still
+    # looked committed and verify handed the reviewer an empty diff.
+    committed = run(["git", "log", "--oneline", f"{tip}..HEAD"], cwd=wt)[1].strip()
     ok = code == 0 and bool(committed)
     ev.emit("pipeline", "ok" if ok else "warn",
             f"[pipeline] build {branch}: "
@@ -390,6 +393,16 @@ def verify(built: dict) -> dict:
     # provided". Same base as the merge, from the worktree we just tested.
     diff = run(["git", "diff", f"{base}...HEAD", "--stat", "-p"],
                cwd=wt)[1][:DIFF_CLIP]
+    if not diff.strip():
+        # A SKIP, or a branch already on origin/main, is an empty patch.
+        # Sending that to the reviewer is how they reject "no diff was
+        # provided".
+        ev.emit("pipeline", "warn",
+                f"[pipeline] {branch}: empty diff against {base} — rejected")
+        run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+        return record(stage="verify", proposal_ts=built["proposal_ts"],
+                      branch=branch, ok=False, tests=tests_line,
+                      review="REJECT empty diff — nothing to review")
     import chat  # noqa: E402 — sibling module, path set at import time
     noop = lambda *a, **k: None
     who = reviewer_name()

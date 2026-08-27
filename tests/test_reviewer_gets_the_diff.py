@@ -1,10 +1,15 @@
-"""The reviewer is handed the branch's patch, not a git fatal.
+"""The reviewer is handed the branch's patch, not a git fatal or an empty prompt.
 
 2026-08-27: verify merged origin/main, then asked the reviewer to read
 `git diff main...branch` from the shared checkout. Local main on the NUC
 tracks a different lineage and has no merge-base with the pipeline branch,
 so the three-dot diff was `fatal: no merge base` and the reviewer rejected
 "no diff was provided in the message".
+
+Same day, next failure: a builder that SKIPped still counted as a commit
+because `git log main..HEAD` listed the whole origin/main lineage. Verify
+then sent `origin/main...HEAD` (empty) and the reviewer rejected "no diff
+was provided in the prompt".
 """
 
 import subprocess
@@ -96,3 +101,44 @@ def test_verify_does_not_diff_against_local_main():
     body = src[src.index("def verify("):src.index("def land(")]
     assert 'f"main...{branch}"' not in body
     assert 'f"{base}...HEAD"' in body
+
+
+def test_build_counts_commits_from_the_branch_tip():
+    src = (BIN / "pipeline.py").read_text()
+    body = src[src.index("def build("):src.index("def revise(")]
+    assert '"main..HEAD"' not in body
+    assert 'f"{tip}..HEAD"' in body
+
+
+def test_skip_is_not_a_build_when_local_main_is_unrelated(unrelated_main, monkeypatch):
+    """A SKIP must not look committed just because local main is elsewhere."""
+    monkeypatch.setattr(pipeline, "run_builder",
+                        lambda *a, **k: (0, "SKIP: already fixed"))
+    rec = pipeline.build({
+        "ts": "2026-08-07T16:24:39Z",
+        "agent": "claude",
+        "text": "pipeline.py merges into a stale local main",
+    })
+    assert rec["ok"] is False
+    assert rec["stage"] == "build"
+
+
+def test_verify_does_not_hand_the_reviewer_an_empty_diff(unrelated_main, monkeypatch):
+    repo, _wt = unrelated_main
+    git("branch", "rota/empty", "origin/main", cwd=repo)
+    empty_wt = Path(pipeline.WORKTREES) / "empty"
+    git("worktree", "add", "-q", str(empty_wt), "rota/empty", cwd=repo)
+
+    called = []
+
+    def ask(_chat, prompt, _noop):
+        called.append(prompt)
+        return "APPROVE"
+
+    monkeypatch.setitem(pipeline.ASKERS, "hermes", ask)
+
+    r = pipeline.verify({"worktree": str(empty_wt), "branch": "rota/empty",
+                         "proposal_ts": "t-empty"})
+    assert called == []
+    assert r["ok"] is False
+    assert "empty diff" in r["review"].lower()
