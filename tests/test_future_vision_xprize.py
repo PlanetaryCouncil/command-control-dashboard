@@ -161,3 +161,20 @@ def test_the_page_carries_the_films_logline():
     assert "logline: The greatest minds of humanity share their wisdom through empowering stories." in b
     published = _sections(PAGE.read_text())["What it has published"]
     assert "the greatest minds of humanity share their wisdom through empowering stories" in published.lower()
+
+
+def test_the_page_carries_the_films_synopsis():
+    """The cover sheet's next field after the logline is the synopsis.
+
+    Synopsis: The movie flows in 3 minute stories. We call them upgrades.
+    Each upgrade rewires (and retires) an old way of thinking.
+    """
+    b = _block()
+    assert (
+        "synopsis: The movie flows in 3 minute stories. We call them upgrades. "
+        "Each upgrade rewires (and retires) an old way of thinking."
+    ) in b
+    published = _sections(PAGE.read_text())["What it has published"]
+    assert "3 minute stories" in published.lower()
+    assert "we call them upgrades" in published.lower()
+    assert "rewires (and retires) an old way of thinking" in published.lower()
