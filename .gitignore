@@ -56,6 +56,8 @@ fleet/projects.txt
 !fleet/static/gallery/*
 !fleet/static/future-vision-xprize/
 !fleet/static/future-vision-xprize/*
+!fleet/static/basex/
+!fleet/static/basex/*
 
 # local: names the reachable host — not for the repo
 .live

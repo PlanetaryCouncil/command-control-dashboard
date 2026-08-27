@@ -30,7 +30,7 @@ CONTROL = ["/terminal", "/chat", "/api/kill-token", "/api/ask"]
 # `/events` is public too, but it is an open SSE stream that never closes —
 # asserting on it here would hang the suite rather than test anything.
 PUBLIC = ["/", "/board", "/workers.json", "/agents", "/procs",
-          "/future-vision-xprize"]
+          "/future-vision-xprize", "/basex"]
 
 
 @pytest.fixture(scope="module")
