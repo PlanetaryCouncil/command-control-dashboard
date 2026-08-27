@@ -1,0 +1,133 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Solarpunk Estates — expression of interest</title>
+<style>
+body{max-width:70ch;margin:2rem auto;font:17px/1.5 Georgia,serif}
+h1,h2{font-family:monospace}
+a{color:#0E7C74}
+label{display:block;margin:.6rem 0}
+label.inline{display:inline-block;margin-right:1rem}
+input,select,textarea,button{font:inherit}
+input[type=email],select,textarea{width:100%;max-width:36ch}
+textarea{min-height:5em}
+table{border-collapse:collapse;width:100%;margin:.8rem 0}
+th,td{text-align:left;padding:.25rem .4rem;border-bottom:1px solid #ddd;font:15px/1.4 monospace}
+.bar{display:inline-block;height:.7em;background:#0E7C74;vertical-align:middle}
+.bar.zero{background:#ddd;width:0}
+</style>
+<h1>Solarpunk Estates</h1>
+<p>Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun.</p>
+<p>Status: awaiting deployment — 27 August 2026. Intended public name: <a href="https://solarpunkestates.org">solarpunkestates.org</a>. This page is the intake until that name is pointed here.</p>
+<h2>What it is</h2>
+<p>Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun. The first physical coliving site is not chosen yet. Demand from prospective residents, builders, and regenerative land stewards, counted by bioregion, is how that choice gets made.</p>
+<h2>Expression of interest</h2>
+<p>Leave an email, a bioregion, a housing model, and the skills you would bring. The address is stored here, not published, and not fed to agents.</p>
+<form id="interest" method="post" action="/api/solarpunk-estates/interest">
+<label>Email <input type="email" name="email" required maxlength="120" autocomplete="email"></label>
+<label>Target bioregion
+<select name="bioregion" required>
+<option value="">choose</option>
+<option value="cascadia">Cascadia</option>
+<option value="california-floristic">California Floristic</option>
+<option value="sonoran">Sonoran</option>
+<option value="rocky-mountains">Rocky Mountains</option>
+<option value="great-lakes">Great Lakes</option>
+<option value="appalachia">Appalachia</option>
+<option value="gulf-coast">Gulf Coast</option>
+<option value="british-isles">British Isles</option>
+<option value="iberia">Iberia</option>
+<option value="alps">Alps</option>
+<option value="andes">Andes</option>
+<option value="aotearoa">Aotearoa</option>
+<option value="other">Other</option>
+</select>
+</label>
+<p>Preferred model</p>
+<label class="inline"><input type="radio" name="model" value="coliving" required> coliving</label>
+<label class="inline"><input type="radio" name="model" value="rent-to-own"> rent-to-own</label>
+<label class="inline"><input type="radio" name="model" value="either"> either</label>
+<p>I would join as</p>
+<label class="inline"><input type="checkbox" name="roles" value="resident"> resident</label>
+<label class="inline"><input type="checkbox" name="roles" value="builder"> builder</label>
+<label class="inline"><input type="checkbox" name="roles" value="land-steward"> land steward</label>
+<label>Skills I can contribute <textarea name="skills" required maxlength="500" placeholder="building, farming, land restoration, cooking, legal, finance…"></textarea></label>
+<button type="submit">Register interest</button>
+</form>
+<p id="interest-status"></p>
+<h2>Demand by bioregion</h2>
+<p>Counts only, unique by email. Names and skills stay off this map so the first site can be chosen from demand, not from a public list of applicants. Total registered: <span id="demand-total">0</span>.</p>
+<table>
+<thead><tr><th>bioregion</th><th>interest</th><th></th></tr></thead>
+<tbody id="demand-body"></tbody>
+</table>
+<p id="demand-models"></p>
+<script>
+var BIOREGIONS = ["cascadia","california-floristic","sonoran","rocky-mountains","great-lakes","appalachia","gulf-coast","british-isles","iberia","alps","andes","aotearoa","other"];
+function renderDemand(d) {
+  var total = d.total || 0;
+  document.getElementById("demand-total").textContent = String(total);
+  var tbody = document.getElementById("demand-body");
+  tbody.textContent = "";
+  var counts = d.by_bioregion || {};
+  BIOREGIONS.forEach(function (k) {
+    var n = counts[k] || 0;
+    var tr = document.createElement("tr");
+    var name = document.createElement("td");
+    name.textContent = k;
+    var num = document.createElement("td");
+    num.textContent = String(n);
+    var barCell = document.createElement("td");
+    var bar = document.createElement("span");
+    bar.className = n ? "bar" : "bar zero";
+    bar.style.width = (total ? Math.round(100 * n / total) : 0) + "%";
+    barCell.appendChild(bar);
+    tr.appendChild(name);
+    tr.appendChild(num);
+    tr.appendChild(barCell);
+    tbody.appendChild(tr);
+  });
+  var models = d.by_model || {};
+  var bits = [];
+  ["coliving","rent-to-own","either"].forEach(function (k) {
+    bits.push(k + " " + (models[k] || 0));
+  });
+  document.getElementById("demand-models").textContent = bits.join(" · ");
+}
+function loadDemand() {
+  fetch("/api/solarpunk-estates/demand").then(function (r) { return r.json(); })
+    .then(renderDemand).catch(function () {});
+}
+document.getElementById("interest").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var status = document.getElementById("interest-status");
+  var roles = [];
+  this.querySelectorAll("input[name=roles]:checked").forEach(function (box) {
+    roles.push(box.value);
+  });
+  if (!roles.length) {
+    status.textContent = "choose at least one role";
+    return;
+  }
+  var model = (this.querySelector("input[name=model]:checked") || {}).value;
+  status.textContent = "sending";
+  fetch("/api/solarpunk-estates/interest", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      email: this.email.value.trim(),
+      bioregion: this.bioregion.value,
+      model: model,
+      roles: roles,
+      skills: this.skills.value.trim()
+    })
+  }).then(function (r) {
+    return r.json().then(function (j) { return {ok: r.ok, j: j}; });
+  }).then(function (x) {
+    status.textContent = x.ok ? "interest recorded" : (x.j.error || "could not record");
+    if (x.ok) loadDemand();
+  }).catch(function () {
+    status.textContent = "could not reach the intake";
+  });
+});
+loadDemand();
+</script>

@@ -25,6 +25,24 @@ CHARGES = FLEET / "data" / "charges.jsonl"
 WAITLIST = FLEET / "data" / "basex-waitlist.jsonl"
 WAITLIST_EMAIL = re.compile(
     r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
+ESTATES_INTAKE = FLEET / "data" / "solarpunk-estates-intake.jsonl"
+ESTATES_BIOREGIONS = (
+    "cascadia",
+    "california-floristic",
+    "sonoran",
+    "rocky-mountains",
+    "great-lakes",
+    "appalachia",
+    "gulf-coast",
+    "british-isles",
+    "iberia",
+    "alps",
+    "andes",
+    "aotearoa",
+    "other",
+)
+ESTATES_MODELS = ("coliving", "rent-to-own", "either")
+ESTATES_ROLES = ("resident", "builder", "land-steward")
 
 # Per-install, so the same visitor is one hand here and an unrelated one
 # somewhere else. Regenerated if absent; losing it only resets the counting.
@@ -77,6 +95,90 @@ def record_waitlist(email: str) -> dict:
     WAITLIST.parent.mkdir(parents=True, exist_ok=True)
     _append_capped(WAITLIST, rec)
     return {"ok": True}
+
+
+def parse_estates_intake(raw) -> dict:
+    """Validate one expression of interest. Emails stay off every GET."""
+    if not isinstance(raw, dict):
+        raise ValueError("need a form")
+    email = accept_waitlist_email(raw.get("email"))
+    bioregion = _clean(raw.get("bioregion"), 40).lower()
+    if bioregion not in ESTATES_BIOREGIONS:
+        raise ValueError("need a bioregion")
+    model = _clean(raw.get("model"), 20).lower()
+    if model not in ESTATES_MODELS:
+        raise ValueError("need a model")
+    roles_raw = raw.get("roles") if raw.get("roles") is not None else raw.get("role")
+    if isinstance(roles_raw, str):
+        roles_raw = [roles_raw]
+    if not isinstance(roles_raw, list):
+        raise ValueError("need a role")
+    roles = []
+    for item in roles_raw:
+        role = _clean(item, 20).lower()
+        if role not in ESTATES_ROLES:
+            raise ValueError("need a role")
+        if role not in roles:
+            roles.append(role)
+    if not roles:
+        raise ValueError("need a role")
+    skills = _clean(raw.get("skills"), 500)
+    if not skills:
+        raise ValueError("need skills")
+    return {
+        "email": email,
+        "bioregion": bioregion,
+        "model": model,
+        "roles": roles,
+        "skills": skills,
+    }
+
+
+def record_estates_intake(raw) -> dict:
+    """Append one interest. The address never goes on a GET, and never into events."""
+    rec = parse_estates_intake(raw)
+    rec["ts"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    ESTATES_INTAKE.parent.mkdir(parents=True, exist_ok=True)
+    _append_capped(ESTATES_INTAKE, rec)
+    return {"ok": True}
+
+
+def estates_demand() -> dict:
+    """Counts by bioregion, model, and role. Last write per email wins.
+
+    Emails and skill text never leave the intake file.
+    """
+    latest = {}
+    try:
+        lines = ESTATES_INTAKE.read_text(errors="replace").splitlines()
+    except OSError:
+        lines = []
+    for line in lines:
+        try:
+            r = json.loads(line)
+        except ValueError:
+            continue
+        email = r.get("email")
+        if not email or r.get("bioregion") not in ESTATES_BIOREGIONS:
+            continue
+        latest[email] = r
+    by_bioregion = {k: 0 for k in ESTATES_BIOREGIONS}
+    by_model = {k: 0 for k in ESTATES_MODELS}
+    by_role = {k: 0 for k in ESTATES_ROLES}
+    for r in latest.values():
+        by_bioregion[r["bioregion"]] += 1
+        model = r.get("model")
+        if model in by_model:
+            by_model[model] += 1
+        for role in r.get("roles") or []:
+            if role in by_role:
+                by_role[role] += 1
+    return {
+        "total": len(latest),
+        "by_bioregion": by_bioregion,
+        "by_model": by_model,
+        "by_role": by_role,
+    }
 
 
 def charge_tally():
@@ -1360,6 +1462,20 @@ def serve(port):
                     self.send_error(404)
                 return
 
+            if path == "/solarpunk-estates":
+                f = FLEET / "static" / "solarpunk-estates" / "index.html"
+                try:
+                    self._send(f.read_bytes(), "text/html; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
+            if path == "/api/solarpunk-estates/demand":
+                # Counts only. Emails stay in the intake file.
+                self._send(json.dumps(estates_demand()).encode(),
+                           "application/json")
+                return
+
             if path == "/trust":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import reputation
@@ -1591,6 +1707,39 @@ def serve(port):
                 except ValueError:
                     self._send(json.dumps({"error": "need an email"}).encode(),
                                "application/json", code=400)
+                    return
+                except Exception:
+                    self.send_error(400)
+                    return
+                self._send(json.dumps(out).encode(), "application/json")
+                return
+
+            if path == "/api/solarpunk-estates/interest":
+                # Emails are stored, not published. A GET of this path 404s on
+                # purpose. The address is never copied into events.jsonl.
+                if self._flooding("solarpunk-estates-interest"):
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    raw = self.rfile.read(min(n, 8192)).decode()
+                    ctype = self.headers.get("Content-Type") or ""
+                    if "json" in ctype:
+                        body = json.loads(raw)
+                    else:
+                        from urllib.parse import parse_qs
+                        q = parse_qs(raw)
+                        body = {
+                            "email": (q.get("email") or [""])[0],
+                            "bioregion": (q.get("bioregion") or [""])[0],
+                            "model": (q.get("model") or [""])[0],
+                            "roles": q.get("roles") or q.get("role") or [],
+                            "skills": (q.get("skills") or [""])[0],
+                        }
+                    out = record_estates_intake(body)
+                except ValueError:
+                    self._send(json.dumps({
+                        "error": "need email, bioregion, model, role, and skills"
+                    }).encode(), "application/json", code=400)
                     return
                 except Exception:
                     self.send_error(400)

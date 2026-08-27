@@ -113,9 +113,9 @@ projects:
   # --- added off the top of Mars's head 2026-08-06; verified in-browser ---
   - name: Solarpunk Estates
     scope: mars
-    url: https://solarpunkestates.org
+    url: /solarpunk-estates
     tagline: Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun
-    status: active
+    status: awaiting-deployment   # intake is live on the board; domain not pointed
     tags: [solarpunk, real-estate, climate, coliving]
 
   - name: Independent Tribunal

@@ -62,6 +62,8 @@ fleet/projects.txt
 !fleet/static/independent-tribunal/*
 !fleet/static/artizen/
 !fleet/static/artizen/*
+!fleet/static/solarpunk-estates/
+!fleet/static/solarpunk-estates/*
 
 # local: names the reachable host — not for the repo
 .live
@@ -86,6 +88,10 @@ fleet/data/.charge-salt
 # Visitor emails from the BaseX waitlist. Never commit, never publish.
 fleet/data/basex-waitlist.jsonl
 fleet/data/basex-waitlist.jsonl.1
+
+# Solarpunk Estates intake: emails and skill notes. Never commit, never publish.
+fleet/data/solarpunk-estates-intake.jsonl
+fleet/data/solarpunk-estates-intake.jsonl.1
 
 # Runtime state, not source. The offset is the bot position in the update
 # stream and the session is the thread it resumes; both are per-machine, and a
