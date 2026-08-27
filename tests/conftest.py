@@ -42,6 +42,7 @@ def isolate_written_data(tmp_path, monkeypatch):
     fleet_dir.mkdir()
     monkeypatch.setenv("FLEET_PATH", str(fleet_dir))
     monkeypatch.setenv("POEMS_JSONL", str(tmp_path / "poems.jsonl"))
+    monkeypatch.setenv("BRAINFARTS_JSONL", str(tmp_path / "brainfarts.jsonl"))
 
     for attr in WRITE_PATHS:
         real = getattr(main, attr, None)

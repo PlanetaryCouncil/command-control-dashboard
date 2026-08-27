@@ -911,9 +911,13 @@ def brainfarts() -> list:
     out = []
     for line in BRAINFARTS_PATH.read_text(errors="replace").splitlines():
         try:
-            out.append(json.loads(line))
+            rec = json.loads(line)
         except json.JSONDecodeError:
             continue
+        # Drafts from --from-board stay off the feed until a human scores them.
+        if isinstance(rec, dict) and rec.get("published") is False:
+            continue
+        out.append(rec)
     return out
 
 
