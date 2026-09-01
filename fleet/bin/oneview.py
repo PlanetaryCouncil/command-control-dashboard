@@ -376,7 +376,11 @@ canvas.mark:hover{opacity:1;}
    losing sight of the stream -- the two things you actually want side by side,
    because the terminal is where you act and the stream is where the fleet
    answers. It is a pane now, above the stream, sharing the middle column. */
-#termpane{flex:0 0 var(--hTerm,320px);min-height:80px;}
+/* Half the column by default. 320px was a drawer's habit -- a strip you
+   glance at. The operator asked to work in here, and a working pane is
+   the same size as the thing it is working on. Dragging the grip pins it
+   to pixels and that choice is remembered; until then it stays half. */
+#termpane{flex:0 0 var(--hTerm,50%);min-height:80px;}
 #termpane .body{padding:0;overflow:hidden;}
 #termpane[data-open="0"]{flex:0 0 auto;min-height:0;}
 #termpane[data-open="0"] .body,#termpane[data-open="0"]+.griph{display:none;}
@@ -1607,6 +1611,12 @@ def _first_contact() -> str:
 
 
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
+    # Built here rather than inline in the return below: Gaia runs Python
+    # 3.11, where a triple-quoted string inside an f-string is a
+    # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
+    # reached the laptop -- the one machine the terminal pane is for.
+    TERMPANE_HTML = '<!-- starts closed so the boot call below opens it; a pane that renders\n           open and then has to be opened again is two states pretending\n           to be one -->\n      <section class="pane" id="termpane" data-open="0">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"><div id="term"></div></div>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
+    CONTROLS_HTML = '<div class="buildgate">\n        <button id="bgate" data-on="1">build: on</button>\n        <span id="bgatenote"></span>\n      </div>\n      <div class="kill">\n        <button id="kill" data-armed="0">kill fleet work</button>\n        <span id="killnote"></span>\n      </div>'
     import html as _html
     import nav
     board_name = nav.board_name()
@@ -1689,15 +1699,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <div class="grip" id="gripL"></div>
 
   <div class="col">
-    {"" if remote else """<!-- starts closed so the boot call below opens it; a pane that renders
-           open and then has to be opened again is two states pretending
-           to be one -->
-      <section class="pane" id="termpane" data-open="0">
-      <h2>claude &mdash; this machine <span class="n"></span></h2>
-      <div class="body"><div id="term"></div></div>
-    </section>
-
-    <div class="griph" id="gripT"></div>"""}
+    {"" if remote else TERMPANE_HTML}
 
     <section class="pane" id="stream" style="flex:1">
       <h2>
@@ -1762,14 +1764,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
           <tbody id="procbody"></tbody>
         </table>
       </div>
-      {"" if remote else """<div class="buildgate">
-        <button id="bgate" data-on="1">build: on</button>
-        <span id="bgatenote"></span>
-      </div>
-      <div class="kill">
-        <button id="kill" data-armed="0">kill fleet work</button>
-        <span id="killnote"></span>
-      </div>"""}
+      {"" if remote else CONTROLS_HTML}
     </section>
   </div>
 </div>
