@@ -212,7 +212,10 @@ def telegram_agent() -> str:
             return live[0]
     except Exception:
         pass
-    return "grok"
+    # hermes, not grok: the floor has to be the vendor that cannot run out
+    # of money. grok sat here until 2026-09-01, so whenever the pulse was
+    # unreadable the line fell back to the one vendor that was 402-ing.
+    return "hermes"
 
 
 def _run(cmd, timeout, cwd=None, stdin_text=None):
@@ -272,6 +275,73 @@ def _dispatch_hermes(text, timeout):
     return out or (f"(no output)\n{err[:400]}" if err else "(no output)")
 
 
+DISPATCH = {"claude": _dispatch_claude,
+            "grok": _dispatch_grok,
+            "hermes": _dispatch_hermes}
+
+
+def _answer_chain():
+    """Who to ask, in order, ending somewhere free.
+
+    The line going quiet is the worst failure this file has, because the
+    operator cannot tell a dead fleet from a dead bot. So the chosen agent
+    is only the first guess: anything else the pulse calls live follows it,
+    and hermes closes the list because it is local and cannot be dry.
+    """
+    order = [telegram_agent()]
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import quotas
+        for a in quotas.eligible(["grok", "claude", "hermes"]):
+            if a not in order:
+                order.append(a)
+    except Exception:
+        pass
+    # hermes is free, so it goes ahead of anything metered. claude closes
+    # the list even when the pulse holds it back as "rare": thrift is worth
+    # protecting right up until the line goes quiet, and a quiet line is
+    # indistinguishable from a dead fleet.
+    for last in ("hermes", "claude"):
+        if last not in order:
+            order.append(last)
+    return [a for a in order if a in DISPATCH]
+
+
+def _is_silence(reply):
+    """True when a reply is really a refusal wearing a reply's clothes."""
+    if not reply or not reply.strip():
+        return True
+    if reply.strip().startswith("(no output)"):
+        return True
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import quotas
+        return bool(quotas.QUOTA_RE.search(reply))
+    except Exception:
+        return False
+
+
+def _attempts(text, timeout):
+    """Yield the first real answer. Falls back fast: a vendor that is out
+    of credit says so in a second, and the operator should not wait out a
+    full timeout per corpse."""
+    failed = []
+    chain = _answer_chain()
+    for i, who in enumerate(chain):
+        reply = DISPATCH[who](text, timeout if i == 0 else min(timeout, 300))
+        if not _is_silence(reply):
+            if failed:
+                reply = f"({who} answered \u2014 no credit: {', '.join(failed)})\n\n{reply}"
+            yield who, reply
+            return
+        failed.append(who)
+    if failed:
+        yield None, ("every agent refused: " + ", ".join(failed) +
+                     "\ntop one up, or check /workers.json")
+    else:
+        yield None, "no agent is configured"
+
+
 def dispatch(text, timeout=900):
     """Free text goes to a live agent.
 
@@ -280,14 +350,9 @@ def dispatch(text, timeout=900):
     the whole reason the allowlist is not optional — and the reason this may
     hold real tools.
     """
-    who = telegram_agent()
-    if who == "claude":
-        return _dispatch_claude(text, timeout)
-    if who == "grok":
-        return _dispatch_grok(text, timeout)
-    if who == "hermes":
-        return _dispatch_hermes(text, timeout)
-    return f"[unknown telegram agent {who}]"
+    for who, reply in _attempts(text, timeout):
+        return reply
+    return "[no agent could answer]"
 
 
 def handle(text):
