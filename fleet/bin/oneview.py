@@ -155,6 +155,22 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #empty .sub{font-size:10.5px;}
 .ev[hidden]{display:none;}
 .pane .body{flex:1;min-height:0;overflow-y:auto;}
+/* vendor credit: who can still be asked, and who is only pretending.
+   The pulse already knew all of this; it was buried in a JSON string
+   inside one worker's detail field, so a dry vendor looked identical
+   to a rich one right up until a turn died on payment. */
+#credit table{width:100%;border-collapse:collapse;font:11px/1.5 var(--mono);}
+#credit td{padding:3px 6px;border-bottom:1px solid var(--border);vertical-align:middle;}
+#credit tr:last-child td{border-bottom:0;}
+#credit .who{color:var(--ink);}
+#credit .vend{color:var(--muted);}
+#credit .st{text-align:right;white-space:nowrap;font-weight:600;}
+#credit .st.rich{color:var(--good);}
+#credit .st.dry{color:var(--critical);}
+#credit .st.out{color:var(--warning);}
+#credit .st.idle{color:var(--muted);font-weight:400;}
+#credit .why{color:var(--muted);font-size:10px;}
+#credit .asof{padding:4px 6px;color:var(--muted);font-size:10px;}
 
 /* ---------- agents ---------- */
 .agent{border-bottom:1px solid var(--border);padding:3px 7px;}
@@ -412,6 +428,53 @@ function meter(value, max, opts={}){
 const lastMsg = new Map();
 let WORKERS = [];
 function renderAgents(workers){ WORKERS = workers; }
+
+/* ---------------- vendor credit ------------------------------------------ */
+/* The quotas pulse carries a row per vendor, but it ships it as JSON inside
+   a string field, so nothing on the board ever read it. On 2026-09-01 grok
+   had been answering every request with 402 Payment Required for four days
+   and the board showed nothing at all. Money is a fleet health metric. */
+function creditState(v){
+  const n = v.quota_errors_24h || 0;
+  if (v.binary === false)      return ["idle", "not installed"];
+  if (v.auth === "logged-out") return ["out",  "needs a login"];
+  // "quota-shaped errors in last 24h" is how the pulse says it to itself.
+  // On the board it should say the thing a person would say.
+  if (v.ok === false)          return ["dry",  n ? "refused " + n + "x today"
+                                                 : "spent"];
+  if (v.vendor === "local")    return ["rich", "local, costs nothing"];
+  if (v.plan)                  return ["rich", "on " + v.plan];
+  if (v.note === "on PATH")    return ["rich", "installed, never probed"];
+  return ["rich", v.note || "ok"];
+}
+const CREDIT_WORD = {rich:"has credit", dry:"DRY", out:"logged out", idle:"absent"};
+
+function renderCredit(workers){
+  const pane = $("#credit");
+  const q = (workers || []).find(w => w.worker === "quotas");
+  let rows = [];
+  try { rows = JSON.parse(q.detail).vendors || []; } catch(e){ rows = []; }
+  if (!rows.length){ pane.dataset.state = "error"; return; }
+
+  // Dry first: the board should lead with what cannot be asked.
+  const rank = {dry:0, out:1, rich:2, idle:3};
+  const seen = rows.map(v => { const [k, why] = creditState(v);
+                               return {v, k, why}; })
+                   .sort((a,b) => rank[a.k] - rank[b.k]
+                                  || a.v.agent.localeCompare(b.v.agent));
+
+  $("#creditbody").innerHTML = seen.map(({v, k, why}) => `
+    <tr><td class="who">${esc(v.agent)}</td>
+        <td class="vend">${esc(v.vendor || "")}</td>
+        <td class="why">${esc(why)}</td>
+        <td class="st ${k}">${CREDIT_WORD[k]}</td></tr>`).join("");
+
+  const broke = seen.filter(x => x.k === "dry" || x.k === "out").length;
+  $("#credit h2 .n").textContent = broke ? `${broke} down` : "all up";
+  $("#creditasof").textContent = q.last_run
+    ? "checked " + new Date(q.last_run).toLocaleTimeString() : "";
+  pane.dataset.state = "ready";
+}
 
 /* The agent's own line, as a full-width row above the processes it owns. */
 function agentCard(w){
@@ -1230,12 +1293,12 @@ async function poll(){
       fetch("workers.json",{cache:"no-store"}).then(r=>r.json()),
       fetch("api/processes",{cache:"no-store"}).then(r=>r.json()),
     ]);
-    renderAgents(w); renderProcs(p);
+    renderAgents(w); renderProcs(p); renderCredit(w);
   } catch(e){
     // Only panes that have never rendered flip to the error state. Once a pane
     // holds real data, a failed refresh leaves it standing — stale numbers with
     // a stale clock beside them beat replacing them with an apology.
-    for (const id of ["#procs"])
+    for (const id of ["#procs", "#credit"])
       if ($(id).dataset.state === "loading") $(id).dataset.state = "error";
   }
 }
@@ -1645,6 +1708,15 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <div class="grip" id="gripR"></div>
 
   <div class="col">
+    <section class="pane" id="credit" style="flex:0 0 auto" data-state="loading">
+      <h2>vendor credit <span class="n"></span></h2>
+      <div class="load"><i></i><span class="msg"></span></div>
+      <div class="body">
+        <table><tbody id="creditbody"></tbody></table>
+        <div class="asof" id="creditasof"></div>
+      </div>
+    </section>
+
     <section class="pane" id="procs" style="flex:1" data-state="loading">
       <h2>agents &amp; processes <span class="n"></span></h2>
       <div class="load"><i></i><span class="msg"></span></div>
