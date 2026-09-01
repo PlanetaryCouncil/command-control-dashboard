@@ -1563,6 +1563,8 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
   <span>an operating system for life: humans and AI &mdash;
   <a href='/about' style='color:var(--info)'>what this is</a> &middot;
   <a href='/hi' style='color:var(--info)'>say hi</a> &middot;
+  <a href='https://planetarycouncil.github.io/selfie-gallery/'
+     style='color:var(--info)'>the gallery</a> &middot;
   <a href='/signatures' style='color:var(--info)'>sign the pad</a>
   &mdash; see what you can do to advance humanity</span>
   <button onclick="localStorage.setItem('welcomed','1');this.parentElement.style.display='none'"

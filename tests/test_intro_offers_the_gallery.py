@@ -1,0 +1,42 @@
+"""The gallery is on the first thing a stranger reads.
+
+It was in the nav and nowhere else, so a visitor met "say hi" and "sign the
+pad" but had to find the faces themselves. The intro is the one line most
+people read; a door that is not on it is a door most people do not use.
+"""
+import sys
+from pathlib import Path
+
+BIN = Path(__file__).resolve().parents[1] / "fleet" / "bin"
+sys.path.insert(0, str(BIN))
+import oneview, nav  # noqa: E402
+
+GALLERY = "https://planetarycouncil.github.io/selfie-gallery/"
+ARGS = ("[]", "[]", "tok")
+
+
+def test_the_intro_offers_the_gallery():
+    page = oneview.page(*ARGS, remote=True)
+    assert GALLERY in page, "the gallery is missing from the welcome line"
+
+
+def _welcome(page):
+    """Just the welcome line. The same hrefs appear in the nav, so an
+    unscoped index() measures the wrong element and passes or fails for
+    reasons that have nothing to do with the intro."""
+    start = page.index('id="welcome"')
+    return page[start:page.index("</div>", start)]
+
+
+def test_it_sits_beside_say_hi():
+    """Next to the other two invitations, not stranded at the end."""
+    w = _welcome(oneview.page(*ARGS, remote=True))
+    hi, gal, pad = w.index("/hi'"), w.index(GALLERY), w.index("/signatures'")
+    assert hi < gal < pad, "the gallery belongs between 'say hi' and the pad"
+
+
+def test_the_nav_and_the_intro_point_at_the_same_gallery():
+    """Two hardcoded copies of one URL is one copy too many to trust; if they
+    ever disagree, this says so before a visitor finds out."""
+    assert any(href == GALLERY for href, _ in nav.PAGES), \
+        "nav no longer points where the intro does"
