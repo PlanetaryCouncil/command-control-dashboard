@@ -371,7 +371,17 @@ canvas.mark:hover{opacity:1;}
 #foot a:hover{color:var(--accent);text-decoration:underline;}
 #foot span.dead{color:var(--muted);}
 
-/* ---------- terminal drawer ---------- */
+/* ---------- terminal ----------
+   It used to live in a drawer that slid up over the board, so using it meant
+   losing sight of the stream -- the two things you actually want side by side,
+   because the terminal is where you act and the stream is where the fleet
+   answers. It is a pane now, above the stream, sharing the middle column. */
+#termpane{flex:0 0 var(--hTerm,320px);min-height:80px;}
+#termpane .body{padding:0;overflow:hidden;}
+#termpane[data-open="0"]{flex:0 0 auto;min-height:0;}
+#termpane[data-open="0"] .body,#termpane[data-open="0"]+.griph{display:none;}
+#term{height:100%;padding:5px 7px;}
+/* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
   background:#0d0d0d;transition:height .18s ease;}
 #drawer.open{height:42vh;}
@@ -1137,10 +1147,11 @@ loadGate();
 
 /* ---------------- terminal drawer, opened only on request ------------------ */
 async function toggleTerm(){
-  const d = $("#drawer"), btn = $("#termbtn");
-  const opening = !d.classList.contains("open");
-  d.classList.toggle("open", opening);
-  btn.setAttribute("aria-pressed", String(opening));
+  const d = $("#termpane"), btn = $("#termbtn");
+  if (!d) return;
+  const opening = d.dataset.open !== "1";
+  d.dataset.open = opening ? "1" : "0";
+  if (btn) btn.setAttribute("aria-pressed", String(opening));
   if (!opening || termReady) { if (opening && window.__fit) window.__fit.fit(); return; }
 
   // Load xterm and open the socket only when first asked: an idle drawer
@@ -1171,7 +1182,7 @@ async function toggleTerm(){
     await load("/static/xterm-addon-fit.js", "xterm-addon-fit.js");
     boot("connecting…");
   } catch (err) {
-    boot(err.message + " — the drawer stays empty until this loads.");
+    boot(err.message + " — the pane stays empty until this loads.");
     return;                       // termReady stays false, so a retry is possible
   }
   const term = new Terminal({fontFamily:"ui-monospace, Menlo, monospace", fontSize:11,
@@ -1193,7 +1204,7 @@ async function toggleTerm(){
   ws.onerror = () => term.write("\r\n\x1b[31m— could not connect —\x1b[0m\r\n");
   ws.onclose = () => term.write("\r\n\x1b[90m— session ended —\x1b[0m\r\n");
   term.onData(d => ws?.readyState===1 && ws.send(JSON.stringify({t:"input",d})));
-  addEventListener("resize", () => { if (d.classList.contains("open")){ fit.fit();
+  addEventListener("resize", () => { if (d.dataset.open === "1"){ fit.fit();
     ws?.readyState===1 && ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows})); }});
   termReady = true;
   term.focus();
@@ -1473,6 +1484,14 @@ function dragGripV(grip, varName, key, fallback){
 dragGrip($("#gripL"), "L");
 dragGrip($("#gripR"), "R");
 dragGripV($("#gripA"), "--hArt", "hArt", 240);
+if ($("#gripT")) dragGripV($("#gripT"), "--hTerm", "hTerm", 320);
+// Boot it on load rather than on a click. "Right there" was the whole point of
+// moving it out of the drawer, and a pane that says "press me to become the
+// thing you asked for" is still a drawer with extra steps. Local only -- the
+// pane is not rendered for a remote visitor, so this never runs for them. The
+// socket dies with the tab and takes the process with it, so the cost is one
+// session per open board, not a pile of orphans.
+if ($("#termpane")) toggleTerm();
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
 // The gallery slot. This board is a home dashboard and the home makes art —
@@ -1670,6 +1689,16 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <div class="grip" id="gripL"></div>
 
   <div class="col">
+    {"" if remote else """<!-- starts closed so the boot call below opens it; a pane that renders
+           open and then has to be opened again is two states pretending
+           to be one -->
+      <section class="pane" id="termpane" data-open="0">
+      <h2>claude &mdash; this machine <span class="n"></span></h2>
+      <div class="body"><div id="term"></div></div>
+    </section>
+
+    <div class="griph" id="gripT"></div>"""}
+
     <section class="pane" id="stream" style="flex:1">
       <h2>
         <span class="filters" id="filters">
@@ -1801,7 +1830,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </section>
 </footer>
 
-<div id="drawer"><div id="term"></div></div>
+<div id="drawer"></div>
 
 <script>{js}</script>
 </body></html>"""
