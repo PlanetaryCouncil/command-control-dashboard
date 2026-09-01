@@ -114,11 +114,19 @@ def triage_agent() -> str:
             who = ""
     who = (who or "agy").strip() or "agy"
     if who in ("claude", "openclaw"):
-        who = "agy"
-    # A dry vendor is not a cheap vendor, it is no vendor. agy went
-    # quota-dead for five days on 2026-08-28 and triage kept naming it,
-    # so every batch was a no-op the log reported as "0 open". Ask who
-    # can actually answer before committing to a name.
+        return "agy"
+    return who
+
+
+def usable_triage_agent() -> str:
+    """The configured cheap agent, or the nearest one that can answer.
+
+    A dry vendor is not a cheap vendor, it is no vendor. agy went
+    quota-dead for five days on 2026-08-28 and triage kept naming it,
+    so every batch was a no-op the log reported as "0 open". The
+    config still states the preference; this states who is awake.
+    """
+    who = triage_agent()
     try:
         import quotas
         if not quotas.eligible([who]):
@@ -132,7 +140,7 @@ def triage_agent() -> str:
 
 def ask_cheap(prompt: str) -> str:
     noop = lambda *a, **k: None
-    who = triage_agent()
+    who = usable_triage_agent()
     if who == "agy":
         return chat.ask_agy(prompt, [], noop, timeout=180)
     if who == "grok":
@@ -243,7 +251,7 @@ def model_batch(batch: list[dict]) -> dict:
     if len(keep) > KEEP_MAX:
         extra, keep = keep[KEEP_MAX:], keep[:KEEP_MAX]
         drop.extend(extra)
-    who = "triage-" + triage_agent()
+    who = "triage-" + usable_triage_agent()
     for p in drop:
         close(p, "cheap-model DROP", by=who)
     return {"keep": keep, "drop": len(drop), "raw": raw[:1500],
@@ -399,7 +407,7 @@ def run(batches: int = 1, drain_only: bool = False) -> dict:
     stamp = pipeline.now()
     short = leftover[:KEEP_MAX]
     body = [f"# Triage {stamp}", "",
-            f"{before} open. cheap agent: {triage_agent()}.",
+            f"{before} open. cheap agent: {usable_triage_agent()}.",
             f"drain: {stats['dropped']}",
             f"model DROP {model_drop}, unparsed {unparsed}, "
             f"still open {len(open_proposals())}.", ""]
