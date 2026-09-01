@@ -915,7 +915,12 @@ function renderProcs(s){
   $("#procs .n").textContent =
     WORKERS.length + " agents · " + rows.length + " procs · "
     + heavies.length + " heavy · " + s.killable + " killable";
+  // A remote visitor has no controls rendered at all, so every handler and
+  // painter below has to tolerate their absence. Without the guard the first
+  // null blows up the poll and takes the panes down with it -- the page would
+  // be safe and broken, when it only needed to be safe.
   const kb = $("#kill");
+  if (!kb) return;
   kb.disabled = s.killable === 0;
   // A greyed button with no reason next to it is a question, and Marsita asked
   // it. The count lives in the pane header where it is easy to miss; put the
@@ -1070,11 +1075,12 @@ $("#say").addEventListener("submit", async ev => {
 /* ---------------- kill switch --------------------------------------------- */
 function disarm(){
   const b = $("#kill");
+  if (!b) return;
   b.dataset.armed = "0"; b.textContent = "kill fleet work";
   $("#killnote").textContent = "SIGKILL. agent runtimes untouched.";
   clearTimeout(armTimer);
 }
-$("#kill").addEventListener("click", async () => {
+if ($("#kill")) $("#kill").addEventListener("click", async () => {
   const b = $("#kill");
   if (b.dataset.armed !== "1"){
     b.dataset.armed = "1"; b.textContent = "click again";
@@ -1100,6 +1106,7 @@ $("#kill").addEventListener("click", async () => {
    unlike the kill switch, the wrong answer here costs one cycle. */
 function paintGate(g){
   const b = $("#bgate");
+  if (!b) return;
   b.dataset.on = g.enabled ? "1" : "0";
   b.textContent = "build: " + (g.enabled ? "on" : "off");
   $("#bgatenote").textContent = g.enabled
@@ -1110,9 +1117,9 @@ function paintGate(g){
 }
 async function loadGate(){
   try { paintGate(await (await fetch("api/build-gate",{cache:"no-store"})).json()); }
-  catch(e){ $("#bgatenote").textContent = "gate unreadable"; }
+  catch(e){ const n = $("#bgatenote"); if (n) n.textContent = "gate unreadable"; }
 }
-$("#bgate").addEventListener("click", async () => {
+if ($("#bgate")) $("#bgate").addEventListener("click", async () => {
   const b = $("#bgate");
   b.disabled = true;
   try {
@@ -1726,14 +1733,14 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
           <tbody id="procbody"></tbody>
         </table>
       </div>
-      <div class="buildgate">
+      {"" if remote else """<div class="buildgate">
         <button id="bgate" data-on="1">build: on</button>
         <span id="bgatenote"></span>
       </div>
       <div class="kill">
         <button id="kill" data-armed="0">kill fleet work</button>
         <span id="killnote"></span>
-      </div>
+      </div>"""}
     </section>
   </div>
 </div>
