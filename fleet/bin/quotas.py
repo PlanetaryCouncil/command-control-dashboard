@@ -43,7 +43,11 @@ QUOTA_RE = re.compile(
     r"out of credits|credits? (exhausted|exceeded)|"
     r"insufficient[_ ]quota|quota (exceeded|reached)|"
     r"rate.?limit(ed| exceed)|HTTP[ /]?429|"
-    r"billing (denied|error)|usage.?limit exceeded",
+    r"billing (denied|error)|usage.?limit exceeded|"
+    # grok answers a spent balance with 402, not 429, and the word is
+    # "balance" not "credits" (2026-09-01). Neither matched, so the pulse
+    # called grok eligible while every turn it took died on payment.
+    r"balance exhausted|payment required|HTTP[ /]?402|status 402",
     re.I,
 )
 HERMES_CUSTOM_RE = re.compile(r"Provider:\s+Custom endpoint", re.I)

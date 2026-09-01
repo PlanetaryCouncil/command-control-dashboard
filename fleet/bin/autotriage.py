@@ -114,7 +114,19 @@ def triage_agent() -> str:
             who = ""
     who = (who or "agy").strip() or "agy"
     if who in ("claude", "openclaw"):
-        return "agy"
+        who = "agy"
+    # A dry vendor is not a cheap vendor, it is no vendor. agy went
+    # quota-dead for five days on 2026-08-28 and triage kept naming it,
+    # so every batch was a no-op the log reported as "0 open". Ask who
+    # can actually answer before committing to a name.
+    try:
+        import quotas
+        if not quotas.eligible([who]):
+            for alt in ("grok", "agy", "hermes"):
+                if alt != who and quotas.eligible([alt]):
+                    return alt
+    except Exception:
+        pass
     return who
 
 

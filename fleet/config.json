@@ -31,6 +31,7 @@
     "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied \u2014 a human reads and decides.",
     "every_seconds": 10800,
     "agents": [
+      "claude",
       "hermes",
       "grok",
       "agy"
