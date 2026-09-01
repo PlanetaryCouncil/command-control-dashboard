@@ -23,6 +23,12 @@ CF="${HOME}/.cloudflared"
 NAME="ccd-hub"
 HOST="nuc.planetarycouncil.org"
 ORIGIN="http://127.0.0.1:8787"
+# One hostname per machine (Marsita, 2026-09-01). Gaia is the MacBook and it
+# is always on; the NUC is the box in the cupboard. Gaia's board never leaves
+# its own loopback -- it reaches this machine over the re.genesis.gaia-uplink
+# ssh reverse forward, so one cloudflared serves both boards.
+GAIA_HOST="gaia.planetarycouncil.org"
+GAIA_ORIGIN="http://127.0.0.1:8790"
 UNITS="${HOME}/.config/systemd/user"
 
 if [[ "${1:-}" != "--apply" ]]; then
@@ -71,8 +77,13 @@ cat > "$CF/config.yml" <<EOF
 tunnel: $TID
 credentials-file: $CF/${TID}.json
 ingress:
+  # hub. is the porch and must never be retargeted.
+  - hostname: hub.planetarycouncil.org
+    service: $ORIGIN
   - hostname: $HOST
     service: $ORIGIN
+  - hostname: $GAIA_HOST
+    service: $GAIA_ORIGIN
   - service: http_status:404
 EOF
 
@@ -100,6 +111,7 @@ echo
 echo "tunnel $NAME ($TID) → $ORIGIN"
 echo "DNS unchanged. After the Cloudflare zone exists and approval is given:"
 echo "  cloudflared tunnel route dns $NAME $HOST"
+echo "  cloudflared tunnel route dns $NAME $GAIA_HOST"
 echo
 echo "status:  systemctl --user status hub-tunnel.service"
 echo "probe:   curl -sI https://$HOST/ | head"
