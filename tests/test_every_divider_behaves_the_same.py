@@ -84,3 +84,39 @@ def test_saved_sizes_are_read_back_for_every_column():
     restore = SRC.split('if (saved.l !== undefined')[1].split("} catch")[0]
     for var in ("--hArt", "--hTerm", "--hCredit"):
         assert var in restore, var
+
+
+def test_a_pane_cannot_be_dragged_below_the_grid():
+    """"on the right goes waaay tooo low" -- the sized pane was handed the
+    whole column, but the divider and the neighbour's heading live in that
+    column too."""
+    assert "const room = Math.max(80, col - grip.offsetHeight - shutH);" in SRC
+    paint = DRAG.split("const paint = ()")[1].split("const move =")[0]
+    assert "Math.min(pending, room)" in paint
+    assert "Math.min(pending, col)" not in paint
+
+
+def test_the_column_clips_whatever_the_arithmetic_gets_wrong():
+    assert ".col{display:flex;flex-direction:column;gap:0;min-height:0;min-width:0;" in SRC
+    assert "overflow:hidden;}" in SRC
+
+
+def test_both_directions_use_the_same_gap():
+    """The vertical dividers occupy a 6px grid column; the horizontal ones
+    were 2px with a gap either side, so they did not match."""
+    assert ".griph{cursor:row-resize;position:relative;flex:none;height:6px;}" in SRC
+    assert "6px 1fr 6px" in SRC
+    assert "gap:var(--gap);min-height:0;min-width:0" not in SRC
+
+
+def test_a_collapsed_column_still_lights_its_grip():
+    assert '#grid[data-l="0"] #gripL:hover::after' in SRC
+    assert '#grid[data-r="0"] #gripR:hover::after' in SRC
+
+
+def test_expanding_a_collapsed_column_does_not_jump():
+    """`parseInt(...) || 290` read a collapsed column's 0 as unset, so the
+    first pixel of expansion snapped the divider to the default width."""
+    widths = SRC.split("function dragGrip(grip, which)")[1].split("\n}")[0]
+    assert 'parseInt(cs.getPropertyValue("--wL")) || 290' not in widths
+    assert "isNaN(n) ? d : n" in widths

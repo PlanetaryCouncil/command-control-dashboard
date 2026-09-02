@@ -87,7 +87,7 @@ def test_collapsing_the_stream_gives_the_column_to_the_terminal():
 def test_one_grip_shuts_whichever_pane_is_being_crushed():
     page = oneview.page(*ARGS, remote=False)
     assert "const shutSelf = h <= SHUT;" in page
-    assert "const shutOther = other && h >= col - SHUT;" in page
+    assert "const shutOther = other && h >= room - SHUT;" in page
 
 
 def test_a_collapsed_stream_keeps_a_heading_to_click_back():

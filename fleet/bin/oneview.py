@@ -90,13 +90,21 @@ body{margin:0;background:var(--ground);color:var(--ink);
    so the divider is easy to grab without spending a row of the column on it.
    Vertical space is the scarce one here — a 6px divider cost more than the
    line of text it displaced. */
-.griph{cursor:row-resize;position:relative;flex:none;height:2px;}
+/* 6px, matching the 6px grid column the vertical dividers occupy, and the
+   column's own gap goes to 0 -- otherwise a horizontal divider cost 2px of
+   itself plus a gap either side, and the two directions looked different
+   (2026-09-02: "vertical line and horizontal lines different gap size"). */
+.griph{cursor:row-resize;position:relative;flex:none;height:6px;}
 .griph::before{content:"";position:absolute;left:0;right:0;top:-4px;bottom:-4px;}
 .griph::after{content:"";position:absolute;inset:0;border-radius:1px;
   background:transparent;transition:background .12s;}
 .griph:hover::after,.griph[data-drag="1"]::after{background:var(--info);}
 .col{padding:0;}
-.col{display:flex;flex-direction:column;gap:var(--gap);min-height:0;min-width:0;}
+/* overflow:hidden is the backstop. Arithmetic decides the sizes, but a
+   pane must never be able to hang below the grid whatever the
+   arithmetic gets wrong. */
+.col{display:flex;flex-direction:column;gap:0;min-height:0;min-width:0;
+  overflow:hidden;}
 .pane{background:var(--surface);border:1px solid var(--border);border-radius:4px;
   display:flex;flex-direction:column;min-height:0;overflow:hidden;position:relative;}
 
@@ -419,8 +427,14 @@ canvas.mark:hover{opacity:1;}
 #grid[data-l="0"]{grid-template-columns:0 6px 1fr 6px var(--wR,520px);}
 #grid[data-r="0"]{grid-template-columns:var(--wL,290px) 6px 1fr 6px 0;}
 #grid[data-l="0"][data-r="0"]{grid-template-columns:0 6px 1fr 6px 0;}
+/* Collapsed, the grip is the only thing left of the column, so it is drawn
+   rather than invisible -- but it must still light up when reached for. The
+   first version of this rule out-specified the hover rule and killed it. */
 #grid[data-l="0"] #gripL::after,#grid[data-r="0"] #gripR::after{
   background:var(--border);}
+#grid[data-l="0"] #gripL:hover::after,#grid[data-l="0"] #gripL[data-drag="1"]::after,
+#grid[data-r="0"] #gripR:hover::after,#grid[data-r="0"] #gripR[data-drag="1"]::after{
+  background:var(--info);}
 #term{height:100%;padding:5px 7px;}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
@@ -1563,8 +1577,12 @@ function dragGrip(grip, which){
     grip.setPointerCapture(down.pointerId);
     const startX = down.clientX;
     const cs = getComputedStyle(document.documentElement);
-    const startL = parseInt(cs.getPropertyValue("--wL")) || 290;
-    const startR = parseInt(cs.getPropertyValue("--wR")) || 520;
+    // `|| 290` treated a collapsed column's 0 as "unset" and started the drag
+    // from the default width, so the first pixel of expansion jumped the
+    // divider to the middle of the screen (2026-09-02).
+    const num = (v, d) => { const n = parseInt(v); return isNaN(n) ? d : n; };
+    const startL = num(cs.getPropertyValue("--wL"), 290);
+    const startR = num(cs.getPropertyValue("--wR"), 520);
 
     const move = m => {
       const dx = m.clientX - startX;
@@ -1659,6 +1677,13 @@ function dragGripV(grip, varName, key, fallback, opts){
     // reflow against a size we are ourselves writing.
     const startY = down.clientY;
     const col = grip.parentElement.getBoundingClientRect().height;
+    // The column is not all available to the sized pane. The divider itself
+    // takes a few pixels, and a collapsed neighbour still shows its heading.
+    // Handing the sized pane the whole column pushed the bottom of it below
+    // the grid -- "on the right goes waaay tooo low" (2026-09-02).
+    const shutH = other
+      ? (other.querySelector("h2")?.getBoundingClientRect().height || 24) : 0;
+    const room = Math.max(80, col - grip.offsetHeight - shutH);
     const open = pane.dataset.open !== "0";
     const start = open ? pane.getBoundingClientRect().height
                        : (parseInt(getComputedStyle(document.documentElement)
@@ -1671,19 +1696,19 @@ function dragGripV(grip, varName, key, fallback, opts){
       // pane could actually have. Then decide who is open. Then always apply
       // a height -- returning early here is what made the middle divider stop
       // dead under the cursor.
-      let h = Math.max(0, Math.min(pending, col));
+      let h = Math.max(0, Math.min(pending, room));
       const shutSelf = h <= SHUT;
-      const shutOther = other && h >= col - SHUT;
+      const shutOther = other && h >= room - SHUT;
       if (shutSelf)              setPaneOpen(pane, false, false);
       else if (h >= REOPEN)      setPaneOpen(pane, true, false);
       if (other){
         if (shutOther)                 setPaneOpen(other, false, false);
-        else if (h <= col - REOPEN)    setPaneOpen(other, true, false);
+        else if (h <= room - REOPEN)   setPaneOpen(other, true, false);
       }
       // Remember a usable height even while collapsed, so reopening does not
       // land on zero.
       if (!shutSelf) last = h;
-      applyHeight(shutOther ? col : h, varName);
+      applyHeight(shutOther ? room : h, varName);
       if (window.__fit) window.__fit.fit();
     };
 
