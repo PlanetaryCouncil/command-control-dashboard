@@ -16,7 +16,6 @@
       "Edit(~/.zprofile)",
       "Edit(~/Library/LaunchAgents/**)",
       "Edit(~/.config/systemd/user/**)",
-      "Write(~/.config/systemd/user/**)",
       "Edit(~/.bashrc)",
       "Edit(~/.bash_profile)",
       "Edit(~/.profile)",
