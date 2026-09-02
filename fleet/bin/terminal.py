@@ -39,6 +39,7 @@ import signal
 import struct
 import termios
 import threading
+import time
 
 WS_MAGIC = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 MAX_FRAME = 1 << 20          # 1 MB — a paste, not a file upload
@@ -159,6 +160,44 @@ class Session:
         self.resize(cols, rows)
         self.alive = True
         self.why = ""                          # filled in when it dies
+        # Everything the session has said recently, so a browser that arrives
+        # late can be shown the room it walked into. Raw bytes, not lines:
+        # this is a terminal stream, and cutting it on newlines would split
+        # escape sequences.
+        self.buf = bytearray()
+        self.lock = threading.Lock()
+        self.watchers: list = []               # queues, one per attached page
+        self.pump = threading.Thread(target=self._pump, daemon=True)
+        self.pump.start()
+
+    def _pump(self):
+        """Drain the pty forever, whether or not anyone is watching.
+
+        A detached session that nobody reads fills the kernel's pty buffer and
+        then blocks, which would freeze claude the moment you closed the tab.
+        """
+        while self.alive:
+            data = self.read(timeout=0.05)
+            if not data:
+                continue
+            with self.lock:
+                self.buf += data
+                if len(self.buf) > SCROLLBACK:
+                    del self.buf[:-SCROLLBACK]
+                for q in list(self.watchers):
+                    q.append(data)
+
+    def subscribe(self) -> tuple[bytes, list]:
+        """The scrollback so far, plus a queue that receives what comes next."""
+        q: list = []
+        with self.lock:
+            self.watchers.append(q)
+            return bytes(self.buf), q
+
+    def unsubscribe(self, q) -> None:
+        with self.lock:
+            if q in self.watchers:
+                self.watchers.remove(q)
 
     def resize(self, cols: int, rows: int) -> None:
         try:
@@ -243,6 +282,52 @@ class Session:
             pass
 
 
+# One live session per name, kept across websockets. A reload used to fork a
+# fresh `claude` and throw the running one away; the board is Marsita's home
+# and a page refresh should not be a house move (2026-09-02: "I want
+# continuity in the terminal on the web... to survive reloads on WWW").
+#
+# The pty keeps running while nobody is attached: claude does not know or care
+# that the far end is a browser. What the browser loses on reload is only what
+# it had already painted, so we keep a tail of raw bytes and replay it.
+SCROLLBACK = 256 * 1024
+_LIVE: dict[str, "Session"] = {}
+_LIVE_LOCK = threading.Lock()
+
+
+def attach(name: str, cwd: str, claude_bin: str = "claude"):
+    """The session called `name`, started if it is not already running.
+
+    Returns (session, resumed) -- `resumed` says whether this is a reconnect,
+    because the page prints a different line for each.
+    """
+    with _LIVE_LOCK:
+        s = _LIVE.get(name)
+        if s is not None and s.alive:
+            return s, True
+        s = Session(cwd, claude_bin=claude_bin)
+        _LIVE[name] = s
+        return s, False
+
+
+def forget(name: str) -> None:
+    """Drop a dead session so the next attach starts a clean one."""
+    with _LIVE_LOCK:
+        s = _LIVE.get(name)
+        if s is not None and not s.alive:
+            _LIVE.pop(name, None)
+
+
+def end(name: str) -> str:
+    """Kill the named session on purpose. Returns what happened."""
+    with _LIVE_LOCK:
+        s = _LIVE.pop(name, None)
+    if s is None:
+        return "no such session"
+    s.close()
+    return "ended"
+
+
 def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> None:
     """Upgrade an HTTP request to a WebSocket and bridge it to a Claude session.
 
@@ -277,18 +362,34 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
     handler.end_headers()
 
     sock = handler.connection
-    session = Session(cwd, claude_bin=claude_bin)
+    # `?s=` names the session. The board always sends the same name, so a
+    # reload lands back in the session it left.
+    name = (q.get("s", ["board"])[0] or "board")[:64]
+    forget(name)                                  # clear a corpse, if any
+    session, resumed = attach(name, cwd, claude_bin=claude_bin)
     stop = threading.Event()
 
+    backlog, queue = session.subscribe()
+    try:
+        _send(sock, json.dumps({"t": "attached", "resumed": resumed,
+                                "bytes": len(backlog)}).encode(), opcode=0x1)
+        if backlog:
+            _send(sock, backlog, opcode=0x2)      # the room, as you left it
+    except OSError:
+        session.unsubscribe(queue)
+        return
+
     def pump_out():
-        """Terminal output -> browser."""
+        """Session output -> this browser. The session itself is drained by
+        its own pump thread, which runs whether or not anyone is attached."""
         while not stop.is_set() and session.alive:
-            data = session.read()
-            if data:
-                try:
-                    _send(sock, data, opcode=0x2)   # binary: raw terminal bytes
-                except OSError:
-                    break
+            if not queue:
+                time.sleep(0.02)
+                continue
+            try:
+                _send(sock, queue.pop(0), opcode=0x2)
+            except OSError:
+                break
         # Last words. The browser only ever knew the socket had closed, so a
         # session that ended on its own and one killed by a board restart
         # looked identical from the page (2026-09-02).
@@ -328,5 +429,8 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
     except OSError:
         pass
     finally:
+        # Detach, do not kill. The session keeps running for the next page --
+        # that is the whole point. It ends when it exits on its own, when the
+        # board process dies, or when someone asks for it to end.
         stop.set()
-        session.close()
+        session.unsubscribe(queue)

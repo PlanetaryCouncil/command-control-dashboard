@@ -31,3 +31,13 @@ def test_unknown_is_a_word_the_pane_can_print():
 def test_the_unsure_rows_sort_above_the_sure_ones():
     rank = SRC.split("const rank = ")[1].split(";")[0]
     assert rank.index("hazy") < rank.index("rich")
+
+
+
+def test_free_is_not_called_credit():
+    """ollama runs on this machine and has never had a bill.
+    Marsita: "ollama has credit? It's local..."
+    """
+    body = SRC.split("function creditState(")[1].split("\n}")[0]
+    assert '"free"' in body
+    assert "costs nothing" not in body

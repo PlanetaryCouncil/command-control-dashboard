@@ -169,6 +169,7 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #credit .st.dry{color:var(--critical);}
 #credit .st.out{color:var(--warning);}
 #credit .st.hazy{color:var(--muted);}
+#credit .st.free{color:var(--info);}
 #credit .st.idle{color:var(--muted);font-weight:400;}
 #credit .why{color:var(--muted);font-size:10px;}
 #credit .asof{padding:4px 6px;color:var(--muted);font-size:10px;}
@@ -487,7 +488,8 @@ function creditState(v){
   if (v.flow === "reserve")    return ["dry",  pct + "% left, reserved"];
   if (v.flow === "spend" || v.flow === "harvest")
                                return ["rich", pct + "% left" + when];
-  if (v.vendor === "local")    return ["rich", "local, costs nothing"];
+  // "has credit" is the wrong word for something that never had a bill.
+  if (v.vendor === "local")    return ["free", "runs on this machine"];
   if (v.plan)                  return ["rich", "on " + v.plan];
   // Everything past here is a guess. Say so rather than saying "has credit":
   // the pane is read to decide who to ask, and a confident wrong answer
@@ -496,7 +498,7 @@ function creditState(v){
   return ["hazy", v.note || "no reading"];
 }
 const CREDIT_WORD = {rich:"has credit", dry:"DRY", out:"logged out",
-                     hazy:"unknown", idle:"absent"};
+                     hazy:"unknown", free:"free", idle:"absent"};
 
 function renderCredit(workers){
   const pane = $("#credit");
@@ -506,7 +508,7 @@ function renderCredit(workers){
   if (!rows.length){ pane.dataset.state = "error"; return; }
 
   // Dry first: the board should lead with what cannot be asked.
-  const rank = {dry:0, out:1, hazy:2, rich:3, idle:4};
+  const rank = {dry:0, out:1, hazy:2, rich:3, free:4, idle:5};
   const seen = rows.map(v => { const [k, why] = creditState(v);
                                return {v, k, why}; })
                    .sort((a,b) => rank[a.k] - rank[b.k]
@@ -1236,7 +1238,7 @@ async function toggleTerm(){
   // a wss: socket; hardcoding ws: works on localhost and fails silently the
   // moment this is reached through the funnel.
   const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(`${scheme}//${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}`);
+  ws = new WebSocket(`${scheme}//${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}&s=board`);
   ws.binaryType = "arraybuffer";
   ws.onopen = () => ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows}));
   // Raw terminal bytes arrive binary; a text frame is the server telling us
@@ -1245,7 +1247,11 @@ async function toggleTerm(){
   ws.onmessage = e => {
     if (typeof e.data === "string"){
       try { const m = JSON.parse(e.data);
-            if (m.t === "ended") endedWhy = m.why; } catch(err){}
+            if (m.t === "ended") endedWhy = m.why;
+            if (m.t === "attached" && m.resumed)
+              term.write("\r\n\x1b[90m— reattached, " + m.bytes +
+                         " bytes of scrollback —\x1b[0m\r\n");
+      } catch(err){}
       return;
     }
     term.write(new Uint8Array(e.data));

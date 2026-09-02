@@ -69,7 +69,7 @@ let ws = null;
 let endedWhy = '';
 
 function connect(){
-  ws = new WebSocket(`ws://${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}`);
+  ws = new WebSocket(`ws://${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}&s=board`);
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
@@ -84,7 +84,11 @@ function connect(){
     // session talking -- so far, why it ended.
     if (typeof e.data === 'string'){
       try { const m = JSON.parse(e.data);
-            if (m.t === 'ended') endedWhy = m.why; } catch(err){}
+            if (m.t === 'ended') endedWhy = m.why;
+            if (m.t === 'attached' && m.resumed)
+              term.write('\r\n\x1b[90m— reattached, ' + m.bytes +
+                         ' bytes of scrollback —\x1b[0m\r\n');
+      } catch(err){}
       return;
     }
     term.write(new Uint8Array(e.data));
