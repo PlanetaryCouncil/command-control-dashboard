@@ -65,6 +65,13 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #alarm.on{display:flex;}
 #alarm b{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
   text-transform:uppercase;}
+/* A red bar with no way to close it is a red bar you learn to stop seeing.
+   Dismissal is per-message, not permanent: the same alarm stays quiet, a
+   different one comes back (2026-09-02). */
+#alarm button{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.5);
+  color:#fff;cursor:pointer;border-radius:4px;padding:1px 8px;font-size:12px;
+  line-height:1.3;}
+#alarm button:hover{background:rgba(255,255,255,.18);}
 @media (prefers-reduced-motion:no-preference){
   #alarm.on{animation:puls 2s ease-in-out infinite;}
   @keyframes puls{0%,100%{opacity:1}50%{opacity:.85}}
@@ -419,6 +426,12 @@ canvas.mark:hover{opacity:1;}
 .pane[data-open="0"] .load,.pane[data-open="0"] #pendingAsk,
 .pane[data-open="0"] #controls{display:none !important;}
 .pane[data-open="0"] h2{cursor:pointer;}
+/* Collapsed, the pills filter a list nobody can see. The heading keeps only
+   its name, which is what makes it a way back in. */
+.pane[data-open="0"] .filters{display:none;}
+#stream h2{display:flex;align-items:center;gap:10px;}
+#stream h2 .title{white-space:nowrap;}
+#stream h2 .filters{margin-left:auto;}
 /* Whatever is still open in a column takes the slack, whichever pane it is. */
 .col:has(.pane[data-open="0"]) .pane:not([data-open="0"]){flex:1;}
 /* A collapsed column is a bar you can grab, not a pane squeezed to nothing. */
@@ -436,6 +449,25 @@ canvas.mark:hover{opacity:1;}
 #grid[data-r="0"] #gripR:hover::after,#grid[data-r="0"] #gripR[data-drag="1"]::after{
   background:var(--info);}
 #term{height:100%;padding:5px 7px;}
+/* A place to write that the session cannot overwrite.
+   Typing straight into a terminal means composing inside a buffer the agent
+   is also writing to: a long message gets shoved around by whatever arrives
+   while you are still thinking. Marsita, 2026-09-02: "I want to be able to
+   type natively... without fear that it will be override". So the box is
+   ordinary HTML, outside xterm entirely, and only its finished text is sent. */
+#compose{flex:none;display:flex;gap:6px;padding:5px 7px;border-top:1px solid var(--border);
+  background:var(--raised);}
+#compose textarea{flex:1;resize:vertical;min-height:34px;max-height:40vh;
+  background:var(--surface);color:var(--ink);border:1px solid var(--border);
+  border-radius:4px;padding:5px 7px;font-family:var(--mono);font-size:11.5px;
+  line-height:1.5;}
+#compose textarea:focus{outline:none;border-color:var(--info);}
+#compose button{background:var(--surface);color:var(--ink-2);cursor:pointer;
+  border:1px solid var(--border);border-radius:4px;padding:0 12px;
+  font-family:var(--mono);font-size:10px;text-transform:uppercase;
+  letter-spacing:.08em;align-self:stretch;}
+#compose button:hover{color:var(--accent);border-color:var(--accent);}
+#termpane[data-open="0"] #compose{display:none;}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
   background:#0d0d0d;transition:height .18s ease;}
@@ -893,14 +925,27 @@ function addEvent(e){
 
 function lastGroupExpanded(fold){ return fold.dataset.open === "1"; }
 
+/* Dismissed alarms, by their text. Keyed on the message rather than a flag,
+   so closing "quotas scheduled dry: grok" silences that and only that -- the
+   next different thing that needs you still shouts. A permanent dismissal
+   would turn the one loud channel into furniture. */
+let alarmShut = "";
+
 function renderAlarm(){
   const a = $("#alarm");
-  if (!blocked.size){ a.className = ""; return; }
+  if (!blocked.size){ a.className = ""; alarmShut = ""; return; }
   const [who,msg] = blocked.entries().next().value;
+  const line = emoji(who)+" "+who+" — "+msg;
+  if (line === alarmShut){ a.className = ""; return; }
   a.className = "on";
   a.querySelector("b").textContent = blocked.size>1 ? blocked.size+" need you" : "Needs you";
-  a.querySelector("span.d").textContent = emoji(who)+" "+who+" — "+msg;
+  a.querySelector("span.d").textContent = line;
 }
+
+$("#alarmx")?.addEventListener("click", () => {
+  alarmShut = $("#alarm").querySelector("span.d").textContent;
+  $("#alarm").className = "";
+});
 
 /* ---------------- processes ----------------------------------------------- */
 function elapsedSeconds(e){
@@ -1292,6 +1337,38 @@ async function toggleTerm(){
     (endedWhy ? ": " + endedWhy : "") +
     ". your work is on disk; reload to continue it —\x1b[0m\r\n");
   term.onData(d => ws?.readyState===1 && ws.send(JSON.stringify({t:"input",d})));
+
+  /* The composer. Its whole job is to be a buffer the session cannot reach:
+     you write at your own pace while claude writes at its own, and the two
+     never share a line. Sending is one bracketed paste plus a newline, so a
+     multi-line message arrives as one message rather than as several
+     half-finished ones. */
+  const box = $("#composeBox"), composeForm = $("#compose");
+  const sendCompose = () => {
+    const text = box.value;
+    if (!text.trim() || ws?.readyState !== 1) return;
+    // Bracketed paste: readline treats what is inside as literal text, so
+    // newlines inside the message do not each submit a turn.
+    ws.send(JSON.stringify({t:"input", d:"\x1b[200~" + text + "\x1b[201~"}));
+    ws.send(JSON.stringify({t:"input", d:"\r"}));
+    box.value = "";
+    box.style.height = "";
+    term.focus();
+  };
+  composeForm?.addEventListener("submit", e => { e.preventDefault(); sendCompose(); });
+  box?.addEventListener("keydown", e => {
+    // Enter sends; shift+enter is a newline. The opposite of a terminal, and
+    // the same as every message box anyone has used since 2010.
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing){
+      e.preventDefault(); sendCompose();
+    }
+  });
+  // Grow with the text up to the CSS max, so a long message is visible while
+  // it is being written rather than scrolling inside two rows.
+  box?.addEventListener("input", () => {
+    box.style.height = "auto";
+    box.style.height = Math.min(box.scrollHeight, innerHeight * 0.4) + "px";
+  });
 
   /* Paste an image straight into the session.
      Claude reads images by path, so a screenshot has to become a file before
@@ -1864,7 +1941,12 @@ setInterval(loadTools, 60000);
 """
 
 
-# Shown once to a remote first visit, dismissed forever via localStorage.
+# The line that says what this place is. It used to be dismissible, and
+# dismissal was permanent -- so the one sentence explaining the whole system
+# disappeared the first time anyone clicked the X, on every future visit, for
+# good. Marsita, 2026-09-02: "restore essential info about our purpose... it
+# should be on top, always visible, always available, first thing that you
+# see." It is one row; the board can afford it.
 # Marsita's copy, 2026-08-04: not "for a life" — for life.
 # The lead sentence, for the render that has no banner above it. Remote
 # visitors get FIRST CONTACT immediately above this line, so repeating the
@@ -1872,7 +1954,7 @@ setInterval(loadTools, 60000);
 WELCOME_LEAD = ("<b>The Singularity Engineering Fleet.</b> Not an AI uprising "
                 "&mdash; agents running in the open, every proposal, branch, "
                 "review and mistake on this board &mdash; ")
-WELCOME_TMPL = """<div id="welcome" style="display:none;align-items:center;gap:10px;
+WELCOME_TMPL = """<div id="welcome" style="display:flex;align-items:center;gap:10px;
   padding:7px 12px;background:var(--raised);border-bottom:1px solid var(--border);
   font-family:var(--mono);font-size:11px">
   <span>{lead}<a href='/intro' style='color:var(--info)'>what this is</a> &middot;
@@ -1882,11 +1964,7 @@ WELCOME_TMPL = """<div id="welcome" style="display:none;align-items:center;gap:1
   <a href='/signatures' style='color:var(--info)'>sign the pad</a>
   &mdash; <b>please sign</b>: every hand is different, and the collection
   of how they differ is the artwork</span>
-  <button onclick="localStorage.setItem('welcomed','1');this.parentElement.style.display='none'"
-    style="margin-left:auto;background:none;border:1px solid var(--border);
-    color:var(--muted);cursor:pointer;border-radius:4px;padding:1px 8px">&times;</button>
-</div>
-<script>if(!localStorage.getItem('welcomed'))document.getElementById('welcome').style.display='flex';</script>"""
+</div>"""
 
 
 def _for_script(json_text: str) -> str:
@@ -1932,7 +2010,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
-    TERMPANE_HTML = '<!-- starts closed so the boot call below opens it; a pane that renders\n           open and then has to be opened again is two states pretending\n           to be one -->\n      <section class="pane" id="termpane" data-open="0">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"><div id="term"></div></div>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
+    TERMPANE_HTML = '<!-- starts closed so the boot call below opens it; a pane that renders\n           open and then has to be opened again is two states pretending\n           to be one -->\n      <section class="pane" id="termpane" data-open="0">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"><div id="term"></div></div>\n      <form id="compose">\n        <textarea id="composeBox" rows="2" placeholder="write here — the agent&#39;s output cannot touch this box. enter sends, shift+enter is a newline"></textarea>\n        <button type="submit" id="composeSend">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
     CONTROLS_HTML = '<div class="buildgate">\n        <button id="bgate" data-on="1">build: on</button>\n        <span id="bgatenote"></span>\n      </div>\n      <div class="kill">\n        <button id="kill" data-armed="0">kill fleet work</button>\n        <span id="killnote"></span>\n      </div>'
     import html as _html
     import nav
@@ -1993,6 +2071,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 {WELCOME_TMPL.format(lead='' if remote else WELCOME_LEAD)}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>
+  <button id="alarmx" title="Dismiss until it changes">&times;</button>
 </div>
 
 <div id="grid">
@@ -2020,6 +2099,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
     <section class="pane" id="stream" style="flex:1" data-open="1">
       <h2>
+        <span class="title">council &amp; rota &mdash; the stream <span class="n"></span></span>
         <span class="filters" id="filters">
           <button data-f="relay" aria-pressed="true">&#128279; relay</button>
           <button data-f="council" aria-pressed="true">&#128483; council</button>
