@@ -41,3 +41,11 @@ def test_free_is_not_called_credit():
     body = SRC.split("function creditState(")[1].split("\n}")[0]
     assert '"free"' in body
     assert "costs nothing" not in body
+
+
+def test_a_dry_vendor_is_amber_not_red():
+    """Marsita, 2026-09-02: "Grok running out of credits is routine, don't
+    make it red." Credit runs out on a schedule and comes back on one; the
+    fleet routes around it unasked. Red is for what a person must act on."""
+    assert "#credit .st.dry{color:var(--warning);}" in SRC
+    assert "#credit .st.dry{color:var(--critical);}" not in SRC

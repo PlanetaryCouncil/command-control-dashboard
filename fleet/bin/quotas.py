@@ -542,7 +542,13 @@ def pulse(cfg=None):
     no_quorum = len(rostered_vendors) >= 2 and len(quorum_vendors) < 2
 
     if dry:
-        status = "alert"
+        # A vendor running out of credit is weather, not an emergency. It
+        # happens on a schedule, it fixes itself on a schedule, and the fleet
+        # routes around it without being asked. Marsita, 2026-09-02: "Grok
+        # running out of credits is routine, don't make it red." Red is for
+        # what a human has to act on, and spending an allowance is not that.
+        # Losing quorum because of it still is, and that branch is below.
+        status = "warn"
         summary = "scheduled dry: " + ", ".join(dry)
     elif logged_out:
         status = "alert"
@@ -594,7 +600,11 @@ def pulse(cfg=None):
     # What main() escalates on. A lost quorum has to be in here or the alert
     # is a colour on a card nobody is looking at -- which is exactly how the
     # fleet ran single-vendor for three weeks.
-    needs_you = list(down_scheduled)
+    # Only what a person can actually do something about tonight. A dry
+    # vendor is excluded on purpose: there is no action to take but wait, and
+    # an alert with no action teaches you to ignore the channel. A logged-out
+    # one needs hands on a keyboard, so it stays.
+    needs_you = [a for a in down_scheduled if a not in dry]
     if no_quorum:
         needs_you = needs_you or ["quorum"]
     return worker, needs_you

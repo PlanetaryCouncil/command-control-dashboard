@@ -181,7 +181,9 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #credit .vend{color:var(--muted);}
 #credit .st{text-align:right;white-space:nowrap;font-weight:600;}
 #credit .st.rich{color:var(--good);}
-#credit .st.dry{color:var(--critical);}
+/* Amber, not red. Running out of credit is a schedule the fleet routes
+   around by itself; red is for what a person has to act on. */
+#credit .st.dry{color:var(--warning);}
 #credit .st.out{color:var(--warning);}
 #credit .st.hazy{color:var(--muted);}
 #credit .st.free{color:var(--info);}
@@ -2068,7 +2070,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 </div>
 
 {_first_contact() if remote else ""}
-{WELCOME_TMPL.format(lead='' if remote else WELCOME_LEAD)}
+{WELCOME_TMPL.format(lead='') if remote else ''}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>
   <button id="alarmx" title="Dismiss until it changes">&times;</button>

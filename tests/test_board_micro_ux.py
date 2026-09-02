@@ -36,16 +36,20 @@ def test_dismissing_one_alarm_does_not_silence_the_next():
     assert 'alarmShut = ""' in fn, "a cleared alarm must forget its dismissal"
 
 
-# 2 -- the purpose line is permanent
-def test_the_purpose_line_is_always_there():
-    for page in (LOCAL, REMOTE):
-        assert 'id="welcome"' in page
-        assert "display:flex" in page.split('id="welcome"')[1][:120]
-
-
-def test_the_purpose_line_cannot_be_dismissed_away():
+# 2 -- the purpose line is for strangers, and cannot be dismissed away
+def test_the_purpose_line_is_permanent_for_a_stranger():
+    """It used to be dismissible and dismissal was forever: one click and the
+    sentence explaining the system was gone on every future visit."""
+    assert 'id="welcome"' in REMOTE
+    assert "display:flex" in REMOTE.split('id="welcome"')[1][:120]
     assert "welcomed" not in SRC, "dismissal was permanent and hid the point"
-    assert 'localStorage.setItem(\'welcomed\'' not in SRC
+
+
+def test_the_operator_is_not_told_what_their_own_board_is():
+    """Marsita restored this line, then looked at it for an evening and cut
+    it: "upon some reflection ---> skip". They know what the fleet is; the
+    row was a permanent advert aimed at someone else (2026-09-02)."""
+    assert 'id="welcome"' not in LOCAL
 
 
 # 3 -- the stream has a name

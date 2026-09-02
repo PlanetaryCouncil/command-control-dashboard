@@ -186,10 +186,14 @@ def test_quota_hits_are_the_only_dry(monkeypatch):
                         lambda: fake("openclaw", ok=False, auth="missing"))
     monkeypatch.setitem(quotas.CHECKS, "agy", lambda: fake("agy"))
     worker, down = quotas.pulse(cfg={})
-    assert down == ["hermes"]
+    # The summary still NAMES the dry vendor -- that is the useful half.
     assert worker["summary"].startswith("scheduled dry:")
     assert "hermes" in worker["summary"]
     assert "grok" not in worker["summary"]
+    # But being dry is no longer something a person is asked to fix: it
+    # clears on a schedule and the fleet routes around it (2026-09-02).
+    assert "hermes" not in down
+    assert worker["status"] == "warn"
 
 
 def test_scheduled_agents_come_from_config_and_builder(monkeypatch):

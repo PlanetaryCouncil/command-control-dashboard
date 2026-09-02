@@ -50,12 +50,11 @@ def test_the_intro_asks_rather_than_merely_offers():
     assert "every hand is different" in w
 
 
-def test_the_board_says_its_own_name():
+def test_the_board_says_its_own_name_to_a_stranger():
     """"Missing top level Singularity Engineering intro notice" -- the name
-    was only on /intro, a page you have to navigate to."""
-    w = _welcome(oneview.page(*ARGS, remote=False))
-    assert "The Singularity Engineering Fleet." in w
-    assert "Not an AI uprising" in w
+    was only on /intro, a page you have to navigate to. It lives in the
+    FIRST CONTACT banner now, which remote visitors get above the welcome."""
+    assert "SINGULARITY ENGINEERING" in oneview.page(*ARGS, remote=True).upper()
 
 
 def test_the_name_is_not_printed_twice():
@@ -72,7 +71,8 @@ def test_the_tab_says_which_door():
     assert "(public)" in oneview.page(*ARGS, remote=True)
 
 
-def test_the_operator_sees_it_too():
-    """It was gated on `remote`, so the person who looks at this board all
-    day was the one person the fleet never introduced itself to."""
-    assert 'id="welcome"' in oneview.page(*ARGS, remote=False)
+def test_the_operator_is_not_sold_their_own_board():
+    """Restored for the operator on 2026-09-02, then cut the same evening:
+    "upon some reflection ---> skip". A permanent row explaining the fleet to
+    the person who built it is an advert aimed at the wrong reader."""
+    assert 'id="welcome"' not in oneview.page(*ARGS, remote=False)
