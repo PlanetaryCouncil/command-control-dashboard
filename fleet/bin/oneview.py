@@ -1692,7 +1692,8 @@ WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
   <a href='https://planetarycouncil.github.io/selfie-gallery/'
      style='color:var(--info)'>the gallery</a> &middot;
   <a href='/signatures' style='color:var(--info)'>sign the pad</a>
-  &mdash; see what you can do to advance humanity</span>
+  &mdash; <b>please sign</b>: every hand is different, and the collection
+  of how they differ is the artwork</span>
   <button onclick="localStorage.setItem('welcomed','1');this.parentElement.style.display='none'"
     style="margin-left:auto;background:none;border:1px solid var(--border);
     color:var(--muted);cursor:pointer;border-radius:4px;padding:1px 8px">&times;</button>

@@ -40,3 +40,11 @@ def test_the_nav_and_the_intro_point_at_the_same_gallery():
     ever disagree, this says so before a visitor finds out."""
     assert any(href == GALLERY for href, _ in nav.PAGES), \
         "nav no longer points where the intro does"
+
+
+def test_the_intro_asks_rather_than_merely_offers():
+    """"see what you can do to advance humanity" is a slogan; "please sign" is
+    a request. Only one of them gets a stranger to leave a mark."""
+    w = _welcome(oneview.page(*ARGS, remote=True))
+    assert "please sign" in w
+    assert "every hand is different" in w
