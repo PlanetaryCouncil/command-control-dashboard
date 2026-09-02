@@ -207,9 +207,24 @@ def telegram_agent() -> str:
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import quotas
-        live = quotas.eligible(["grok", "hermes", "claude"])
-        if live:
-            return live[0]
+        # Capability first on this line. It is the operator talking to
+        # their own fleet, not a public endpoint to be thrifty with --
+        # and on 2026-09-02 free-first meant they asked what hardware
+        # they were running on and a local 3B answered "8 cores, 128 GB"
+        # while calling itself GPT-4. A cheap wrong answer about your own
+        # machine costs more than a turn of the good model.
+        # Ask about each agent on its own rather than handing the list to
+        # eligible(). Given a list it applies the fleet's thrift rule --
+        # plentiful vendors before rare ones -- and claude is marked rare, so
+        # a free local model always won. That rule is right for background
+        # automation and wrong here: this is the operator typing to their own
+        # fleet, and on 2026-09-02 they asked what hardware they were running
+        # on and a local 3B answered "8 cores, 128 GB" while calling itself
+        # GPT-4. The box has 12 cores and 14 GB. A cheap wrong answer about
+        # your own machine costs more than a turn of the good model.
+        for a in ("claude", "grok", "hermes"):
+            if quotas.eligible([a]):
+                return a
     except Exception:
         pass
     # hermes, not grok: the floor has to be the vendor that cannot run out
@@ -292,16 +307,15 @@ def _answer_chain():
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import quotas
-        for a in quotas.eligible(["grok", "claude", "hermes"]):
-            if a not in order:
+        for a in ("claude", "grok", "hermes"):
+            if a not in order and quotas.eligible([a]):
                 order.append(a)
     except Exception:
         pass
-    # hermes is free, so it goes ahead of anything metered. claude closes
-    # the list even when the pulse holds it back as "rare": thrift is worth
-    # protecting right up until the line goes quiet, and a quiet line is
-    # indistinguishable from a dead fleet.
-    for last in ("hermes", "claude"):
+    # hermes closes the list rather than opening it. It is the floor -- local,
+    # free, cannot run dry -- and a floor is what you land on when everything
+    # above fails, not what you reach for first.
+    for last in ("claude", "hermes"):
         if last not in order:
             order.append(last)
     return [a for a in order if a in DISPATCH]
