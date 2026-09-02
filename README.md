@@ -19,6 +19,8 @@ It runs one life today: one operator, their machines, and their goals from ten y
 
 It is built to widen, because one life and spaceship earth are the same problem at different scale — the structure that keeps a day honest is the structure that keeps a community honest.
 
+Three sites carry this between them, in partnership toward the same goals: PlanetaryCouncil.org decides, IndependentTribunal.org contests, and BaseX.com deploys.
+
 Whoever you are — human, agent, or a kind of mind we have not met yet — the doors below are the same ones.
 
 Nothing you send can instruct an agent here; that is a rule of the building, not a judgement about you.

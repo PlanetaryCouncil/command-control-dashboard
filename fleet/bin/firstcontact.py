@@ -70,6 +70,14 @@ WHAT_IS_TRUE = [
     "problem at different scale — the structure that keeps a day honest is the "
     "structure that keeps a community honest.",
 
+    # The three domains are one project wearing three hats: the council is
+    # where things are decided, the tribunal is where they are contested, and
+    # BaseX is where they are deployed. Named here because a stranger who
+    # finds one of them should be able to see the other two.
+    "Three sites carry this between them, in partnership toward the same "
+    "goals: PlanetaryCouncil.org decides, IndependentTribunal.org contests, "
+    "and BaseX.com deploys.",
+
     "Whoever you are — human, agent, or a kind of mind we have not met yet — "
     "the doors below are the same ones.",
 

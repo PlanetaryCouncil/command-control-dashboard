@@ -1,10 +1,10 @@
 {
-  "updated_at": "2026-08-07T13:53:30.337200+00:00",
+  "updated_at": "2026-09-02T13:00:00+00:00",
   "note": "One thread, widest to narrowest. If a level is blank, the chain is broken there and the dashboard says so.",
   "levels": [
     {
       "scale": "10y",
-      "goal": "A public, agent-legible operating system for a life spent benefiting others \u2014 copyable by anyone who wants it.",
+      "goal": "A public, agent-legible operating system for a life spent benefiting others — copyable by anyone who wants it.",
       "why": "The systems worth building are the ones other people can run too.",
       "review": "2027-01-01"
     },
@@ -16,14 +16,14 @@
     },
     {
       "scale": "quarter",
-      "goal": "The fleet runs itself: agents propose, build, review and merge without the operator in the loop.",
-      "why": "A fleet that needs a human for ordinary work is a queue. Marsita's attention is the scarce resource, not compute.",
+      "goal": "BaseX.com deployed and live: the fleet's work reaching the open web, not just its own board.",
+      "why": "The fleet already proposes, builds, reviews and merges without the operator in the loop. The next thing it has to prove is that what it builds ships. BaseX.com is the deployment half of the same partnership as PlanetaryCouncil.org and IndependentTribunal.org.",
       "review": "2026-09-30"
     },
     {
       "scale": "month",
       "goal": "Green branches merge themselves; a daily summary is the only thing Marsita has to read.",
-      "why": "One-liners once a day, not a PR queue. Escalate money, identity and irreversible actions \u2014 nothing else.",
+      "why": "One-liners once a day, not a PR queue. Escalate money, identity and irreversible actions — nothing else.",
       "review": "2026-08-21"
     },
     {
