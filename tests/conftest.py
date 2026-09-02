@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -7,6 +8,10 @@ from app import main, ratelimit
 # Every path main.py writes through. Missing one means tests mutate real data.
 WRITE_PATHS = ("DATA_PATH", "INBOX_PATH", "HORIZONS_PATH", "EVENTS_PATH",
                "BRAINFARTS_PATH", "TRUSTED_NODES_PATH", "CONFLICTS_PATH")
+
+# Logs the fleet appends to while the suite runs. A test asserting on its own
+# writes must not also be reading the fleet's.
+APPEND_ONLY = ("EVENTS_PATH", "BRAINFARTS_PATH")
 
 
 @pytest.fixture(autouse=True)
@@ -49,9 +54,36 @@ def isolate_written_data(tmp_path, monkeypatch):
         if real is None:
             continue
         copy = tmp_path / real.name
-        if real.exists():
+        # Append-only ledgers start empty. Copying them made assertions about
+        # what a test itself wrote depend on what the fleet happened to log
+        # that morning -- six brainfart tests broke on 2026-09-02 because an
+        # agent filed a real entry at 17:00 and "exactly one record" became
+        # two. The other files are seeded, because absent ones have shapes
+        # the app cannot invent.
+        if attr not in APPEND_ONLY and real.exists():
             shutil.copy(real, copy)
         monkeypatch.setattr(main, attr, copy, raising=False)
+
+    # fleet/bin/events.py resolves its log path at import time, from its own
+    # __file__ -- so setting an env var in a fixture does nothing to a module
+    # that is already imported, and FLEET_PATH is not the name it reads. Every
+    # fleet worker exercised by a test therefore wrote to the LIVE stream.
+    #
+    # Marsita, 2026-09-02, seeing two contradictory lines a couple of minutes
+    # apart all afternoon: "[local] llama3.2:1b answered in 0.0s -- alive" and
+    # "failed in 0.0s -- NOT responding", same second, both from a model that
+    # had not been asked anything since 19 August. They were the two
+    # localvoice test cases, ok and failure, landing on the board every time
+    # the hourly test worker ran. 0.0s because the model was mocked.
+    monkeypatch.setenv("FLEET_EVENTS", str(tmp_path / "events.jsonl"))
+    try:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent
+                               / "fleet" / "bin"))
+        import events as fleet_events
+        monkeypatch.setattr(fleet_events, "LOG", tmp_path / "events.jsonl")
+    except Exception:
+        pass
 
     oplog = getattr(main, "OPLOG_DIR", None)
     if oplog is not None:
