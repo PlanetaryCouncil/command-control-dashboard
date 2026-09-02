@@ -116,3 +116,33 @@ def test_collapsing_has_hysteresis():
     page = oneview.page(*ARGS, remote=False)
     assert "const reopen = shut * 1.6;" in page
     assert "if (h > reopen) setPaneOpen(pane, true, false);" in page
+
+
+def test_a_pasted_image_becomes_a_file_and_then_a_path():
+    """Claude reads images by path, so a screenshot has to become a file
+    before it can become context. /api/paste-image already existed and
+    nothing on this page had ever called it."""
+    page = oneview.page(*ARGS, remote=False)
+    assert 'fetch("api/paste-image"' in page
+    assert 'i.type.startsWith("image/")' in page
+    assert 'ws.send(JSON.stringify({t: "input", d: out.path + " "}))' in page
+
+
+def test_the_paste_listener_is_on_xterms_own_textarea():
+    """A handler on the container only sees the paste if xterm lets it
+    bubble, which it does not always do."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "const pasteTarget = term.textarea || term_el;" in page
+
+
+def test_pasting_text_is_left_alone():
+    """Only images are intercepted; ordinary paste stays xterm's business."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "if (!shot) return;" in page
+
+
+def test_the_path_is_typed_not_sent():
+    """A path arriving on its own line as a finished message is a question
+    nobody asked."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "Type the path in, do not send it." in page

@@ -1226,6 +1226,50 @@ async function toggleTerm(){
   ws.onerror = () => term.write("\r\n\x1b[31m— could not connect —\x1b[0m\r\n");
   ws.onclose = () => term.write("\r\n\x1b[90m— session ended —\x1b[0m\r\n");
   term.onData(d => ws?.readyState===1 && ws.send(JSON.stringify({t:"input",d})));
+
+  /* Paste an image straight into the session.
+     Claude reads images by path, so a screenshot has to become a file before
+     it can become context. /api/paste-image already existed and nothing on
+     this page had ever called it -- the endpoint was written for the chat UI
+     and the terminal was left doing without, which meant every screenshot
+     went out to the filesystem by hand first.
+     The listener goes on xterm's own textarea: that is what actually receives
+     the paste, and a handler on the container only sees it if xterm lets it
+     bubble, which it does not always do. */
+  const pasteTarget = term.textarea || term_el;
+  pasteTarget.addEventListener("paste", async ev => {
+    const items = Array.from((ev.clipboardData || {}).items || []);
+    const shot = items.find(i => i.type && i.type.startsWith("image/"));
+    if (!shot) return;                       // plain text: let xterm have it
+    ev.preventDefault();
+    const file = shot.getAsFile();
+    if (!file) return;
+    term.write("\r\n\x1b[90m— saving pasted image —\x1b[0m\r\n");
+    try {
+      const data = await new Promise((res, rej) => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result);
+        fr.onerror = () => rej(new Error("could not read the clipboard image"));
+        fr.readAsDataURL(file);
+      });
+      const r = await fetch("api/paste-image", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({token: TOKEN,
+                              name: file.name || "pasted.png", data})});
+      const out = await r.json();
+      if (out.path && ws && ws.readyState === 1){
+        // Type the path in, do not send it. The operator still writes the
+        // sentence around it -- a path arriving on its own line as a finished
+        // message is a question nobody asked.
+        ws.send(JSON.stringify({t: "input", d: out.path + " "}));
+      } else {
+        term.write("\r\n\x1b[31m— " + (out.error || "could not save it")
+                   + " —\x1b[0m\r\n");
+      }
+    } catch (err) {
+      term.write("\r\n\x1b[31m— " + err.message + " —\x1b[0m\r\n");
+    }
+  });
   addEventListener("resize", () => { if (d.dataset.open === "1"){ fit.fit();
     ws?.readyState===1 && ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows})); }});
   termReady = true;
