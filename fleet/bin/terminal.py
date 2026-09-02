@@ -18,7 +18,9 @@ Defences, in order of how much they matter:
    and do not let scripts forge it.
 4. **Loopback only**, enforced here as well as at the bind.
 5. **One session per socket, killed on disconnect.** Closing the tab kills the
-   process group; no orphans, no reattaching to someone else's session.
+   process group; no orphans, and no attaching to a live process someone else
+   is holding. A reload resumes the *transcript* with --continue instead, which
+   is a fresh process reading history it is entitled to read.
 """
 
 from __future__ import annotations
@@ -28,7 +30,9 @@ import fcntl
 import hashlib
 import json
 import os
+import pathlib
 import pty
+import re
 import select
 import signal
 import struct
@@ -102,17 +106,54 @@ def _recv_frame(sock):
 
 
 # ----------------------------------------------------------------- the session
+def transcript_dir(cwd: str) -> pathlib.Path:
+    """Where Claude Code keeps the transcripts for a working directory.
+
+    The slug is the absolute path with every character that is not a letter,
+    digit or dash turned into a dash: /home/you/projects/x becomes
+    -home-you-projects-x. This mirrors the CLI; if the CLI ever changes the
+    scheme, `has_prior_session` just starts saying False and we spawn a fresh
+    session, which is the old behaviour rather than a crash.
+    """
+    slug = re.sub(r"[^A-Za-z0-9-]", "-", os.path.abspath(cwd))
+    return pathlib.Path.home() / ".claude" / "projects" / slug
+
+
+def has_prior_session(cwd: str) -> bool:
+    """True when there is a transcript for `cwd` that --continue could resume.
+
+    Asking first matters: `claude --continue` with nothing to continue exits
+    immediately with an error, and the pane would show a dead terminal instead
+    of a prompt. The whole point of the flag is that a reload picks up where
+    the last one left off — a first visit has nothing to pick up.
+    """
+    try:
+        return any(transcript_dir(cwd).glob("*.jsonl"))
+    except OSError:
+        return False
+
+
 class Session:
-    """One `claude` process on a pseudo-terminal."""
+    """One `claude` process on a pseudo-terminal.
+
+    Reloading the dashboard used to hand you a stranger: a brand-new process
+    with no memory of anything you had just said. When a transcript for this
+    directory already exists the process starts with --continue, so the page
+    comes back to the conversation instead of to a blank prompt.
+    """
 
     def __init__(self, cwd: str, cols: int = 120, rows: int = 32,
                  claude_bin: str = "claude"):
+        argv = [claude_bin]
+        if has_prior_session(cwd):
+            argv.append("--continue")
+        self._argv = argv                     # kept so tests can see the decision
         self.pid, self.fd = pty.fork()
         if self.pid == 0:                     # child
             os.chdir(cwd)
             env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
             # Only ever claude — never a shell.
-            os.execvpe(claude_bin, [claude_bin], env)
+            os.execvpe(claude_bin, argv, env)
             os._exit(1)                       # unreachable
         self.resize(cols, rows)
         self.alive = True
