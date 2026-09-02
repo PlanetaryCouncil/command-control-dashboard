@@ -33,10 +33,42 @@ def test_the_pane_starts_closed_and_is_opened_by_the_boot_call():
     two states pretending to be one."""
     page = oneview.page(*ARGS, remote=False)
     assert 'id="termpane" data-open="0"' in page
-    assert 'if ($("#termpane")) toggleTerm();' in page
+    assert 'if ($("#termpane")){' in page
+    assert "if (wanted !== 0) toggleTerm();" in page
 
 
 def test_the_grip_is_wired_only_when_it_exists():
     """A remote render omits the grip; wiring a missing element throws and
     takes every pane below it down."""
-    assert 'if ($("#gripT")) dragGripV(' in oneview.page(*ARGS, remote=False)
+    page = oneview.page(*ARGS, remote=False)
+    assert 'if ($("#gripT")){' in page
+    assert 'dragGripV($("#gripT")' in page
+
+
+def test_the_grip_knows_which_side_its_pane_is_on():
+    """--hArt sizes the pane below its grip; --hTerm sizes the pane above.
+    One shared drag function assumed the first, so the terminal divider moved
+    opposite to the mouse."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "growsDown: true" in page
+    assert "const dir = opts.growsDown ? 1 : -1;" in page
+
+
+def test_the_drag_measures_the_pane_rather_than_parsing_the_variable():
+    """The default is "50%" and parseInt("50%") is 50, so the first drag
+    snapped a half-height pane to fifty pixels."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "pane.getBoundingClientRect().height" in page
+
+
+def test_dragging_under_a_tenth_collapses_instead_of_squeezing():
+    page = oneview.page(*ARGS, remote=False)
+    assert "collapseBelow: 0.10" in page
+    assert "setPaneOpen(pane, false)" in page
+
+
+def test_a_collapsed_pane_leaves_a_bar_you_can_click_back():
+    """Hiding the divider made the pane unrecoverable without a reload."""
+    page = oneview.page(*ARGS, remote=False)
+    assert '#termpane[data-open="0"]+.griph{height:7px;cursor:pointer;}' in page
+    assert 'if (t && t.dataset.open === "0") toggleTerm();' in page

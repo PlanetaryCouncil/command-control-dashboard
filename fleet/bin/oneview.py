@@ -383,7 +383,14 @@ canvas.mark:hover{opacity:1;}
 #termpane{flex:0 0 var(--hTerm,50%);min-height:80px;}
 #termpane .body{padding:0;overflow:hidden;}
 #termpane[data-open="0"]{flex:0 0 auto;min-height:0;}
-#termpane[data-open="0"] .body,#termpane[data-open="0"]+.griph{display:none;}
+#termpane[data-open="0"] .body{display:none;}
+/* Collapsed, the divider is the only thing left saying a terminal is here, so
+   it stops being a hairline and becomes a grabbable bar. Hiding it entirely
+   was the first version and it made the pane unrecoverable without a reload. */
+#termpane[data-open="0"]+.griph{height:7px;cursor:pointer;}
+#termpane[data-open="0"]+.griph::after{background:var(--border);
+  border-radius:3px;box-shadow:inset 0 0 0 1px var(--surface);}
+#termpane[data-open="0"]+.griph:hover::after{background:var(--info);}
 #term{height:100%;padding:5px 7px;}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
@@ -1154,7 +1161,7 @@ async function toggleTerm(){
   const d = $("#termpane"), btn = $("#termbtn");
   if (!d) return;
   const opening = d.dataset.open !== "1";
-  d.dataset.open = opening ? "1" : "0";
+  setPaneOpen(d, opening);
   if (btn) btn.setAttribute("aria-pressed", String(opening));
   if (!opening || termReady) { if (opening && window.__fit) window.__fit.fit(); return; }
 
@@ -1449,6 +1456,20 @@ function dragGrip(grip, which){
 /* Vertical drag, same contract as the horizontal one: one style write, saved,
    double-click to undo. Height lives on the same layout record so a restored
    layout restores all of it rather than two thirds. */
+/* Open/closed for a collapsible pane, remembered. Collapsing is a real
+   state, not a zero height: a pane squeezed to one pixel still runs its
+   contents and still eats a poll. */
+function setPaneOpen(pane, open){
+  if (!pane || pane.dataset.open === (open ? "1" : "0")) return;
+  pane.dataset.open = open ? "1" : "0";
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+    saved[pane.id + "Open"] = open ? 1 : 0;
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
+  } catch(e){}
+  if (open && window.__fit) setTimeout(() => window.__fit.fit(), 0);
+}
+
 function setHeight(h, varName, key){
   h = Math.max(80, Math.min(h, window.innerHeight - 200));
   document.documentElement.style.setProperty(varName, h + "px");
@@ -1463,17 +1484,36 @@ function setHeight(h, varName, key){
    grip above goals and hard-coded to --hGoals, so the artwork pane had no
    handle at all — the column was resizable everywhere except where the
    picture is. */
-function dragGripV(grip, varName, key, fallback){
+function dragGripV(grip, varName, key, fallback, opts){
   if (!grip) return;
+  opts = opts || {};
+  // Which side of the grip the sized pane is on. --hArt sizes the pane BELOW
+  // its grip, so dragging down shrinks it; --hTerm sizes the pane ABOVE, so
+  // dragging down grows it. One shared function was silently assuming the
+  // first, which is why the terminal divider felt like it fought the mouse.
+  const dir = opts.growsDown ? 1 : -1;
+  const pane = opts.pane ? $(opts.pane) : null;
   grip.addEventListener("pointerdown", down => {
     down.preventDefault();
     grip.dataset.drag = "1";
     grip.setPointerCapture(down.pointerId);
     const startY = down.clientY;
-    const start = parseInt(getComputedStyle(document.documentElement)
-                           .getPropertyValue(varName)) || fallback;
-    // Dragging down grows the pane above, so the pane below shrinks: inverted.
-    const move = m => setHeight(start - (m.clientY - startY), varName, key);
+    // Measure the pane, do not parse the variable. The default is "50%" and
+    // parseInt("50%") is 50, so the first drag snapped a half-height pane to
+    // fifty pixels. A rendered height is a fact; a CSS token is a string.
+    const start = pane && pane.dataset.open !== "0"
+      ? pane.getBoundingClientRect().height
+      : (parseInt(getComputedStyle(document.documentElement)
+                  .getPropertyValue(varName)) || fallback);
+    const move = m => {
+      const h = start + dir * (m.clientY - startY);
+      if (pane && opts.collapseBelow){
+        const col = pane.parentElement.getBoundingClientRect().height;
+        if (h < col * opts.collapseBelow){ setPaneOpen(pane, false); return; }
+        setPaneOpen(pane, true);
+      }
+      setHeight(h, varName, key);
+    };
     const up = () => {
       delete grip.dataset.drag;
       grip.removeEventListener("pointermove", move);
@@ -1488,14 +1528,29 @@ function dragGripV(grip, varName, key, fallback){
 dragGrip($("#gripL"), "L");
 dragGrip($("#gripR"), "R");
 dragGripV($("#gripA"), "--hArt", "hArt", 240);
-if ($("#gripT")) dragGripV($("#gripT"), "--hTerm", "hTerm", 320);
+if ($("#gripT")){
+  dragGripV($("#gripT"), "--hTerm", "hTerm", 320,
+            {pane: "#termpane", growsDown: true, collapseBelow: 0.10});
+  // Collapsed, the bar is the only way back.
+  $("#gripT").addEventListener("click", () => {
+    const t = $("#termpane");
+    if (t && t.dataset.open === "0") toggleTerm();
+  });
+}
 // Boot it on load rather than on a click. "Right there" was the whole point of
 // moving it out of the drawer, and a pane that says "press me to become the
 // thing you asked for" is still a drawer with extra steps. Local only -- the
 // pane is not rendered for a remote visitor, so this never runs for them. The
 // socket dies with the tab and takes the process with it, so the cost is one
 // session per open board, not a pile of orphans.
-if ($("#termpane")) toggleTerm();
+if ($("#termpane")){
+  // Respect a collapse from last time. Opening a pane the operator shut, on
+  // every reload, is not a default -- it is an argument.
+  let wanted = 1;
+  try { wanted = (JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}")
+                  || {}).termpaneOpen; } catch(e){}
+  if (wanted !== 0) toggleTerm();
+}
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
 // The gallery slot. This board is a home dashboard and the home makes art —
