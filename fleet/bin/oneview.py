@@ -399,11 +399,28 @@ canvas.mark:hover{opacity:1;}
    are not reading should give the space to the thing you are working in.
    :has() rather than a class on the column: the state lives on one element,
    so there is nothing to keep in sync. */
-#stream[data-open="0"]{flex:0 0 auto;min-height:0;}
-#stream[data-open="0"] .body,#stream[data-open="0"] form,
-#stream[data-open="0"] #pendingAsk{display:none;}
-#stream[data-open="0"] h2{cursor:pointer;}
-.col:has(#stream[data-open="0"]) #termpane{flex:1;}
+/* Collapsing is one rule for every pane, not a special case per pane. Each
+   one that could collapse had its own selector and its own idea of what
+   collapsed meant, so the left column would not shut, the right column had no
+   handle at all, and the middle behaved differently from both (2026-09-02).
+   A collapsed pane is its heading and nothing else; its neighbour takes the
+   room. The heading stays clickable, because with the body gone it is the
+   only way back. */
+.pane[data-open="0"]{flex:0 0 auto !important;min-height:0;}
+.pane[data-open="0"] .body,.pane[data-open="0"] form,
+.pane[data-open="0"] .load,.pane[data-open="0"] #pendingAsk,
+.pane[data-open="0"] #controls{display:none !important;}
+.pane[data-open="0"] h2{cursor:pointer;}
+/* Whatever is still open in a column takes the slack, whichever pane it is. */
+.col:has(.pane[data-open="0"]) .pane:not([data-open="0"]){flex:1;}
+/* A collapsed column is a bar you can grab, not a pane squeezed to nothing. */
+.col[data-open="0"]{overflow:hidden;}
+.col[data-open="0"]>*{display:none;}
+#grid[data-l="0"]{grid-template-columns:0 6px 1fr 6px var(--wR,520px);}
+#grid[data-r="0"]{grid-template-columns:var(--wL,290px) 6px 1fr 6px 0;}
+#grid[data-l="0"][data-r="0"]{grid-template-columns:0 6px 1fr 6px 0;}
+#grid[data-l="0"] #gripL::after,#grid[data-r="0"] #gripR::after{
+  background:var(--border);}
 #term{height:100%;padding:5px 7px;}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
@@ -1489,13 +1506,32 @@ setInterval(tick, 1000); tick();
    layout survives a window resize and a reload. Clamped so a pane can be made
    narrow but never dragged out of existence. */
 const LAYOUT_KEY = "fleet.layout.v1";
+/* One collapse threshold for the whole board, panes and columns alike. Below
+   SHUT a thing is closed rather than thin; it does not reopen until REOPEN,
+   because a single threshold means a hand resting on a divider toggles many
+   times a second and the board reads as flickering. Declared here, above the
+   first call to setWidths: it is used during the restore-saved-layout pass
+   that runs as this file loads. */
+const SHUT = 48;
+const REOPEN = 96;
 
+/* Columns collapse to nothing, the same as panes do. They used to clamp at
+   180px, so dragging a side all the way in left a stub that was too narrow to
+   read and too wide to ignore -- "left-right does not collapse fully on both
+   left and right" (2026-09-02). Below SHUT the column is closed and the grid
+   gives it zero; the grip stays where it is, as the way back. */
 function setWidths(l, r){
+  const grid = $("#grid");
   const max = innerWidth - 260;
-  l = Math.max(180, Math.min(l, max));
-  r = Math.max(180, Math.min(r, max));
-  document.documentElement.style.setProperty("--wL", l + "px");
-  document.documentElement.style.setProperty("--wR", r + "px");
+  const shutL = l <= SHUT, shutR = r <= SHUT;
+  if (grid){
+    if (shutL) grid.dataset.l = "0"; else delete grid.dataset.l;
+    if (shutR) grid.dataset.r = "0"; else delete grid.dataset.r;
+  }
+  l = Math.max(0, Math.min(l, max));
+  r = Math.max(0, Math.min(r, max));
+  document.documentElement.style.setProperty("--wL", (shutL ? 0 : Math.max(120, l)) + "px");
+  document.documentElement.style.setProperty("--wR", (shutR ? 0 : Math.max(120, r)) + "px");
   try {
     // Merge, never replace: writing {l, r} here wiped the saved height every
     // time a column was dragged, so vertical layout survived until you touched
@@ -1508,9 +1544,15 @@ function setWidths(l, r){
 try {
   const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "null");
   if (saved) {
-    if (saved.l && saved.r) setWidths(saved.l, saved.r);
-    if (saved.hArt) document.documentElement.style
-      .setProperty("--hArt", saved.hArt + "px");
+    if (saved.l !== undefined && saved.r !== undefined)
+      setWidths(saved.l, saved.r);
+    // Every sized pane, not just the artwork. --hTerm and --hCredit were
+    // written on every drag and read back on none of them, so the middle and
+    // right columns forgot their sizes on reload.
+    for (const [key, v] of [["hArt", "--hArt"], ["hTerm", "--hTerm"],
+                            ["hCredit", "--hCredit"]])
+      if (saved[key]) document.documentElement.style
+        .setProperty(v, saved[key] + "px");
   }
 } catch(e){}
 
@@ -1584,56 +1626,64 @@ function setHeight(h, varName, key){
    grip above goals and hard-coded to --hGoals, so the artwork pane had no
    handle at all — the column was resizable everywhere except where the
    picture is. */
+/* One drag, three dividers, and the same contract at every one of them.
+   Before this there were two implementations with different ideas of what
+   they were measuring. The left divider clamped against `window.innerHeight`
+   instead of its own column, so it ran out of travel before it reached the
+   bottom; the middle returned early when a pane collapsed, so the drag simply
+   stopped moving and read as jumpy; and the right column had no divider at
+   all. Marsita, 2026-09-02, listing all five symptoms at once.
+
+   The model: a grip sits between two panes. One of them is the sized pane and
+   carries the CSS variable; the other flexes. Dragging is one number -- the
+   sized pane's height -- clamped to the column, and both ends of the range
+   collapse the pane that is being squeezed out. */
 function dragGripV(grip, varName, key, fallback, opts){
   if (!grip) return;
   opts = opts || {};
-  // Which side of the grip the sized pane is on. --hArt sizes the pane BELOW
-  // its grip, so dragging down shrinks it; --hTerm sizes the pane ABOVE, so
-  // dragging down grows it. One shared function assumed the first case, which
-  // is why the terminal divider felt like it fought the mouse.
-  const dir = opts.growsDown ? 1 : -1;
-  const paneSel = opts.pane, otherSel = opts.other;
+  // Is the sized pane above the grip or below it? Above: dragging down grows
+  // it. Below: dragging down shrinks it.
+  const dir = opts.sizes === "above" ? 1 : -1;
 
   grip.addEventListener("pointerdown", down => {
     if (down.button) return;
     down.preventDefault();
-    const pane = paneSel ? $(paneSel) : null;
-    const other = otherSel ? $(otherSel) : null;
+    const pane = $(opts.pane);          // the sized one
+    const other = opts.other ? $(opts.other) : null;
+    if (!pane) return;
     grip.dataset.drag = "1";
     grip.setPointerCapture(down.pointerId);
     document.body.style.userSelect = "none";
 
-    // Everything measured once. Reading layout inside a pointermove forces a
-    // synchronous reflow on every event, against a size we are ourselves
-    // changing -- the reading and the writing fight and the result stutters.
+    // Measured once. Reading layout inside a pointermove forces a synchronous
+    // reflow against a size we are ourselves writing.
     const startY = down.clientY;
-    const col = pane ? pane.parentElement.getBoundingClientRect().height
-                     : window.innerHeight;
-    const start = pane && pane.dataset.open !== "0"
-      ? pane.getBoundingClientRect().height
-      : (parseInt(getComputedStyle(document.documentElement)
-                  .getPropertyValue(varName)) || fallback);
-    const shut = opts.collapseBelow ? col * opts.collapseBelow : 0;
-    // Hysteresis. One threshold means a hand resting on the line toggles the
-    // pane open and shut many times a second, which reads as the whole board
-    // flickering. Shut at a tenth, reopen only past a sixth.
-    const reopen = shut * 1.6;
-    let pending = null, frame = 0, last = start;
+    const col = grip.parentElement.getBoundingClientRect().height;
+    const open = pane.dataset.open !== "0";
+    const start = open ? pane.getBoundingClientRect().height
+                       : (parseInt(getComputedStyle(document.documentElement)
+                                   .getPropertyValue(varName)) || fallback);
+    let pending = start, frame = 0, last = start;
 
     const paint = () => {
       frame = 0;
-      let h = pending;
-      if (pane && opts.collapseBelow){
-        if (h < shut){ setPaneOpen(pane, false, false); return; }
-        if (h > reopen) setPaneOpen(pane, true, false);
-        if (other){
-          if (h > col - shut){ setPaneOpen(other, false, false); return; }
-          if (h < col - reopen) setPaneOpen(other, true, false);
-        }
+      // Clamp first, so the number the collapse checks see is the number the
+      // pane could actually have. Then decide who is open. Then always apply
+      // a height -- returning early here is what made the middle divider stop
+      // dead under the cursor.
+      let h = Math.max(0, Math.min(pending, col));
+      const shutSelf = h <= SHUT;
+      const shutOther = other && h >= col - SHUT;
+      if (shutSelf)              setPaneOpen(pane, false, false);
+      else if (h >= REOPEN)      setPaneOpen(pane, true, false);
+      if (other){
+        if (shutOther)                 setPaneOpen(other, false, false);
+        else if (h <= col - REOPEN)    setPaneOpen(other, true, false);
       }
-      h = Math.max(80, Math.min(h, col - 80));
-      last = h;
-      applyHeight(h, varName);
+      // Remember a usable height even while collapsed, so reopening does not
+      // land on zero.
+      if (!shutSelf) last = h;
+      applyHeight(shutOther ? col : h, varName);
       if (window.__fit) window.__fit.fit();
     };
 
@@ -1648,9 +1698,8 @@ function dragGripV(grip, varName, key, fallback, opts){
       grip.removeEventListener("pointermove", move);
       grip.removeEventListener("pointerup", up);
       grip.removeEventListener("pointercancel", up);
-      // One write, at the end, for everything the drag decided.
-      const patch = {[key]: last};
-      if (pane) patch[pane.id + "Open"] = pane.dataset.open === "0" ? 0 : 1;
+      const patch = {[key]: Math.max(REOPEN, last)};
+      patch[pane.id + "Open"] = pane.dataset.open === "0" ? 0 : 1;
       if (other) patch[other.id + "Open"] = other.dataset.open === "0" ? 0 : 1;
       saveLayout(patch);
       if (window.__fit) window.__fit.fit();
@@ -1659,28 +1708,58 @@ function dragGripV(grip, varName, key, fallback, opts){
     grip.addEventListener("pointerup", up);
     grip.addEventListener("pointercancel", up);
   });
-  grip.addEventListener("dblclick", () => setHeight(fallback, varName, key));
+  grip.addEventListener("dblclick", () => {
+    const pane = $(opts.pane), other = opts.other ? $(opts.other) : null;
+    if (pane) setPaneOpen(pane, true);
+    if (other) setPaneOpen(other, true);
+    setHeight(fallback, varName, key);
+  });
 }
+
+/* A collapsed pane has only its heading left, so the heading is the way back.
+   This was wired for the stream alone; every pane needs it or a pane you shut
+   is a pane you cannot reopen without a reload. */
+function reopenOnHeading(){
+  document.querySelectorAll(".pane h2").forEach(h => {
+    if (h.dataset.reopen) return;
+    h.dataset.reopen = "1";
+    h.addEventListener("click", e => {
+      const pane = h.closest(".pane");
+      if (pane && pane.dataset.open === "0" && !e.target.closest("button"))
+        setPaneOpen(pane, true);
+    });
+  });
+}
+reopenOnHeading();
+
+/* Which panes were left closed. Drags wrote this on every pointerup and
+   nothing ever read it back, so a pane you shut was open again on reload.
+   #termpane is deliberately excluded: it renders closed and the boot call
+   below owns opening it, and two owners of one state is how it ends up
+   flickering. */
+try {
+  const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+  for (const id of ["goals", "art", "stream", "credit", "procs"])
+    if (saved[id + "Open"] === 0) setPaneOpen($("#" + id), false, false);
+} catch(e){}
 
 dragGrip($("#gripL"), "L");
 dragGrip($("#gripR"), "R");
-dragGripV($("#gripA"), "--hArt", "hArt", 240);
+// Left: artwork is the sized pane, below its grip; goals flexes above it.
+dragGripV($("#gripA"), "--hArt", "hArt", 240,
+          {pane: "#art", sizes: "below", other: "#goals"});
+// Right: vendor credit is sized above its grip; agents & processes flexes.
+// This column had no divider at all -- "on the right cannot go up and down".
+dragGripV($("#gripP"), "--hCredit", "hCredit", 220,
+          {pane: "#credit", sizes: "above", other: "#procs"});
 if ($("#gripT")){
+  // Middle: the terminal is sized above its grip; the stream flexes below.
   dragGripV($("#gripT"), "--hTerm", "hTerm", 320,
-            {pane: "#termpane", growsDown: true, collapseBelow: 0.10,
-             other: "#stream"});
-  // Collapsed, the bar is the only way back.
+            {pane: "#termpane", sizes: "above", other: "#stream"});
+  // Collapsed, the bar itself is a way back in as well as the heading.
   $("#gripT").addEventListener("click", () => {
     const t = $("#termpane");
     if (t && t.dataset.open === "0") toggleTerm();
-  });
-  // A collapsed stream keeps its heading, so the heading is the way back.
-  const sh = $("#stream h2");
-  if (sh) sh.addEventListener("click", e => {
-    const st = $("#stream");
-    if (st && st.dataset.open === "0" && !e.target.closest("button")){
-      setPaneOpen(st, true);
-    }
   });
 }
 // Boot it on load rather than on a click. "Right there" was the whole point of
@@ -1959,7 +2038,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <div class="grip" id="gripR"></div>
 
   <div class="col">
-    <section class="pane" id="credit" style="flex:0 0 auto" data-state="loading">
+    <section class="pane" id="credit" style="flex:0 0 var(--hCredit,auto)" data-state="loading">
       <h2>vendor credit <span class="n"></span></h2>
       <div class="load"><i></i><span class="msg"></span></div>
       <div class="body">
@@ -1967,6 +2046,8 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
         <div class="asof" id="creditasof"></div>
       </div>
     </section>
+
+    <div class="griph" id="gripP"></div>
 
     <section class="pane" id="procs" style="flex:1" data-state="loading">
       <h2>agents &amp; processes <span class="n"></span></h2>

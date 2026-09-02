@@ -50,8 +50,9 @@ def test_the_grip_knows_which_side_its_pane_is_on():
     One shared drag function assumed the first, so the terminal divider moved
     opposite to the mouse."""
     page = oneview.page(*ARGS, remote=False)
-    assert "growsDown: true" in page
-    assert "const dir = opts.growsDown ? 1 : -1;" in page
+    assert 'sizes: "above"' in page      # the terminal, above its grip
+    assert 'sizes: "below"' in page      # the artwork, below its grip
+    assert 'const dir = opts.sizes === "above" ? 1 : -1;' in page
 
 
 def test_the_drag_measures_the_pane_rather_than_parsing_the_variable():
@@ -63,8 +64,8 @@ def test_the_drag_measures_the_pane_rather_than_parsing_the_variable():
 
 def test_dragging_under_a_tenth_collapses_instead_of_squeezing():
     page = oneview.page(*ARGS, remote=False)
-    assert "collapseBelow: 0.10" in page
-    assert "if (h < shut){ setPaneOpen(pane, false, false); return; }" in page
+    assert "const SHUT = 48;" in page
+    assert "if (shutSelf)              setPaneOpen(pane, false, false);" in page
 
 
 def test_a_collapsed_pane_leaves_a_bar_you_can_click_back():
@@ -78,20 +79,21 @@ def test_collapsing_the_stream_gives_the_column_to_the_terminal():
     """Collapsing the thing you are not reading should give the space to the
     thing you are working in, not leave a hole."""
     page = oneview.page(*ARGS, remote=False)
-    assert '.col:has(#stream[data-open="0"]) #termpane{flex:1;}' in page
+    # One rule for every pane now, rather than a selector per pane.
+    assert '.col:has(.pane[data-open="0"]) .pane:not([data-open="0"]){flex:1;}' in page
     assert 'other: "#stream"' in page
 
 
 def test_one_grip_shuts_whichever_pane_is_being_crushed():
     page = oneview.page(*ARGS, remote=False)
-    assert "if (h < shut){ setPaneOpen(pane, false, false); return; }" in page
-    assert "if (h > col - shut){ setPaneOpen(other, false, false); return; }" in page
+    assert "const shutSelf = h <= SHUT;" in page
+    assert "const shutOther = other && h >= col - SHUT;" in page
 
 
 def test_a_collapsed_stream_keeps_a_heading_to_click_back():
     page = oneview.page(*ARGS, remote=False)
-    assert '#stream[data-open="0"] h2{cursor:pointer;}' in page
-    assert 'st.dataset.open === "0" && !e.target.closest("button")' in page
+    assert '.pane[data-open="0"] h2{cursor:pointer;}' in page
+    assert 'pane.dataset.open === "0" && !e.target.closest("button")' in page
 
 
 def test_the_drag_does_not_write_to_storage_on_every_move():
@@ -99,7 +101,9 @@ def test_the_drag_does_not_write_to_storage_on_every_move():
     move is what made the divider feel like it was chewing on something."""
     page = oneview.page(*ARGS, remote=False)
     assert "function applyHeight(h, varName)" in page
-    assert "// One write, at the end, for everything the drag decided." in page
+    assert "saveLayout(patch);" in page
+    moves = page.split("const move = m =>")[1].split("const up =")[0]
+    assert "localStorage" not in moves and "saveLayout" not in moves
 
 
 def test_the_drag_measures_once_and_paints_on_a_frame():
@@ -107,15 +111,15 @@ def test_the_drag_measures_once_and_paints_on_a_frame():
     against a size the same handler is changing."""
     page = oneview.page(*ARGS, remote=False)
     assert "requestAnimationFrame(paint)" in page
-    assert "const col = pane ? pane.parentElement.getBoundingClientRect().height" in page
+    assert "const col = grip.parentElement.getBoundingClientRect().height" in page
 
 
 def test_collapsing_has_hysteresis():
     """One threshold means a hand resting on the line toggles many times a
     second, which reads as the board flickering."""
     page = oneview.page(*ARGS, remote=False)
-    assert "const reopen = shut * 1.6;" in page
-    assert "if (h > reopen) setPaneOpen(pane, true, false);" in page
+    assert "const REOPEN = 96;" in page
+    assert "else if (h >= REOPEN)      setPaneOpen(pane, true, false);" in page
 
 
 def test_a_pasted_image_becomes_a_file_and_then_a_path():
