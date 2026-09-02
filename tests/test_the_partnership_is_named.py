@@ -36,3 +36,25 @@ def test_the_quarter_goal_is_the_deployment():
 def test_the_intro_still_fits_its_budget():
     """Ten sentences, enforced here rather than by good intentions."""
     assert len(firstcontact.sentences()) <= firstcontact.SENTENCE_BUDGET
+
+
+def test_the_demo_is_one_click_from_first_contact():
+    """A demo needs testers more than readers. Marsita: "link to
+    demo.basex.com to incentivize testing"."""
+    paths = [path for _, path, _ in firstcontact.STEPS]
+    assert "https://demo.basex.com" in paths
+
+
+def test_the_ask_is_specific_not_polite():
+    """"Take a look" gets nothing back. "Break it and say what broke" does."""
+    note = next(n for _, p, n in firstcontact.STEPS
+                if p == "https://demo.basex.com")
+    assert "break it" in note.lower()
+
+
+def test_the_board_footer_carries_all_three():
+    src = (ROOT / "fleet" / "bin" / "oneview.py").read_text()
+    foot = src.split("<h3>the partnership</h3>")[1].split("</section>")[0]
+    for host in ("planetarycouncil.org", "independenttribunal.org",
+                 "demo.basex.com"):
+        assert host in foot.lower(), host

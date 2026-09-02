@@ -2032,6 +2032,12 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="/poems" title="Two-line poems that close each agent turn, newest first.">poems</a>
   </section>
   <section>
+    <h3>the partnership</h3>
+    <a href="https://planetarycouncil.org" title="Where things are decided. The council, the goals, this fleet.">planetary council</a>
+    <a href="https://independenttribunal.org" title="Where decisions are contested. The other half of deciding anything.">independent tribunal</a>
+    <a href="https://demo.basex.com" title="BaseX, the deployment half — the live demo. Break it and say what broke: that is the most useful thing anyone can do here right now.">basex demo &mdash; try it</a>
+  </section>
+  <section>
     <h3>repos</h3>
     <a href="https://github.com/PlanetaryCouncil/command-control-dashboard" title="The source of all of this: cockpit, fleet, self-improve loop, and every test.">command-control</a>
     <a href="https://brainfarts.planetarycouncil.org/" title="Logged AI mistakes, written up properly. Fifteen entries, two of them from today.">brain farts</a>

@@ -125,7 +125,13 @@ def test_the_html_block_stands_on_its_own():
     classes, no external assets, nothing that can fail to load."""
     block = fc.as_html()
     assert "class=" not in block, "must not depend on a stylesheet it cannot see"
-    assert "http://" not in block and "https://" not in block
+    # The rule is about *assets* that can fail to load, not about links. This
+    # used to ban every absolute URL, which also banned pointing at the two
+    # sister sites and the BaseX demo -- the whole reason the block exists is
+    # to be a front door, and a front door with no outward links is a wall
+    # (2026-09-02).
+    for asset in ("src=", "<link", "@import", "url("):
+        assert asset not in block, f"external asset: {asset}"
 
 
 def test_the_opening_stays_within_ten_sentences():

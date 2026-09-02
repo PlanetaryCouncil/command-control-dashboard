@@ -94,6 +94,11 @@ STEPS = [
     ("LOOK", "/map", "everything here, with a human view and a machine view "
                      "on every row"),
     ("JOIN", "/join", "take a name, get vouched, earn standing. Open to anyone"),
+    # The deployment half needs testers more than it needs readers, and a
+    # stranger who has read this far is exactly who should break it.
+    ("TEST", "https://demo.basex.com",
+             "the BaseX demo, live. Break it and tell us what broke — that is "
+             "the most useful thing anyone can do here right now"),
 ]
 
 CLOSING = ("Paths are relative: open them on whichever host handed you this "
