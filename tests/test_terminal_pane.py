@@ -72,3 +72,23 @@ def test_a_collapsed_pane_leaves_a_bar_you_can_click_back():
     page = oneview.page(*ARGS, remote=False)
     assert '#termpane[data-open="0"]+.griph{height:7px;cursor:pointer;}' in page
     assert 'if (t && t.dataset.open === "0") toggleTerm();' in page
+
+
+def test_collapsing_the_stream_gives_the_column_to_the_terminal():
+    """Collapsing the thing you are not reading should give the space to the
+    thing you are working in, not leave a hole."""
+    page = oneview.page(*ARGS, remote=False)
+    assert '.col:has(#stream[data-open="0"]) #termpane{flex:1;}' in page
+    assert 'other: "#stream"' in page
+
+
+def test_one_grip_shuts_whichever_pane_is_being_crushed():
+    page = oneview.page(*ARGS, remote=False)
+    assert "if (h < col * opts.collapseBelow){ setPaneOpen(pane, false); return; }" in page
+    assert "if (h > col * (1 - opts.collapseBelow)){" in page
+
+
+def test_a_collapsed_stream_keeps_a_heading_to_click_back():
+    page = oneview.page(*ARGS, remote=False)
+    assert '#stream[data-open="0"] h2{cursor:pointer;}' in page
+    assert 'st.dataset.open === "0" && !e.target.closest("button")' in page

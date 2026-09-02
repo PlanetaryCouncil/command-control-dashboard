@@ -391,6 +391,17 @@ canvas.mark:hover{opacity:1;}
 #termpane[data-open="0"]+.griph::after{background:var(--border);
   border-radius:3px;box-shadow:inset 0 0 0 1px var(--surface);}
 #termpane[data-open="0"]+.griph:hover::after{background:var(--info);}
+/* The other half of the same handle. Drag the divider to the bottom and the
+   stream shuts instead of being crushed into a two-line slot; the terminal
+   then takes the whole column, which is the point -- collapsing the thing you
+   are not reading should give the space to the thing you are working in.
+   :has() rather than a class on the column: the state lives on one element,
+   so there is nothing to keep in sync. */
+#stream[data-open="0"]{flex:0 0 auto;min-height:0;}
+#stream[data-open="0"] .body,#stream[data-open="0"] form,
+#stream[data-open="0"] #pendingAsk{display:none;}
+#stream[data-open="0"] h2{cursor:pointer;}
+.col:has(#stream[data-open="0"]) #termpane{flex:1;}
 #term{height:100%;padding:5px 7px;}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
@@ -1511,6 +1522,15 @@ function dragGripV(grip, varName, key, fallback, opts){
         const col = pane.parentElement.getBoundingClientRect().height;
         if (h < col * opts.collapseBelow){ setPaneOpen(pane, false); return; }
         setPaneOpen(pane, true);
+        // Past the far end, the pane BELOW is the one being crushed. Shut it
+        // and let this one have the column.
+        const other = opts.other ? $(opts.other) : null;
+        if (other){
+          if (h > col * (1 - opts.collapseBelow)){
+            setPaneOpen(other, false); return;
+          }
+          setPaneOpen(other, true);
+        }
       }
       setHeight(h, varName, key);
     };
@@ -1530,11 +1550,20 @@ dragGrip($("#gripR"), "R");
 dragGripV($("#gripA"), "--hArt", "hArt", 240);
 if ($("#gripT")){
   dragGripV($("#gripT"), "--hTerm", "hTerm", 320,
-            {pane: "#termpane", growsDown: true, collapseBelow: 0.10});
+            {pane: "#termpane", growsDown: true, collapseBelow: 0.10,
+             other: "#stream"});
   // Collapsed, the bar is the only way back.
   $("#gripT").addEventListener("click", () => {
     const t = $("#termpane");
     if (t && t.dataset.open === "0") toggleTerm();
+  });
+  // A collapsed stream keeps its heading, so the heading is the way back.
+  const sh = $("#stream h2");
+  if (sh) sh.addEventListener("click", e => {
+    const st = $("#stream");
+    if (st && st.dataset.open === "0" && !e.target.closest("button")){
+      setPaneOpen(st, true);
+    }
   });
 }
 // Boot it on load rather than on a click. "Right there" was the whole point of
@@ -1551,6 +1580,10 @@ if ($("#termpane")){
                   || {}).termpaneOpen; } catch(e){}
   if (wanted !== 0) toggleTerm();
 }
+try {
+  const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+  if (saved.streamOpen === 0) setPaneOpen($("#stream"), false);
+} catch(e){}
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
 // The gallery slot. This board is a home dashboard and the home makes art —
@@ -1758,7 +1791,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <div class="col">
     {"" if remote else TERMPANE_HTML}
 
-    <section class="pane" id="stream" style="flex:1">
+    <section class="pane" id="stream" style="flex:1" data-open="1">
       <h2>
         <span class="filters" id="filters">
           <button data-f="relay" aria-pressed="true">&#128279; relay</button>
