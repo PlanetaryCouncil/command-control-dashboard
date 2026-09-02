@@ -53,9 +53,23 @@ def test_the_intro_asks_rather_than_merely_offers():
 def test_the_board_says_its_own_name():
     """"Missing top level Singularity Engineering intro notice" -- the name
     was only on /intro, a page you have to navigate to."""
-    w = _welcome(oneview.page(*ARGS, remote=True))
+    w = _welcome(oneview.page(*ARGS, remote=False))
     assert "The Singularity Engineering Fleet." in w
     assert "Not an AI uprising" in w
+
+
+def test_the_name_is_not_printed_twice():
+    """Remote gets the FIRST CONTACT banner directly above the welcome line.
+    Leading the welcome with the same name printed it twice (2026-09-02)."""
+    page = oneview.page(*ARGS, remote=True)
+    assert "NOT AN AI UPRISING" in page.upper()          # the banner says it
+    assert page.count("Not an AI uprising") == 0         # the welcome does not
+
+
+def test_the_tab_says_which_door():
+    """Two tabs both reading GAIA cannot be told apart."""
+    assert "(local)" in oneview.page(*ARGS, remote=False)
+    assert "(public)" in oneview.page(*ARGS, remote=True)
 
 
 def test_the_operator_sees_it_too():

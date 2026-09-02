@@ -168,6 +168,7 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #credit .st.rich{color:var(--good);}
 #credit .st.dry{color:var(--critical);}
 #credit .st.out{color:var(--warning);}
+#credit .st.hazy{color:var(--muted);}
 #credit .st.idle{color:var(--muted);font-weight:400;}
 #credit .why{color:var(--muted);font-size:10px;}
 #credit .asof{padding:4px 6px;color:var(--muted);font-size:10px;}
@@ -474,12 +475,28 @@ function creditState(v){
   // On the board it should say the thing a person would say.
   if (v.ok === false)          return ["dry",  n ? "refused " + n + "x today"
                                                  : "spent"];
+  // A measured balance beats every inference below it. grok sat at 100% of
+  // its weekly limit while this pane said "has credit", because nothing had
+  // called it recently enough to log a refusal (2026-09-02). Absence of a
+  // failure is not evidence of money.
+  const pct = v.remaining_pct;
+  const when = v.reset_at ? " until " + new Date(v.reset_at).toLocaleString(
+                 [], {month:"short", day:"numeric", hour:"2-digit",
+                      minute:"2-digit"}) : "";
+  if (v.flow === "exhausted")  return ["dry",  "0% left" + when];
+  if (v.flow === "reserve")    return ["dry",  pct + "% left, reserved"];
+  if (v.flow === "spend" || v.flow === "harvest")
+                               return ["rich", pct + "% left" + when];
   if (v.vendor === "local")    return ["rich", "local, costs nothing"];
   if (v.plan)                  return ["rich", "on " + v.plan];
-  if (v.note === "on PATH")    return ["rich", "installed, never probed"];
-  return ["rich", v.note || "ok"];
+  // Everything past here is a guess. Say so rather than saying "has credit":
+  // the pane is read to decide who to ask, and a confident wrong answer
+  // sends work at a vendor that will refuse it.
+  if (v.note === "on PATH")    return ["hazy", "installed, never probed"];
+  return ["hazy", v.note || "no reading"];
 }
-const CREDIT_WORD = {rich:"has credit", dry:"DRY", out:"logged out", idle:"absent"};
+const CREDIT_WORD = {rich:"has credit", dry:"DRY", out:"logged out",
+                     hazy:"unknown", idle:"absent"};
 
 function renderCredit(workers){
   const pane = $("#credit");
@@ -489,7 +506,7 @@ function renderCredit(workers){
   if (!rows.length){ pane.dataset.state = "error"; return; }
 
   // Dry first: the board should lead with what cannot be asked.
-  const rank = {dry:0, out:1, rich:2, idle:3};
+  const rank = {dry:0, out:1, hazy:2, rich:3, idle:4};
   const seen = rows.map(v => { const [k, why] = creditState(v);
                                return {v, k, why}; })
                    .sort((a,b) => rank[a.k] - rank[b.k]
@@ -1727,13 +1744,16 @@ setInterval(loadTools, 60000);
 
 # Shown once to a remote first visit, dismissed forever via localStorage.
 # Marsita's copy, 2026-08-04: not "for a life" — for life.
-WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
+# The lead sentence, for the render that has no banner above it. Remote
+# visitors get FIRST CONTACT immediately above this line, so repeating the
+# fleet's name here printed it twice on the public URL (2026-09-02).
+WELCOME_LEAD = ("<b>The Singularity Engineering Fleet.</b> Not an AI uprising "
+                "&mdash; agents running in the open, every proposal, branch, "
+                "review and mistake on this board &mdash; ")
+WELCOME_TMPL = """<div id="welcome" style="display:none;align-items:center;gap:10px;
   padding:7px 12px;background:var(--raised);border-bottom:1px solid var(--border);
   font-family:var(--mono);font-size:11px">
-  <span><b>The Singularity Engineering Fleet.</b> Not an AI uprising &mdash;
-  agents running in the open, every proposal, branch, review and mistake on
-  this board &mdash;
-  <a href='/intro' style='color:var(--info)'>what this is</a> &middot;
+  <span>{lead}<a href='/intro' style='color:var(--info)'>what this is</a> &middot;
   <a href='/hi' style='color:var(--info)'>say hi</a> &middot;
   <a href='https://planetarycouncil.github.io/selfie-gallery/'
      style='color:var(--info)'>the gallery</a> &middot;
@@ -1828,7 +1848,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 -->
 <html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{nav.title()}</title>
+<title>{nav.title(remote=remote)}</title>
 <link rel="stylesheet" href="/static/xterm.css">
 <script src="/static/signature.js?v=2"></script>
 <style>{CSS}\n{nav.CSS}</style></head>
@@ -1848,7 +1868,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 </div>
 
 {_first_contact() if remote else ""}
-{WELCOME}
+{WELCOME_TMPL.format(lead='' if remote else WELCOME_LEAD)}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>
 </div>

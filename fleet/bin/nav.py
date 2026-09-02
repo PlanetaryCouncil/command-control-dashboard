@@ -94,11 +94,22 @@ def board_name() -> str:
     return (raw or "FLEET").upper()
 
 
-def title(*suffix: str) -> str:
-    """Escaped <title> text. Name first, so two hosts never share a tab."""
+def title(*suffix: str, remote: bool | None = None) -> str:
+    """Escaped <title> text. Name first, so two hosts never share a tab.
+
+    Pass `remote` and the tab also says which door it came through. Marsita
+    keeps the laptop board and the public URL open side by side; both tabs
+    read "GAIA" and there is no way to tell which one is which without
+    clicking it (2026-09-02). The name alone separates the machines; this
+    separates the doors.
+    """
     import html
+    door = "" if remote is None else ("public" if remote else "local")
     parts = [board_name(), *(s for s in suffix if s)]
-    return html.escape(" · ".join(parts), quote=True)
+    text = " · ".join(parts)
+    if door:
+        text += f" ({door})"
+    return html.escape(text, quote=True)
 
 
 def html(current: str = "", remote: bool = False) -> str:
