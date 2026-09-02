@@ -48,3 +48,17 @@ def test_the_intro_asks_rather_than_merely_offers():
     w = _welcome(oneview.page(*ARGS, remote=True))
     assert "please sign" in w
     assert "every hand is different" in w
+
+
+def test_the_board_says_its_own_name():
+    """"Missing top level Singularity Engineering intro notice" -- the name
+    was only on /intro, a page you have to navigate to."""
+    w = _welcome(oneview.page(*ARGS, remote=True))
+    assert "The Singularity Engineering Fleet." in w
+    assert "Not an AI uprising" in w
+
+
+def test_the_operator_sees_it_too():
+    """It was gated on `remote`, so the person who looks at this board all
+    day was the one person the fleet never introduced itself to."""
+    assert 'id="welcome"' in oneview.page(*ARGS, remote=False)

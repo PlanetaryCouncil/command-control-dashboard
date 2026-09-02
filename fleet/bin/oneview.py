@@ -1730,8 +1730,10 @@ setInterval(loadTools, 60000);
 WELCOME = """<div id="welcome" style="display:none;align-items:center;gap:10px;
   padding:7px 12px;background:var(--raised);border-bottom:1px solid var(--border);
   font-family:var(--mono);font-size:11px">
-  <span>an operating system for life: humans and AI &mdash;
-  <a href='/about' style='color:var(--info)'>what this is</a> &middot;
+  <span><b>The Singularity Engineering Fleet.</b> Not an AI uprising &mdash;
+  agents running in the open, every proposal, branch, review and mistake on
+  this board &mdash;
+  <a href='/intro' style='color:var(--info)'>what this is</a> &middot;
   <a href='/hi' style='color:var(--info)'>say hi</a> &middot;
   <a href='https://planetarycouncil.github.io/selfie-gallery/'
      style='color:var(--info)'>the gallery</a> &middot;
@@ -1846,7 +1848,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 </div>
 
 {_first_contact() if remote else ""}
-{WELCOME if remote else ""}
+{WELCOME}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>
 </div>
