@@ -1239,9 +1239,21 @@ async function toggleTerm(){
   ws = new WebSocket(`${scheme}//${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}`);
   ws.binaryType = "arraybuffer";
   ws.onopen = () => ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows}));
-  ws.onmessage = e => term.write(new Uint8Array(e.data));
+  // Raw terminal bytes arrive binary; a text frame is the server telling us
+  // something about the session itself -- so far, why it died.
+  let endedWhy = "";
+  ws.onmessage = e => {
+    if (typeof e.data === "string"){
+      try { const m = JSON.parse(e.data);
+            if (m.t === "ended") endedWhy = m.why; } catch(err){}
+      return;
+    }
+    term.write(new Uint8Array(e.data));
+  };
   ws.onerror = () => term.write("\r\n\x1b[31m— could not connect —\x1b[0m\r\n");
-  ws.onclose = () => term.write("\r\n\x1b[90m— session ended —\x1b[0m\r\n");
+  ws.onclose = () => term.write("\r\n\x1b[90m— session ended" +
+    (endedWhy ? ": " + endedWhy : "") +
+    ". your work is on disk; reload to continue it —\x1b[0m\r\n");
   term.onData(d => ws?.readyState===1 && ws.send(JSON.stringify({t:"input",d})));
 
   /* Paste an image straight into the session.

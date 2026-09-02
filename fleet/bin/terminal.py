@@ -29,6 +29,7 @@ import base64
 import fcntl
 import hashlib
 import json
+import errno
 import os
 import pathlib
 import pty
@@ -157,6 +158,7 @@ class Session:
             os._exit(1)                       # unreachable
         self.resize(cols, rows)
         self.alive = True
+        self.why = ""                          # filled in when it dies
 
     def resize(self, cols: int, rows: int) -> None:
         try:
@@ -170,16 +172,58 @@ class Session:
             os.write(self.fd, data)
         except OSError:
             self.alive = False
+            self.why = self._reap()
 
     def read(self, timeout: float = 0.05) -> bytes:
+        """Terminal bytes, or b"" when there is nothing yet.
+
+        EIO on a pty master is how the kernel says "the child on the other
+        end is gone" -- that is the one OSError that means death. EINTR means
+        a signal arrived mid-syscall and the read should simply be retried;
+        treating it as death ended live sessions for no reason (2026-09-02:
+        "it says session ended which is strange... Don't want to lose my
+        work").
+        """
         try:
             r, _, _ = select.select([self.fd], [], [], timeout)
             if not r:
                 return b""
-            return os.read(self.fd, 65536)
-        except OSError:
-            self.alive = False
+            data = os.read(self.fd, 65536)
+            # Linux raises EIO here when the child is gone; macOS just returns
+            # zero bytes. Readable-but-empty is EOF either way -- "nothing to
+            # read yet" is the `not r` case above, not this one.
+            if not data:
+                self.alive = False
+                self.why = self._reap()
+            return data
+        except InterruptedError:
             return b""
+        except OSError as e:
+            if e.errno == errno.EINTR:
+                return b""
+            self.alive = False
+            self.why = self._reap()
+            return b""
+
+    def _reap(self) -> str:
+        """Why the child is gone, in words. Empty when it is still running.
+
+        Nothing recorded this before, so every ended session was a mystery --
+        the board could only say "session ended" and neither of us could say
+        more than that."""
+        try:
+            pid, status = os.waitpid(self.pid, os.WNOHANG)
+        except OSError:
+            return "already reaped"
+        if pid == 0:
+            return ""
+        if os.WIFSIGNALED(status):
+            n = os.WTERMSIG(status)
+            return f"killed by {signal.Signals(n).name}"
+        if os.WIFEXITED(status):
+            code = os.WEXITSTATUS(status)
+            return "exited normally" if code == 0 else f"exited with code {code}"
+        return f"status {status}"
 
     def close(self) -> None:
         self.alive = False
@@ -245,6 +289,15 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
                     _send(sock, data, opcode=0x2)   # binary: raw terminal bytes
                 except OSError:
                     break
+        # Last words. The browser only ever knew the socket had closed, so a
+        # session that ended on its own and one killed by a board restart
+        # looked identical from the page (2026-09-02).
+        if session.why:
+            try:
+                _send(sock, json.dumps({"t": "ended", "why": session.why})
+                      .encode(), opcode=0x1)
+            except OSError:
+                pass
         stop.set()
 
     t = threading.Thread(target=pump_out, daemon=True)

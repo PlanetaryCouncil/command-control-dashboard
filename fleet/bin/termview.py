@@ -66,23 +66,34 @@ fit.fit();
 const dot = document.getElementById('dot');
 const statusText = document.getElementById('status');
 let ws = null;
+let endedWhy = '';
 
 function connect(){
   ws = new WebSocket(`ws://${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}`);
   ws.binaryType = 'arraybuffer';
 
   ws.onopen = () => {
-    dot.className = 'on'; statusText.textContent = 'connected';
+    endedWhy = '';
+  dot.className = 'on'; statusText.textContent = 'connected';
     sendResize();
   };
   ws.onmessage = (e) => {
     // Terminal output arrives as raw bytes, not text: decoding here would
     // mangle partial multi-byte sequences that land across frame boundaries.
+    // A *text* frame is the server talking about the session, not the
+    // session talking -- so far, why it ended.
+    if (typeof e.data === 'string'){
+      try { const m = JSON.parse(e.data);
+            if (m.t === 'ended') endedWhy = m.why; } catch(err){}
+      return;
+    }
     term.write(new Uint8Array(e.data));
   };
   ws.onclose = () => {
-    dot.className = 'off'; statusText.textContent = 'session ended';
-    term.write('\r\n\x1b[90m— session ended. reload to start a new one —\x1b[0m\r\n');
+    dot.className = 'off';
+    statusText.textContent = endedWhy ? 'ended: ' + endedWhy : 'session ended';
+    term.write('\r\n\x1b[90m— session ended' + (endedWhy ? ': ' + endedWhy : '') +
+               '. your work is on disk; reload to continue it —\x1b[0m\r\n');
   };
   ws.onerror = () => { dot.className = 'off'; statusText.textContent = 'connection failed'; };
 }
