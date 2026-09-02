@@ -64,7 +64,7 @@ def test_the_drag_measures_the_pane_rather_than_parsing_the_variable():
 def test_dragging_under_a_tenth_collapses_instead_of_squeezing():
     page = oneview.page(*ARGS, remote=False)
     assert "collapseBelow: 0.10" in page
-    assert "setPaneOpen(pane, false)" in page
+    assert "if (h < shut){ setPaneOpen(pane, false, false); return; }" in page
 
 
 def test_a_collapsed_pane_leaves_a_bar_you_can_click_back():
@@ -84,11 +84,35 @@ def test_collapsing_the_stream_gives_the_column_to_the_terminal():
 
 def test_one_grip_shuts_whichever_pane_is_being_crushed():
     page = oneview.page(*ARGS, remote=False)
-    assert "if (h < col * opts.collapseBelow){ setPaneOpen(pane, false); return; }" in page
-    assert "if (h > col * (1 - opts.collapseBelow)){" in page
+    assert "if (h < shut){ setPaneOpen(pane, false, false); return; }" in page
+    assert "if (h > col - shut){ setPaneOpen(other, false, false); return; }" in page
 
 
 def test_a_collapsed_stream_keeps_a_heading_to_click_back():
     page = oneview.page(*ARGS, remote=False)
     assert '#stream[data-open="0"] h2{cursor:pointer;}' in page
     assert 'st.dataset.open === "0" && !e.target.closest("button")' in page
+
+
+def test_the_drag_does_not_write_to_storage_on_every_move():
+    """A JSON parse, stringify and synchronous localStorage write per mouse
+    move is what made the divider feel like it was chewing on something."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "function applyHeight(h, varName)" in page
+    assert "// One write, at the end, for everything the drag decided." in page
+
+
+def test_the_drag_measures_once_and_paints_on_a_frame():
+    """Reading layout inside a pointermove forces a reflow on every event,
+    against a size the same handler is changing."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "requestAnimationFrame(paint)" in page
+    assert "const col = pane ? pane.parentElement.getBoundingClientRect().height" in page
+
+
+def test_collapsing_has_hysteresis():
+    """One threshold means a hand resting on the line toggles many times a
+    second, which reads as the board flickering."""
+    page = oneview.page(*ARGS, remote=False)
+    assert "const reopen = shut * 1.6;" in page
+    assert "if (h > reopen) setPaneOpen(pane, true, false);" in page

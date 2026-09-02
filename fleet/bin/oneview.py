@@ -1470,25 +1470,35 @@ function dragGrip(grip, which){
 /* Open/closed for a collapsible pane, remembered. Collapsing is a real
    state, not a zero height: a pane squeezed to one pixel still runs its
    contents and still eats a poll. */
-function setPaneOpen(pane, open){
+function setPaneOpen(pane, open, save){
   if (!pane || pane.dataset.open === (open ? "1" : "0")) return;
   pane.dataset.open = open ? "1" : "0";
+  if (save !== false) saveLayout({[pane.id + "Open"]: open ? 1 : 0});
+  if (open && window.__fit) setTimeout(() => window.__fit.fit(), 0);
+}
+
+/* Applying a size and remembering it are different jobs at different rates.
+   A drag applies at pointer speed -- up to a couple of hundred events a
+   second -- and only needs to be remembered once, when the hand lets go.
+   Doing both together meant a JSON parse, a stringify and a synchronous
+   localStorage write per mouse move, which is what made the divider feel
+   like it was chewing on something. */
+function applyHeight(h, varName){
+  document.documentElement.style.setProperty(varName, h + "px");
+}
+
+function saveLayout(patch){
   try {
     const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
-    saved[pane.id + "Open"] = open ? 1 : 0;
+    Object.assign(saved, patch);
     localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
   } catch(e){}
-  if (open && window.__fit) setTimeout(() => window.__fit.fit(), 0);
 }
 
 function setHeight(h, varName, key){
   h = Math.max(80, Math.min(h, window.innerHeight - 200));
-  document.documentElement.style.setProperty(varName, h + "px");
-  try {
-    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
-    saved[key] = h;
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
-  } catch(e){}
+  applyHeight(h, varName);
+  saveLayout({[key]: h});
 }
 
 /* One drag for every horizontal divider. It was written for the single
@@ -1500,47 +1510,75 @@ function dragGripV(grip, varName, key, fallback, opts){
   opts = opts || {};
   // Which side of the grip the sized pane is on. --hArt sizes the pane BELOW
   // its grip, so dragging down shrinks it; --hTerm sizes the pane ABOVE, so
-  // dragging down grows it. One shared function was silently assuming the
-  // first, which is why the terminal divider felt like it fought the mouse.
+  // dragging down grows it. One shared function assumed the first case, which
+  // is why the terminal divider felt like it fought the mouse.
   const dir = opts.growsDown ? 1 : -1;
-  const pane = opts.pane ? $(opts.pane) : null;
+  const paneSel = opts.pane, otherSel = opts.other;
+
   grip.addEventListener("pointerdown", down => {
+    if (down.button) return;
     down.preventDefault();
+    const pane = paneSel ? $(paneSel) : null;
+    const other = otherSel ? $(otherSel) : null;
     grip.dataset.drag = "1";
     grip.setPointerCapture(down.pointerId);
+    document.body.style.userSelect = "none";
+
+    // Everything measured once. Reading layout inside a pointermove forces a
+    // synchronous reflow on every event, against a size we are ourselves
+    // changing -- the reading and the writing fight and the result stutters.
     const startY = down.clientY;
-    // Measure the pane, do not parse the variable. The default is "50%" and
-    // parseInt("50%") is 50, so the first drag snapped a half-height pane to
-    // fifty pixels. A rendered height is a fact; a CSS token is a string.
+    const col = pane ? pane.parentElement.getBoundingClientRect().height
+                     : window.innerHeight;
     const start = pane && pane.dataset.open !== "0"
       ? pane.getBoundingClientRect().height
       : (parseInt(getComputedStyle(document.documentElement)
                   .getPropertyValue(varName)) || fallback);
-    const move = m => {
-      const h = start + dir * (m.clientY - startY);
+    const shut = opts.collapseBelow ? col * opts.collapseBelow : 0;
+    // Hysteresis. One threshold means a hand resting on the line toggles the
+    // pane open and shut many times a second, which reads as the whole board
+    // flickering. Shut at a tenth, reopen only past a sixth.
+    const reopen = shut * 1.6;
+    let pending = null, frame = 0, last = start;
+
+    const paint = () => {
+      frame = 0;
+      let h = pending;
       if (pane && opts.collapseBelow){
-        const col = pane.parentElement.getBoundingClientRect().height;
-        if (h < col * opts.collapseBelow){ setPaneOpen(pane, false); return; }
-        setPaneOpen(pane, true);
-        // Past the far end, the pane BELOW is the one being crushed. Shut it
-        // and let this one have the column.
-        const other = opts.other ? $(opts.other) : null;
+        if (h < shut){ setPaneOpen(pane, false, false); return; }
+        if (h > reopen) setPaneOpen(pane, true, false);
         if (other){
-          if (h > col * (1 - opts.collapseBelow)){
-            setPaneOpen(other, false); return;
-          }
-          setPaneOpen(other, true);
+          if (h > col - shut){ setPaneOpen(other, false, false); return; }
+          if (h < col - reopen) setPaneOpen(other, true, false);
         }
       }
-      setHeight(h, varName, key);
+      h = Math.max(80, Math.min(h, col - 80));
+      last = h;
+      applyHeight(h, varName);
+      if (window.__fit) window.__fit.fit();
+    };
+
+    const move = m => {
+      pending = start + dir * (m.clientY - startY);
+      if (!frame) frame = requestAnimationFrame(paint);
     };
     const up = () => {
+      if (frame) cancelAnimationFrame(frame);
       delete grip.dataset.drag;
+      document.body.style.userSelect = "";
       grip.removeEventListener("pointermove", move);
       grip.removeEventListener("pointerup", up);
+      grip.removeEventListener("pointercancel", up);
+      // One write, at the end, for everything the drag decided.
+      const patch = {[key]: last};
+      if (pane) patch[pane.id + "Open"] = pane.dataset.open === "0" ? 0 : 1;
+      if (other) patch[other.id + "Open"] = other.dataset.open === "0" ? 0 : 1;
+      saveLayout(patch);
+      if (window.__fit) window.__fit.fit();
     };
     grip.addEventListener("pointermove", move);
     grip.addEventListener("pointerup", up);
+    grip.addEventListener("pointercancel", up);
   });
   grip.addEventListener("dblclick", () => setHeight(fallback, varName, key));
 }
