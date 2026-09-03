@@ -187,6 +187,14 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #credit .st.out{color:var(--warning);}
 #credit .st.hazy{color:var(--muted);}
 #credit .st.free{color:var(--info);}
+/* Six words is a lot for one column, and Marsita counted them: "Too many
+   options: DRY / unknown / has credits / free / absent... But maybe each of
+   them plays a role... We need to have full informational awareness."
+   They do each carry a different instruction, so the answer is not fewer
+   words -- it is saying what they mean, once, where they are used. */
+#credit .legend{padding:4px 7px 6px;color:var(--muted);font-size:9px;
+  line-height:1.7;border-top:1px solid var(--border);}
+#credit .legend b{color:var(--ink-2);font-weight:600;}
 #credit .st.idle{color:var(--muted);font-weight:400;}
 #credit .why{color:var(--muted);font-size:10px;}
 #credit .asof{padding:4px 6px;color:var(--muted);font-size:10px;}
@@ -535,7 +543,13 @@ function renderAgents(workers){ WORKERS = workers; }
    and the board showed nothing at all. Money is a fleet health metric. */
 function creditState(v){
   const n = v.quota_errors_24h || 0;
-  if (v.binary === false)      return ["idle", "not installed"];
+  // "not installed" only when nothing has actually answered. The NUC's ollama
+  // was serving a model list on 11434 while this row said absent, because a
+  // PATH lookup for the binary failed inside the systemd unit's environment
+  // and the binary check ran first (2026-09-03). A daemon that answers is
+  // stronger evidence than a `which` that does not.
+  if (v.binary === false && v.ok !== true)
+                               return ["idle", "not installed"];
   if (v.auth === "logged-out") return ["out",  "needs a login"];
   // "quota-shaped errors in last 24h" is how the pulse says it to itself.
   // On the board it should say the thing a person would say.
@@ -2151,6 +2165,14 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
       <div class="body">
         <table><tbody id="creditbody"></tbody></table>
         <div class="asof" id="creditasof"></div>
+        <div class="legend">
+          <b>DRY</b> spent, comes back on a schedule &middot;
+          <b>logged out</b> needs you at a keyboard &middot;
+          <b>unknown</b> no reading, only a healthy probe &middot;
+          <b>has credit</b> measured or on a plan &middot;
+          <b>free</b> runs here, never had a bill &middot;
+          <b>absent</b> nothing answered
+        </div>
       </div>
     </section>
 

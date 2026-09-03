@@ -49,3 +49,23 @@ def test_a_dry_vendor_is_amber_not_red():
     fleet routes around it unasked. Red is for what a person must act on."""
     assert "#credit .st.dry{color:var(--warning);}" in SRC
     assert "#credit .st.dry{color:var(--critical);}" not in SRC
+
+
+def test_a_daemon_that_answers_is_not_absent():
+    """The NUC's ollama was serving a model list on 11434 while the pane said
+    "absent", because a PATH lookup for the binary failed inside the systemd
+    unit's environment and the binary check ran first (2026-09-03)."""
+    body = SRC.split("function creditState(")[1].split("\n}")[0]
+    assert "v.binary === false && v.ok !== true" in body
+    assert "if (v.binary === false)      return" not in body
+
+
+def test_every_word_the_column_can_print_is_explained():
+    """Marsita counted six states and asked for "full informational
+    awareness" rather than fewer words -- each carries a different
+    instruction, so the pane says what they mean where they are used."""
+    import re
+    words = re.findall(r'"([a-z ]+)"', SRC.split("CREDIT_WORD")[1].split("}")[0])
+    legend = SRC.split('class="legend"')[1].split("</div>")[0]
+    for w in words:
+        assert w in legend, f"{w!r} is printed but never explained"
