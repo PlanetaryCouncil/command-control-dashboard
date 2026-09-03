@@ -1043,13 +1043,19 @@ def serve(port):
                 return
 
             if path == "/intro":
-                # The human-facing page. It lived at `/` for a day, and
-                # Marsita's own habit settled it: "I'm more familiar with
-                # fleet as a home, not the focus." The board is home; this
-                # is the page you send someone.
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import homeview
-                self._send(homeview.page(remote=self._remote()).encode())
+                # Retired 2026-09-03. It was written as "the page you send
+                # someone", but the board grew a FIRST CONTACT banner, a
+                # welcome row and a goal chain of its own, and /about already
+                # explains the system in plain language. What was left was a
+                # second copy of the dashboard with a join box on top.
+                # Marsita: "it does nothing other than duplicating dashboard".
+                #
+                # A redirect rather than a 404: the path is in the wild, in
+                # old messages and in whatever a visitor bookmarked, and a
+                # dead link is a worse answer than the right page.
+                self.send_response(301)
+                self.send_header("Location", "/about")
+                self.end_headers()
                 return
 
             if path in ("/", "/fleet", "/one", "/index.html"):

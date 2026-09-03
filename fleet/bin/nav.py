@@ -22,7 +22,6 @@ stay where they belong on their own page — this is navigation only.
 # they actually relate is parked in the freezer-of-ideas repo.
 PAGES = [
     ("/", "fleet"),
-    ("/intro", "intro"),
     ("/hi", "send a message"),
     ("https://planetarycouncil.github.io/selfie-gallery/", "send a selfie"),
     ("/chat", "chat"),

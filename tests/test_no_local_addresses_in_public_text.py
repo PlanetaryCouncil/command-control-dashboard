@@ -89,7 +89,7 @@ def test_llms_txt_names_no_local_address():
 
 def test_the_homepage_names_no_local_address():
     spec = importlib.util.spec_from_file_location(
-        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
+        "homeview", ROOT / "fleet" / "dormant" / "homeview.py")
     homeview = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(homeview)
     html = homeview.page(remote=True)
@@ -151,7 +151,7 @@ def test_the_framing_stays_calm():
     sys.path.insert(0, str(ROOT / "legacy"))
     from app.main import llms_txt          # noqa: PLC0415
     spec = importlib.util.spec_from_file_location(
-        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
+        "homeview", ROOT / "fleet" / "dormant" / "homeview.py")
     homeview = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(homeview)
 
@@ -194,7 +194,7 @@ def test_public_copy_does_not_promise_a_human_reviewer():
     sys.path.insert(0, str(ROOT / "legacy"))
     from app.main import llms_txt          # noqa: PLC0415
     spec = importlib.util.spec_from_file_location(
-        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
+        "homeview", ROOT / "fleet" / "dormant" / "homeview.py")
     homeview = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(homeview)
 

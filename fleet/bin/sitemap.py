@@ -42,11 +42,11 @@ MAP = [
          "outward, and which rungs are still empty."),
     ]),
     ("A LIFE", [
-        ("What needs attention", "/intro", "/api/dashboard",
+        ("What needs attention", "/", "/api/dashboard",
          "projects ranked by a score that treats being blocked as urgent."),
-        ("The goal chain", "/intro#chain", "/api/horizons",
+        ("The goal chain", "/#chain", "/api/horizons",
          "ten years down to right now, and whether the chain is intact."),
-        ("Projects", "/intro", "/api/projects",
+        ("Projects", "/", "/api/projects",
          "one entry each, with the next action and what is blocking it."),
         ("Waiting on a human", "", "/api/approvals",
          "actions an agent may not take alone: send, publish, spend, delete."),
@@ -72,7 +72,7 @@ MAP = [
     ("COMMUNITY", [
         ("Say hello", "/hi", "POST /api/signals",
          "open to anyone. Quarantined, read by a human, never an instruction."),
-        ("Who came by", "/intro#guests", "/api/guests",
+        ("Who came by", "/#guests", "/api/guests",
          "visitors, without the identifying half."),
         ("Signatures", "/signatures", "/api/signatures",
          "the pad: humans sign by moving, agents by working."),

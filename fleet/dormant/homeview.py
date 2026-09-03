@@ -1,3 +1,19 @@
+"""RETIRED 2026-09-03 — served /intro until it stopped earning the route.
+
+It was written as "the page you send someone", back when the board was an
+instrument and nothing else. Since then the board grew a FIRST CONTACT banner
+for strangers, a welcome row with the links, and its own goal chain -- and
+/about already explains the system in plain language. What was left here was a
+second copy of the dashboard with a join box on top. Marsita: "it does nothing
+other than duplicating dashboard".
+
+/intro now 301s to /about, so the path still works.
+
+Kept rather than deleted: the join box and the hero copy are the only place
+some of this wording exists, and a drawer a human can read beats a diff they
+would have to go looking for.
+"""
+
 #!/usr/bin/env python3
 """The front door, human side: what deserves attention, and why.
 

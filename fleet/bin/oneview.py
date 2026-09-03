@@ -1962,7 +1962,7 @@ WELCOME_LEAD = ("<b>The Singularity Engineering Fleet.</b> Not an AI uprising "
 WELCOME_TMPL = """<div id="welcome" style="display:flex;align-items:center;gap:10px;
   padding:7px 12px;background:var(--raised);border-bottom:1px solid var(--border);
   font-family:var(--mono);font-size:11px">
-  <span>{lead}<a href='/intro' style='color:var(--info)'>what this is</a> &middot;
+  <span>{lead}<a href='/about' style='color:var(--info)'>what this is</a> &middot;
   <a href='/hi' style='color:var(--info)'>say hi</a> &middot;
   <a href='https://planetarycouncil.github.io/selfie-gallery/'
      style='color:var(--info)'>the gallery</a> &middot;

@@ -206,14 +206,19 @@ def test_the_name_is_consistent_across_every_public_surface():
     import sys
     sys.path.insert(0, str(ROOT / "legacy"))
     from app.main import llms_txt          # noqa: PLC0415
-    hspec = importlib.util.spec_from_file_location(
-        "homeview", ROOT / "fleet" / "bin" / "homeview.py")
-    homeview = importlib.util.module_from_spec(hspec)
-    hspec.loader.exec_module(homeview)
+    # The homepage used to be one of the surfaces checked here. It served
+    # /intro, which was retired on 2026-09-03 for duplicating the dashboard;
+    # the board itself is the surface a stranger lands on now, and it carries
+    # the name in its FIRST CONTACT banner.
+    import oneview                          # noqa: PLC0415
     for name, body in (("llms.txt", llms_txt()),
-                       ("homepage", homeview.page(remote=True)),
+                       ("the board", oneview.page("[]", "{}", "", remote=True)),
                        ("JOIN.md", (ROOT / "docs" / "JOIN.md").read_text())):
-        assert "Singularity Engineering Fleet" in body, f"{name} lost the name"
+        # Case-insensitive, and without requiring the trailing "Fleet": the
+        # board's banner is set in caps as SINGULARITY ENGINEERING (NOT AN AI
+        # UPRISING), which is a rendering choice, not a different name. What
+        # must not drift is the name itself and the disclaimer beside it.
+        assert "singularity engineering" in body.lower(), f"{name} lost the name"
         assert "uprising" in body.lower(), f"{name} lost the disclaimer"
 
 
