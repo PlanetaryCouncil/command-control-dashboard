@@ -4,7 +4,21 @@ set -uo pipefail
 
 FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIST="$FLEET/projects.txt"
-[[ -f "$LIST" ]] || { echo "no projects.txt"; exit 1; }
+# projects.txt is gitignored on purpose -- it holds absolute paths and those
+# differ per machine. The consequence was that a NEW machine got no list, the
+# script exited 1 on this line every hour, and systemd showed a permanently
+# failed unit that nobody looked at. The NUC ran without watchdogs from the
+# day it was re-cloned until 2026-09-03.
+#
+# A machine running the fleet always has at least the fleet's own repo, and
+# that repo has a test suite. So default to it and say so, rather than
+# failing in a way that only shows up in `systemctl --failed`.
+if [[ ! -f "$LIST" ]]; then
+  SELF="$(cd "$FLEET/.." && pwd)"
+  echo "no projects.txt -- defaulting to this repo: $SELF"
+  printf '# Written automatically on first run, %s.\n# Add other repos with a test suite, one absolute path per line.\n%s\n' \
+    "$(date -u +%Y-%m-%d)" "$SELF" > "$LIST"
+fi
 PY="${PY:-$FLEET/../.venv/bin/python3}"
 if ! "$PY" -c "import sys; sys.path.insert(0, '$FLEET/bin'); import heavygate; raise SystemExit(0 if heavygate.enabled() else 1)"; then
   echo "watchdog deferred — heavy work off on this machine"
