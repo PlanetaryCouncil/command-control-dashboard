@@ -1123,6 +1123,14 @@ def serve(port):
                 self._send(poems.as_json().encode(), "application/json")
                 return
 
+            if path == "/commits":
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import nav, work
+                self._send(work.page(nav.html("/commits",
+                                              remote=self._remote()),
+                                     nav.CSS).encode())
+                return
+
             if path == "/poems":
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import nav, poems

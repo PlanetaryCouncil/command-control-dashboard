@@ -77,3 +77,83 @@ def test_a_directory_that_is_not_a_repo_reports_empty(tmp_path, monkeypatch):
     d = work.snapshot(local=True)
     assert d["branch"] == "?"
     assert d["recent"] == [] and d["today"] == [] and d["hot"] == []
+
+
+# --------------------------------------------------------------- the log page
+def _commit(tmp_path, subject, body=""):
+    msg = subject + ("\n\n" + body if body else "")
+    (tmp_path / "f.txt").write_text(subject + "\n")
+    subprocess.run(("git", "add", "-A"), cwd=tmp_path, check=True,
+                   capture_output=True)
+    subprocess.run(("git", "commit", "-qm", msg), cwd=tmp_path, check=True,
+                   capture_output=True)
+
+
+def test_the_body_survives_and_the_trailers_do_not(tmp_path, monkeypatch):
+    """A commit body is the reasoning; a trailer is addressing."""
+    _repo(tmp_path)
+    monkeypatch.setattr(work, "REPO", tmp_path)
+    _commit(tmp_path, "a subject",
+            "First paragraph of why.\n\nSecond paragraph.\n\n"
+            "Co-Authored-By: Someone <x@example.com>\n"
+            "Claude-Session: https://example.com/s")
+    c = work.log(1)[0]
+    assert c["subject"] == "a subject"
+    assert c["body"] == ["First paragraph of why.", "Second paragraph."]
+
+
+def test_a_mid_sentence_colon_is_not_a_trailer(tmp_path, monkeypatch):
+    """The regression that shipped a sentence nobody wrote.
+
+    git hard-wraps at 72 columns, so a wrapped line can begin "knows: branch,
+    unpushed count, ..." — which matches a naive trailer pattern. Dropping it
+    rendered "git already files you kept going back to this week": grammatical,
+    confident, and never written by anyone.
+    """
+    _repo(tmp_path)
+    monkeypatch.setattr(work, "REPO", tmp_path)
+    _commit(tmp_path, "s",
+            "So read git, not a status file. git already\n"
+            "knows: branch, unpushed count, and what landed today.\n\n"
+            "Co-Authored-By: Someone <x@example.com>")
+    body = " ".join(work.log(1)[0]["body"])
+    assert "knows: branch, unpushed count, and what landed today." in body
+    assert "Co-Authored-By" not in body
+
+
+def test_prose_that_opens_with_a_capitalised_word_and_colon_is_kept(
+        tmp_path, monkeypatch):
+    """A last paragraph is only trailers if EVERY line in it is one."""
+    _repo(tmp_path)
+    monkeypatch.setattr(work, "REPO", tmp_path)
+    _commit(tmp_path, "s", "Note: this still matters, and it is the point.")
+    assert work.log(1)[0]["body"] == [
+        "Note: this still matters, and it is the point."]
+
+
+def test_each_commit_carries_the_files_it_touched(tmp_path, monkeypatch):
+    _repo(tmp_path)
+    monkeypatch.setattr(work, "REPO", tmp_path)
+    _commit(tmp_path, "touches one file")
+    assert work.log(1)[0]["files"] == ["f.txt"]
+
+
+def test_the_page_renders_without_a_github_remote(tmp_path, monkeypatch):
+    """No remote means shas as plain text, never a missing page."""
+    _repo(tmp_path)
+    monkeypatch.setattr(work, "REPO", tmp_path)
+    assert work.origin_web() == ""
+    html = work.page()
+    assert "first" in html
+    assert 'href="/commit/' not in html      # no half-built links
+
+
+def test_a_remote_not_called_origin_still_links(tmp_path, monkeypatch):
+    """This repo's remote is `GitHub_priv`; only knowing `origin` links nothing."""
+    _repo(tmp_path)
+    monkeypatch.setattr(work, "REPO", tmp_path)
+    subprocess.run(("git", "remote", "add", "GitHub_priv",
+                    "git@github.com:PlanetaryCouncil/x.git"),
+                   cwd=tmp_path, check=True, capture_output=True)
+    assert work.origin_web() == "https://github.com/PlanetaryCouncil/x"
+    assert "https://github.com/PlanetaryCouncil/x/commit/" in work.page()

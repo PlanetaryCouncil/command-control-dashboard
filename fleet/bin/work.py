@@ -19,6 +19,7 @@ the unfinished stuff stays home.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -143,6 +144,223 @@ def _hot_files() -> list[dict]:
             counts[p] = counts.get(p, 0) + 1
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     return [{"path": p, "touches": n} for p, n in ranked[:HOT_TOP]]
+
+
+# --------------------------------------------------------------- the log page
+# Same palette as /poems so the two read as one site. Wider than the poem page
+# because a commit body is prose in paragraphs, not a couplet.
+CSS = """
+:root{
+  --ground:#0d0f12; --surface:#15181d; --raised:#1c2027; --border:#262b33;
+  --ink:#eef1f4; --ink-2:#b6bec9; --muted:#7c8794; --info:#5b93d6;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.55}
+.wrap{max-width:46rem;margin:0 auto;padding:1.4rem 1.2rem 4rem}
+header{display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-start;
+  margin-bottom:1.4rem}
+h1{margin:0;font-size:1.6rem;font-weight:600}
+.lede{color:var(--ink-2);margin:.4rem 0 0;max-width:52ch}
+a{color:var(--info)}
+/* The day heading is the spine of the page. Sticky, because scrolling a
+   fortnight of commits without one leaves you with no idea when you are. */
+.day{position:sticky;top:0;background:var(--ground);z-index:1;
+  display:flex;align-items:baseline;gap:.6rem;
+  margin:2rem 0 .2rem;padding:.5rem 0 .35rem;
+  border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:.82rem;font-weight:600;
+  letter-spacing:.08em;color:var(--ink-2)}
+.day .cnt{font-weight:400;color:var(--muted);font-size:.72rem}
+.c{border-bottom:1px solid var(--border);padding:.9rem 0}
+.c:last-child{border-bottom:0}
+/* The subject is the headline. These commit subjects are sentences, so they
+   are set as prose rather than as monospace log lines. */
+.c h3{margin:0;font-size:1.02rem;font-weight:600;line-height:1.35}
+.c p{margin:.5rem 0 0;color:var(--ink-2);font-size:.92rem}
+.c .meta{margin:.3rem 0 0;font-family:var(--mono);font-size:.72rem;
+  color:var(--muted);letter-spacing:.04em}
+.sha{font-family:var(--mono)}
+details{margin:.6rem 0 0}
+summary{cursor:pointer;font-family:var(--mono);font-size:.72rem;
+  color:var(--muted)}
+details ul{margin:.4rem 0 0;padding-left:1.1rem}
+details li{font-family:var(--mono);font-size:.74rem;color:var(--ink-2)}
+.empty{color:var(--ink-2)}
+"""
+
+
+
+PAGE_N = 120
+
+# github.com/x/y from any of the forms git stores a remote in. Used only to
+# build a link; a repo with no GitHub remote renders the same page with the
+# shas as plain text rather than dropping the page.
+_GH = re.compile(r"github\.com[:/]+([^/\s]+)/([^/\s]+?)(?:\.git)?/?$")
+
+
+def origin_web() -> str:
+    """The https GitHub URL for this checkout, or "" if there is none.
+
+    Not just `origin`: this repo's remote is called `GitHub_priv`, and a
+    function that only knows the conventional name silently renders every sha
+    as dead plain text. Try origin first, then any remote that looks like
+    GitHub.
+    """
+    for name in ["origin"] + _git("remote").split():
+        m = _GH.search(_git("remote", "get-url", name))
+        if m:
+            return f"https://github.com/{m.group(1)}/{m.group(2)}"
+    return ""
+
+
+def log(n: int = PAGE_N) -> list[dict]:
+    """The last `n` commits with subject, body and the files each touched.
+
+    The body matters here in a way it does not in most repos: these commits
+    explain *why*, and a subject line alone throws that away. The page is for
+    reading, not for `git log --oneline` in a browser.
+    """
+    sep, fsep = "\x1e", "\x1f"
+    out = _git("log", f"-{n}", "--no-merges",
+               f"--format={sep}%h{fsep}%cI{fsep}%an{fsep}%s{fsep}%b{fsep}",
+               "--name-only")
+    rows = []
+    for chunk in out.split(sep):
+        if not chunk.strip():
+            continue
+        # Exactly five separators were emitted, so the file list is whatever
+        # follows the fifth. Splitting with a cap keeps a body that somehow
+        # contains the separator from stealing the file list.
+        parts = chunk.split(fsep, 4)
+        if len(parts) < 5:
+            continue
+        sha, at, author, subject = parts[0], parts[1], parts[2], parts[3]
+        tail = parts[4].split(fsep, 1)
+        body_text = tail[0]
+        files = [f.strip() for f in tail[1].split("\n") if f.strip()] if len(tail) > 1 else []
+        rows.append({"sha": sha, "at": at, "author": author,
+                     "subject": subject, "body": _paragraphs(body_text),
+                     "files": files})
+    return rows
+
+
+# Trailers are addressing and provenance, not reasoning. They belong in the
+# commit and not on a page someone is reading to find out what changed.
+#
+# Two conditions, because one is not enough. The key must be capitalised
+# (Co-Authored-By, Claude-Session) AND the line must be in the final block of
+# the message, where trailers live by convention. Matching on the colon alone
+# deleted "knows: branch, unpushed count, ..." from the middle of a sentence
+# and the page rendered "git already files you kept going back to this week" —
+# a sentence that was never written, presented as if it had been.
+_TRAILER = re.compile(r"^[A-Z][A-Za-z]*(?:-[A-Za-z]+)*:\s")
+
+
+def _paragraphs(body: str) -> list[str]:
+    """Blank-line-separated paragraphs, rewrapped, trailers dropped.
+
+    git hard-wraps a commit body at 72 columns. Rendering those as separate
+    lines in a browser gives a ragged column harder to read than the terminal
+    it came from, so each paragraph is rejoined and the browser wraps it.
+    """
+    blocks, cur = [], []
+    for line in body.split("\n"):
+        t = line.strip()
+        if t:
+            cur.append(t)
+        elif cur:
+            blocks.append(cur)
+            cur = []
+    if cur:
+        blocks.append(cur)
+    if not blocks:
+        return []
+
+    # Only the last block may be trailers, only if every line in it is one,
+    # and never if it is the only block. A body that is a single paragraph
+    # opening "Note: ..." is the whole reasoning of the commit, and deleting
+    # it leaves the page silent about a change that was explained. Rendering
+    # a stray trailer is a much cheaper mistake than that.
+    if len(blocks) > 1 and all(_TRAILER.match(x) for x in blocks[-1]):
+        blocks = blocks[:-1]
+    return [" ".join(b) for b in blocks]
+
+
+def _day(iso: str) -> str:
+    return iso[:10] if iso else ""
+
+
+def page(nav_html: str = "", nav_css: str = "") -> str:
+    """The commits page.
+
+    Marsita: "I'm not watching commits though... maybe if they are here I'll
+    see them more." So this is not `git log` in a browser — it is a changelog.
+    Grouped by day with a count, subject as the headline, the reasoning
+    underneath, and the files folded away behind a disclosure so the prose is
+    what you see first.
+    """
+    import html as _h
+    import nav
+
+    rows = log()
+    base = origin_web()
+    if rows:
+        out, day = [], None
+        for c in rows:
+            d = _day(c["at"])
+            if d != day:
+                day = d
+                same = sum(1 for x in rows if _day(x["at"]) == d)
+                out.append(f'<h2 class="day">{_h.escape(d)}'
+                           f'<span class="cnt">{same} commit'
+                           f'{"" if same == 1 else "s"}</span></h2>')
+            sha = _h.escape(c["sha"])
+            link = (f'<a class="sha" href="{base}/commit/{sha}">{sha}</a>'
+                    if base else f'<span class="sha">{sha}</span>')
+            body = "".join(f"<p>{_h.escape(b)}</p>" for b in c["body"])
+            files = ""
+            if c["files"]:
+                items = "".join(f"<li>{_h.escape(f)}</li>" for f in c["files"])
+                files = (f'<details><summary>{len(c["files"])} file'
+                         f'{"" if len(c["files"]) == 1 else "s"}</summary>'
+                         f'<ul>{items}</ul></details>')
+            out.append(
+                f'<article class="c">'
+                f'<h3>{_h.escape(c["subject"])}</h3>'
+                f'<p class="meta">{link} · {_h.escape(c["at"][11:16])}'
+                f' · {_h.escape(c["author"])}</p>'
+                f'{body}{files}</article>')
+        inner = "\n".join(out)
+    else:
+        inner = '<p class="empty">No commits found. This is not a git checkout.</p>'
+
+    repo_link = (f' Source: <a href="{base}">{_h.escape(base)}</a>.'
+                 if base else "")
+    return f"""<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{nav.title("commits")}</title>
+<!-- agents: /llms.txt -->
+<link rel="alternate" type="application/json" href="/api/work" title="work.json">
+<style>{nav_css}{CSS}</style>
+</head><body>
+<div class="wrap">
+  <header>
+    {nav_html}
+    <div>
+      <h1>commits</h1>
+      <p class="lede">What actually changed, newest first &mdash; the reasoning
+        as written, not just the subject line.{repo_link}
+        Live state: <a href="/api/work">/api/work</a></p>
+    </div>
+  </header>
+  {inner}
+</div>
+</body></html>"""
 
 
 def snapshot(local: bool = False) -> dict:

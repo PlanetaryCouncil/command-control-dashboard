@@ -2330,6 +2330,15 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="https://demo.basex.com" title="BaseX, the deployment half — the live demo. Break it and say what broke: that is the most useful thing anyone can do here right now.">basex demo &mdash; try it</a>
     <a href="https://github.com/basexhq" title="BaseX's source.">&#8627; github.com/basexhq</a>
     <a href="/report" title="What the fleet did in the last 24 hours — agents, proposals, branches, merges and mistakes. JSON, Markdown or HTML.">daily report</a>
+    <!-- Next to the daily report because they answer the same question at two
+         scales: the report is what the fleet did overnight, this is what the
+         code did. Marsita does not watch commits, and a thing you have to go
+         to a terminal for is a thing you do not see.
+         `commits` goes to GitHub, as asked -- that is where commits live and
+         where they can be shared. `changelog` is the local reading of the
+         same history, with the reasoning set as prose. -->
+    <a href="https://github.com/PlanetaryCouncil/command-control-dashboard/commits/main" title="Every commit on main, on GitHub.">commits</a>
+    <a href="/commits" title="The same history read as a changelog: subject, the reasoning as written, and the files, grouped by day.">changelog</a>
   </section>
   <section>
     <h3>repos</h3>

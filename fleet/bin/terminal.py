@@ -197,6 +197,10 @@ class Session:
         self.resize(cols, rows)
         self.alive = True
         self.why = ""                          # filled in when it dies
+        # Whether tmux owns the screen. When it does, tmux can be asked to
+        # repaint it, which is a far better answer on reattach than replaying
+        # our own byte log -- see `repaint`.
+        self.tmux_name = name if tmux_bin() else ""
         # Everything the session has said recently, so a browser that arrives
         # late can be shown the room it walked into. Raw bytes, not lines:
         # this is a terminal stream, and cutting it on newlines would split
@@ -223,6 +227,27 @@ class Session:
                     del self.buf[:-SCROLLBACK]
                 for q in list(self.watchers):
                     q.append(data)
+
+    def repaint(self) -> bool:
+        """Ask tmux to redraw the current screen. True if it was asked.
+
+        `self.buf` is a raw byte log, not a snapshot: it holds every redraw
+        the session has ever emitted. Replaying it does not restore the
+        screen, it re-renders the whole history -- so a reattached page showed
+        the same conversation stacked several times over, two status bars and
+        all, and live output then landed somewhere the reader was not looking
+        (2026-09-03: "I need to reload the browser tab with every message").
+
+        tmux already holds the one true screen. Ask it, and get exactly one.
+        """
+        if not self.tmux_name:
+            return False
+        try:
+            subprocess.run([tmux_bin(), "refresh-client", "-t",
+                            self.tmux_name], capture_output=True, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return True
 
     def subscribe(self) -> tuple[bytes, list]:
         """The scrollback so far, plus a queue that receives what comes next."""
@@ -438,10 +463,27 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
     stop = threading.Event()
 
     backlog, queue = session.subscribe()
+    # Two ways to show an arriving page the room it walked into, and only one
+    # of them is right when tmux is behind the session.
+    #
+    # The byte log is a LOG, not a snapshot -- it is every redraw the session
+    # ever emitted. Replaying it re-renders the whole history: the same
+    # conversation painted several times down the page, two tmux status bars,
+    # and a cursor left wherever the last replayed frame put it, so live output
+    # arrived off-screen and the page looked frozen until you reloaded it.
+    #
+    # tmux holds the real screen, so ask it to draw that instead. Clear what
+    # the browser has first, or the repaint lands on top of the old frame.
+    # Without tmux there is nothing to ask, and the log is all we have.
     try:
         _send(sock, json.dumps({"t": "attached", "resumed": resumed,
                                 "bytes": len(backlog)}).encode(), opcode=0x1)
-        if backlog:
+        if session.tmux_name:
+            _send(sock, b"\x1b[H\x1b[2J\x1b[3J", opcode=0x2)
+            # The repaint itself waits for the browser's first resize: drawing
+            # now would draw at whatever size the last viewer had, and the new
+            # page would get a screen laid out for someone else's window.
+        elif backlog:
             _send(sock, backlog, opcode=0x2)      # the room, as you left it
     except OSError:
         session.unsubscribe(queue)
@@ -472,6 +514,7 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
     t = threading.Thread(target=pump_out, daemon=True)
     t.start()
 
+    first_resize = True
     try:
         while not stop.is_set():
             frame = _recv_frame(sock)
@@ -490,6 +533,13 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
                     continue
                 if msg.get("t") == "resize":
                     session.resize(int(msg.get("cols", 120)), int(msg.get("rows", 32)))
+                    # tmux sizes a window to its smallest client and redraws on
+                    # its own schedule, so the first resize from a new page is
+                    # the moment its screen is finally the right shape. Ask for
+                    # the repaint here, once.
+                    if first_resize and session.tmux_name:
+                        first_resize = False
+                        session.repaint()
                 elif msg.get("t") == "input":
                     session.write(str(msg.get("d", "")).encode())
             elif opcode == 0x2:                    # binary: keystrokes
