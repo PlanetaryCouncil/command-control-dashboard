@@ -1042,6 +1042,23 @@ def serve(port):
                 self._forward(path)
                 return
 
+            if path in ("/report", "/report.json", "/report.md"):
+                # Public on purpose. The whole argument for this board is
+                # that a stranger can check it, and a summary only the
+                # operator can read is a summary that never gets checked.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import report as _report
+                d = _report.collect()
+                if path == "/report.json":
+                    self._send(json.dumps(d, indent=2).encode(),
+                               "application/json")
+                elif path == "/report.md":
+                    self._send(_report.as_markdown(d).encode(),
+                               "text/markdown; charset=utf-8")
+                else:
+                    self._send(_report.as_html(d).encode())
+                return
+
             if path == "/intro":
                 # Retired 2026-09-03. It was written as "the page you send
                 # someone", but the board grew a FIRST CONTACT banner, a

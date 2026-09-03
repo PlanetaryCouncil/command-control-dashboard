@@ -18,7 +18,7 @@ PY="$REPO/.venv/bin/python3"
 [[ -f "$CFG" ]] || { echo "no config.json at $CFG"; exit 1; }
 python3 -c "import json;json.load(open('$CFG'))" || { echo "config.json is not valid JSON"; exit 1; }
 
-read -r HB_EVERY HB_AGENTS HB_LAPS WD_EVERY SI_H SI_M CO_EVERY CO_AGENTS CO_ROUNDS E2_H E2_M RO_EVERY RO_AGENTS PL_EVERY BM_EVERY LV_H LV_M <<<"$(python3 - "$CFG" <<'PY'
+read -r HB_EVERY HB_AGENTS HB_LAPS WD_EVERY SI_H SI_M CO_EVERY CO_AGENTS CO_ROUNDS E2_H E2_M RO_EVERY RO_AGENTS PL_EVERY BM_EVERY LV_H LV_M RP_H RP_M <<<"$(python3 - "$CFG" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1]))
 hb = c["heartbeat"]
@@ -34,7 +34,9 @@ print(hb["every_seconds"], ",".join(hb["agents"]), hb.get("laps", 1),
       c.get("pipeline", {}).get("every_seconds", 7200),
       c.get("board_medic", {}).get("every_seconds", 300),
       c.get("local_voice", {}).get("at_hour", 6),
-      c.get("local_voice", {}).get("at_minute", 15))
+      c.get("local_voice", {}).get("at_minute", 15),
+      c.get("report", {}).get("at_hour", 19),
+      c.get("report", {}).get("at_minute", 0))
 PY
 )"
 
@@ -117,12 +119,15 @@ unit heartbeat   "Fleet comms heartbeat"  "$(every "$HB_EVERY")"  "$PY" "$FLEET/
 unit e2e         "Fleet end-to-end tests" "$(daily "$E2_H" "$E2_M")" "$PY" "$FLEET/bin/e2e.py"
 unit local-voice "Fleet local voice"      "$(daily "$LV_H" "$LV_M")" "$PY" "$FLEET/bin/localvoice.py"
 unit self-improve "Self-improvement loop" "$(daily "$SI_H" "$SI_M")" /bin/bash "$REPO/self-improve/loop/run-cycle.sh"
+unit report      "Fleet daily report"     "$(daily "$RP_H" "$RP_M")" /bin/bash "$FLEET/bin/publish-report.sh"
 
 systemctl --user daemon-reload
 # The sitting set. Writing units without enabling them is how NUC served
 # the board for weeks while running none of the fleet. Load and quota
 # pulse live on board-medic.
-SITTING="rota council heartbeat board-medic pipeline watchdogs"
+# report sits too: a summary that is written but never scheduled is a
+# summary of the one day someone remembered to run it.
+SITTING="rota council heartbeat board-medic pipeline watchdogs report"
 for name in $SITTING; do
   systemctl --user enable --now "fleet-$name.timer" >/dev/null
   echo "  enabled fleet-$name.timer"

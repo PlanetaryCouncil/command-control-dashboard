@@ -2223,9 +2223,17 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </section>
   <section>
     <h3>the partnership</h3>
+    <!-- Each site paired with the org that builds it. A claim about building
+         a civilisation is cheap; the source is the part that can be checked,
+         and all three orgs were verified against the GitHub API rather than
+         copied from a note (2026-09-03). -->
     <a href="https://planetarycouncil.org" title="Where things are decided. The council, the goals, this fleet.">planetary council</a>
+    <a href="https://github.com/PlanetaryCouncil" title="The council's source. 28 public repositories, this board among them.">&#8627; github.com/PlanetaryCouncil</a>
     <a href="https://independenttribunal.org" title="Where decisions are contested. The other half of deciding anything.">independent tribunal</a>
+    <a href="https://github.com/independenttribunal" title="The tribunal's source.">&#8627; github.com/independenttribunal</a>
     <a href="https://demo.basex.com" title="BaseX, the deployment half — the live demo. Break it and say what broke: that is the most useful thing anyone can do here right now.">basex demo &mdash; try it</a>
+    <a href="https://github.com/basexhq" title="BaseX's source.">&#8627; github.com/basexhq</a>
+    <a href="/report" title="What the fleet did in the last 24 hours — agents, proposals, branches, merges and mistakes. JSON, Markdown or HTML.">daily report</a>
   </section>
   <section>
     <h3>repos</h3>

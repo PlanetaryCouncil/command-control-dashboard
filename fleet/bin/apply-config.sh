@@ -17,7 +17,7 @@ PATH_LINE="/Users/$USER/.local/bin:/opt/homebrew/bin:/usr/local/opt/node@22/bin:
 [[ -f "$CFG" ]] || { echo "no config.json at $CFG"; exit 1; }
 python3 -c "import json,sys; json.load(open('$CFG'))" || { echo "config.json is not valid JSON"; exit 1; }
 
-read -r HB_EVERY HB_AGENTS HB_LAPS WD_EVERY SI_H SI_M CO_EVERY CO_AGENTS CO_ROUNDS E2_H E2_M RO_EVERY RO_AGENTS PL_EVERY BM_EVERY LV_H LV_M <<<"$(python3 - "$CFG" <<'PY'
+read -r HB_EVERY HB_AGENTS HB_LAPS WD_EVERY SI_H SI_M CO_EVERY CO_AGENTS CO_ROUNDS E2_H E2_M RP_H RP_M RO_EVERY RO_AGENTS PL_EVERY BM_EVERY LV_H LV_M <<<"$(python3 - "$CFG" <<'PY'
 import json, sys
 c = json.load(open(sys.argv[1]))
 hb = c["heartbeat"]
@@ -28,6 +28,8 @@ print(hb["every_seconds"], ",".join(hb["agents"]), hb.get("laps", 1),
       ",".join(c.get("council", {}).get("agents", ["claude", "hermes"])),
       c.get("council", {}).get("rounds", 2),
       c.get("e2e", {}).get("at_hour", 5), c.get("e2e", {}).get("at_minute", 30),
+      c.get("report", {}).get("at_hour", 19),
+      c.get("report", {}).get("at_minute", 0),
       c.get("rota", {}).get("every_seconds", 3600),
       ",".join(c.get("rota", {}).get("agents", ["claude", "hermes", "openclaw"])),
       c.get("pipeline", {}).get("every_seconds", 7200),
@@ -113,6 +115,12 @@ write_plist re.genesis.local-voice \
   "    <key>StartCalendarInterval</key>
     <dict><key>Hour</key><integer>$LV_H</integer><key>Minute</key><integer>$LV_M</integer></dict>" \
   "$PY" "$FLEET/bin/localvoice.py"
+
+# The day's summary, published to this repo's own Pages. Gaia runs it rather
+# than the NUC because Gaia is the box with the push credentials.
+write_plist re.genesis.report \
+  "<key>StartCalendarInterval</key><dict><key>Hour</key><integer>$RP_H</integer><key>Minute</key><integer>$RP_M</integer></dict>" \
+  /bin/bash "$FLEET/bin/publish-report.sh"
 
 write_plist re.genesis.e2e \
   "    <key>StartCalendarInterval</key>
