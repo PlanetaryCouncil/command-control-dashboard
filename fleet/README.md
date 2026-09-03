@@ -24,9 +24,6 @@ the worker reports `skip` rather than inventing one.
 Two of your projects are deliberately not listed:
 
 - `~/projects/basexHQ` — only `DOCTRINE.md`; no code or tests to run.
-- `~/projects/command-control-dashboard` — has real tests, but is not a git repo,
-  so findings can't be anchored to a commit and no fix branch can be proposed.
-  `git init` there and it becomes eligible.
 
 ## How workers report
 

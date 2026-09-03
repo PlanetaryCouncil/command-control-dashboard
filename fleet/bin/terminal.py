@@ -35,8 +35,10 @@ import pathlib
 import pty
 import re
 import select
+import shutil
 import signal
 import struct
+import subprocess
 import termios
 import threading
 import time
@@ -135,6 +137,43 @@ def has_prior_session(cwd: str) -> bool:
         return False
 
 
+def tmux_bin() -> str:
+    """tmux, if this machine has it. Empty string otherwise."""
+    return shutil.which("tmux") or ""
+
+
+def session_argv(cwd: str, claude_bin: str, name: str) -> list[str]:
+    """What to exec so the session outlives the thing that started it.
+
+    The board used to fork `claude` directly, which made the board process
+    its parent -- so every restart of the board killed the session. Reloads
+    survived (the pty outlives one websocket) but restarts did not, and the
+    board gets restarted every time it is improved: twelve times on
+    2026-09-02 alone, each one landing on whatever Marsita was mid-way
+    through. "the board terminal needs to stay alive ---> that's the point".
+
+    So tmux owns the process instead and the board is only a viewer.
+    `new-session -A` attaches to the session if it exists and creates it
+    otherwise, which is the entire mechanism: the first connection starts
+    claude, every later one -- after a reload, after a restart, from a real
+    terminal with `tmux attach -t board` -- joins the same running session.
+    tmux redraws the screen on attach, so the scrollback comes back too.
+
+    Without tmux installed it behaves exactly as before, because a board that
+    refuses to open a terminal is worse than one whose terminal is fragile.
+    """
+    inner = [claude_bin]
+    if has_prior_session(cwd):
+        inner.append("--continue")
+    tmux = tmux_bin()
+    if not tmux:
+        return inner
+    # -A: attach if it exists, create if not. -2: force 256 colour, since the
+    # environment tmux inherits from a daemon has no opinion about TERM.
+    # `--` so a claude flag is never read as one of tmux's.
+    return [tmux, "-2", "new-session", "-A", "-s", name, "--", *inner]
+
+
 class Session:
     """One `claude` process on a pseudo-terminal.
 
@@ -145,17 +184,15 @@ class Session:
     """
 
     def __init__(self, cwd: str, cols: int = 120, rows: int = 32,
-                 claude_bin: str = "claude"):
-        argv = [claude_bin]
-        if has_prior_session(cwd):
-            argv.append("--continue")
+                 claude_bin: str = "claude", name: str = "board"):
+        argv = session_argv(cwd, claude_bin, name)
         self._argv = argv                     # kept so tests can see the decision
         self.pid, self.fd = pty.fork()
         if self.pid == 0:                     # child
             os.chdir(cwd)
             env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
-            # Only ever claude — never a shell.
-            os.execvpe(claude_bin, argv, env)
+            # Only ever claude, or tmux running claude — never a shell.
+            os.execvpe(argv[0], argv, env)
             os._exit(1)                       # unreachable
         self.resize(cols, rows)
         self.alive = True
@@ -295,6 +332,23 @@ _LIVE: dict[str, "Session"] = {}
 _LIVE_LOCK = threading.Lock()
 
 
+def tmux_has(name: str) -> bool:
+    """Is there a tmux session by this name, right now?
+
+    Asked rather than remembered: after the board restarts, `_LIVE` is empty
+    but the tmux session is still there, and reporting that reconnect as a
+    fresh start would be a lie about the one thing this was built to fix.
+    """
+    tmux = tmux_bin()
+    if not tmux:
+        return False
+    try:
+        return subprocess.run([tmux, "has-session", "-t", name],
+                              capture_output=True, timeout=5).returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        return False
+
+
 def attach(name: str, cwd: str, claude_bin: str = "claude"):
     """The session called `name`, started if it is not already running.
 
@@ -305,9 +359,12 @@ def attach(name: str, cwd: str, claude_bin: str = "claude"):
         s = _LIVE.get(name)
         if s is not None and s.alive:
             return s, True
-        s = Session(cwd, claude_bin=claude_bin)
+        # A tmux session that outlived the board is still a resume, even
+        # though this process has never seen it before.
+        resumed = tmux_has(name)
+        s = Session(cwd, claude_bin=claude_bin, name=name)
         _LIVE[name] = s
-        return s, False
+        return s, resumed
 
 
 def forget(name: str) -> None:
@@ -319,13 +376,24 @@ def forget(name: str) -> None:
 
 
 def end(name: str) -> str:
-    """Kill the named session on purpose. Returns what happened."""
+    """Kill the named session on purpose. Returns what happened.
+
+    Both halves: the local viewer AND the tmux session behind it. Closing
+    only the viewer is what every other path does, deliberately -- this is
+    the one place that means it.
+    """
     with _LIVE_LOCK:
         s = _LIVE.pop(name, None)
-    if s is None:
-        return "no such session"
-    s.close()
-    return "ended"
+    if s is not None:
+        s.close()
+    tmux = tmux_bin()
+    if tmux:
+        try:
+            subprocess.run([tmux, "kill-session", "-t", name],
+                           capture_output=True, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return "ended" if (s is not None or tmux) else "no such session"
 
 
 def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> None:

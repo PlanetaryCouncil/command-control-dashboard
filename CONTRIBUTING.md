@@ -9,14 +9,20 @@ A pull request is welcome too, and an issue first is kinder to both of us if
 the change is large enough that you would be sad to have it declined.
 
 ## Running the thing
-
+ 
+With `uv`:
+```bash
+uv sync
+.venv/bin/pytest -q
 ```
+
+Or standard `venv` / `pip`:
+```bash
 python3 -m venv .venv && .venv/bin/pip install -e . && .venv/bin/pip install pytest httpx2
 .venv/bin/pytest -q
 ```
 
-That is the whole setup. If it does not work on your machine, that is a bug in
-this file and worth an issue on its own.
+That is the whole setup. Always run `pytest` via `.venv/bin/pytest` or `uv run pytest`. If it does not work on your machine, that is a bug in this file and worth an issue on its own.
 
 To see it run: `docs/SPIN-IT-UP.md`.
 

@@ -46,9 +46,17 @@ def _argv_for(monkeypatch, prior):
     return seen["argv"]
 
 
+# The argv is now prefixed with `tmux -2 new-session -A -s <name> --`, so the
+# board's terminal outlives a board restart (2026-09-03). What these two tests
+# were written to pin is unchanged and lives at the end of the list: resume
+# when there is something to resume, start clean when there is not.
+def _claude_part(argv):
+    return argv[argv.index("--") + 1:] if "--" in argv else argv
+
+
 def test_continue_is_passed_when_there_is_history(monkeypatch):
-    assert _argv_for(monkeypatch, True) == ["claude", "--continue"]
+    assert _claude_part(_argv_for(monkeypatch, True)) == ["claude", "--continue"]
 
 
 def test_first_visit_starts_clean(monkeypatch):
-    assert _argv_for(monkeypatch, False) == ["claude"]
+    assert _claude_part(_argv_for(monkeypatch, False)) == ["claude"]
