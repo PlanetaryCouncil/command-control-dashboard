@@ -1,13 +1,16 @@
 # The fleet — last 24 hours
 
-*2026-09-03T17:02:59+00:00*
+*2026-09-03T18:00:04+00:00*
 
-**11 commits merged in the last 24 hours, and 1 thing asked for a person.**
+**13 commits merged in the last 24 hours, and 1 thing asked for a person.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
+| `1296497f` | the board knows what the repo is doing |
+| `748f08ad` | a daily report, and the three orgs beside the three sites |
+| `46d53d40` | report: 2026-09-03 fleet summary |
 | `20a4f3df` | the board terminal outlives the board |
 | `6a70f478` | retire /intro to the dormant drawer |
 | `83749046` | a silent probe is not a verdict, and the words say what they mean |
@@ -18,7 +21,6 @@
 | `0dff0f56` | credit pane: a daemon that answers is not absent, and say what the words mean |
 | `d5c92e57` | routine is not an emergency, and the operator is not a visitor |
 | `194b910e` | board: five small things that made it tiring to sit in |
-| `a3a36ea7` | tests: stop the suite posting to the live board |
 
 ## Pipeline
 
@@ -37,9 +39,9 @@ No decisions recorded.
 | localvoice | pass | llama3.2:1b answered in 72.8s — the offline fallback is alive |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | load 6.5 over 4 on 4 cores |
+| pressure | pass | ok · disk 89% 25G free |
 | quotas | pass | spending hermes unknown · holding claude, grok, openclaw, agy · quorum ready via grok |
-| visitors | pass | 24h: 2678 public · 0 homies · browser 2350 · Python-urllib/3.11 326 · Mozilla/5.0 (compati |
+| visitors | pass | 24h: 3225 public · 0 homies · browser 2863 · Python-urllib/3.11 360 · Mozilla/5.0 (compati |
 
 ## The partnership
 
