@@ -1966,15 +1966,16 @@ def serve(port):
                 if self._remote():
                     self.send_error(404)
                     return
-                ask = ""
+                ask, asker = "", ""
                 n = int(self.headers.get("Content-Length") or 0)
                 if n:
                     try:
                         body = json.loads(
                             self.rfile.read(min(n, 4096)).decode())
                         ask = str(body.get("ask") or "").strip()
+                        asker = str(body.get("who") or "").strip()
                     except Exception:
-                        ask = ""
+                        ask, asker = "", ""
                 try:
                     cfg = json.loads((FLEET / "config.json").read_text())
                     agents = ",".join(cfg.get("council", {}).get(
@@ -1993,8 +1994,17 @@ def serve(port):
                      "--agents", agents, "--rounds", rounds],
                     stdout=log, stderr=log, start_new_session=True)
                 if ask:
+                    # Under the name they typed, not a role. Every ask read
+                    # "[council] operator asked", including Marsita's own --
+                    # "it was ny dude, not operator... I used ask"
+                    # (2026-09-03). And the shape is the one the stream reads
+                    # a sender out of, so their hand gets drawn beside it,
+                    # the same as any other post.
+                    who = " ".join(asker.split())[:40] or "operator"
+                    if ":" in who:                 # would break the lookup
+                        who = who.split(":", 1)[0].strip() or "operator"
                     ev.emit("fleet", "info",
-                            f"[council] operator asked: {ask[:200]}",
+                            f"[signals] {who}: {ask[:200]}",
                             origin="operator", layer=0)
                 ev.emit("fleet", "info",
                         f"[council] convened by the operator — {agents}")

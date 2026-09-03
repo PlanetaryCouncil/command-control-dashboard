@@ -124,5 +124,9 @@ def test_the_local_board_has_an_ask_button_and_the_public_one_does_not():
     assert 'id="askbtn"' not in remote
     assert "talk to the board" in local
     assert "leave a public signal" in remote
-    assert "api/ask" in local
+    # api/ask is no longer fetched by the board. It used to fill a separate
+    # "YOU ASKED" strip above the composer -- a second surface for something
+    # the stream already carried. The endpoint stays for callers that want
+    # to read the pending question; the board just does not need it
+    # (2026-09-03).
     assert "api/convene" in local

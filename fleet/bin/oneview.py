@@ -352,12 +352,6 @@ canvas.mark:hover{opacity:1;}
 #sayNote{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #askbtn{border-color:var(--info);color:var(--info);}
-#pendingAsk{display:none;padding:6px 8px;border-top:1px solid var(--info);
-  background:color-mix(in srgb,var(--info) 12%,transparent);
-  font-family:var(--mono);font-size:10px;color:var(--ink);line-height:1.4;}
-#pendingAsk.on{display:block;}
-#pendingAsk b{color:var(--info);letter-spacing:.08em;text-transform:uppercase;
-  margin-right:8px;}
 
 /* ---------- goals: the chain, and whether you are keeping it ----------
    A list of goals is a poster. What makes it accountable is the review date
@@ -433,7 +427,7 @@ canvas.mark:hover{opacity:1;}
    only way back. */
 .pane[data-open="0"]{flex:0 0 auto !important;min-height:0;}
 .pane[data-open="0"] .body,.pane[data-open="0"] form,
-.pane[data-open="0"] .load,.pane[data-open="0"] #pendingAsk,
+.pane[data-open="0"] .load,
 .pane[data-open="0"] #controls{display:none !important;}
 .pane[data-open="0"] h2{cursor:pointer;}
 /* Collapsed, the pills filter a list nobody can see. The heading keeps only
@@ -1567,19 +1561,10 @@ if (convBtn) convBtn.addEventListener("click", async () => {
                      convBtn.innerHTML = "&#128483; convene"; }, 8000);
 });
 
-async function loadAsk(){
-  const box = $("#pendingAsk"), txt = $("#pendingAskText");
-  if (!box) return;
-  try {
-    const r = await fetch("api/ask", {cache:"no-store"});
-    if (!r.ok) return;
-    const d = await r.json();
-    const q = (d.ask || "").trim();
-    if (q){ txt.textContent = q; box.classList.add("on"); }
-    else { txt.textContent = ""; box.classList.remove("on"); }
-  } catch(e){}
-}
-
+/* The ask used to be echoed into a "YOU ASKED" strip above the composer, a
+   second place showing something the stream already carries. One surface,
+   one copy: the ask lands on the board like everything else, under the
+   sender's own name (2026-09-03). */
 const askBtn = document.getElementById("askbtn");
 if (askBtn) askBtn.addEventListener("click", async () => {
   const body = $("#sayBody").value.trim();
@@ -1590,18 +1575,23 @@ if (askBtn) askBtn.addEventListener("click", async () => {
     const r = await fetch("api/convene", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ask: body}),
+      // Who is asking. Without it the board called every ask
+      // "the operator", including Marsita's own -- "it was ny dude, not
+      // operator... I used ask" (2026-09-03).
+      body: JSON.stringify({ask: body, who: ($("#sayWho").value || "").trim()}),
     });
     if (!r.ok){ note.textContent = "refused: " + r.status; }
     else {
       note.textContent = "council sits";
       $("#sayBody").value = "";
-      loadAsk();
+      // Same reset as a post. The pad kept the last signature after an ask,
+      // so the next message went out wearing the previous one's hand
+      // (2026-09-03).
+      if (window.__sayReset) window.__sayReset();
     }
   } catch(e){ note.textContent = "failed: " + e.message; }
   askBtn.disabled = false;
 });
-if (askBtn){ loadAsk(); setInterval(loadAsk, 6000); }
 
 const tick = () => { const d = new Date();
   $("#clock").textContent = [d.getHours(),d.getMinutes(),d.getSeconds()]
@@ -2133,12 +2123,11 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
         <span class="big" id="emptyTitle"></span>
         <span class="sub" id="emptySub"></span>
       </div>
-      <div id="pendingAsk"><b>you asked</b><span id="pendingAskText"></span></div>
       <form id="say" autocomplete="off">
         <div class="sayrow">
           <input id="sayWho" maxlength="60" placeholder="you">
           <input id="sayBody" maxlength="3900" placeholder="{'talk to the board' if not remote else 'leave a public signal'}">
-          {'' if remote else '<button type="button" id="askbtn" title="Ask the council. Local only — this is an instruction, not a public signal.">ask</button>'}
+          {'' if remote else '<button type="button" id="askbtn" title="Post as the admin of this board: an instruction the council acts on, not a public signal. Local only.">as admin</button>'}
           <button type="submit">post</button>
           <span id="sayNote"></span>
         </div>
