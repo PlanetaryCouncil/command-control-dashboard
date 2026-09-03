@@ -1155,6 +1155,22 @@ def serve(port):
                 self._send(json.dumps(snap).encode(), "application/json")
                 return
 
+            if path == "/api/work":
+                # Cached for 5s. Six git invocations is nothing on one call and
+                # real work once every open tab polls it — and the answer does
+                # not change between two commits anyway.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import work
+                import time as _t
+                local = not self._remote()
+                now = _t.monotonic()
+                cached = getattr(Handler, "_work_cache", None)
+                if not cached or cached[0] != local or now - cached[1] > 5:
+                    cached = (local, now, work.snapshot(local=local))
+                    Handler._work_cache = cached
+                self._send(json.dumps(cached[2]).encode(), "application/json")
+                return
+
             if path == "/api/charge":
                 self._send(json.dumps(charge_tally()).encode(),
                            "application/json")

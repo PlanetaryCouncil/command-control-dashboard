@@ -355,6 +355,29 @@ canvas.mark:hover{opacity:1;}
    goal was due 2026-07-27 and nothing on any screen said so. */
 /* Goals take the whole column now that agents live with the processes they
    are, so the body must scroll rather than push the artwork off the column. */
+/* The work pane. Every other pane describes the fleet; this one describes the
+   repository, because "what am I in the middle of" is the question you ask
+   first and no pane could answer it. Fixed height above the chain: intent
+   sits under it, and you read what you are DOING before what you MEANT to. */
+#work{flex:0 0 auto;}
+#work .body{padding:0;overflow-y:auto;min-height:0;max-height:210px;}
+.wrow{display:grid;grid-template-columns:60px minmax(0,1fr) auto;gap:8px;
+  align-items:baseline;padding:4px 8px;border-bottom:1px solid var(--border);}
+.wrow:last-child{border-bottom:0;}
+.wrow .k{font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);}
+.wrow .v{font-size:11.5px;color:var(--ink-2);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.wrow .m{font-family:var(--mono);font-size:9px;color:var(--muted);
+  white-space:nowrap;font-variant-numeric:tabular-nums;}
+/* Uncommitted work is the one thing on this pane you can lose, so it is the
+   one thing that gets a colour. Zero dirty files is not a warning. */
+.wrow.dirty .m{color:var(--warning);font-weight:600;}
+.wrow.unpushed .m{color:var(--warning);font-weight:600;}
+.wrow .v code{font-family:var(--mono);font-size:10px;color:var(--muted);}
+/* A public viewer is not shown the dirty tree at all, and an empty row would
+   read as "nothing uncommitted" — a claim about a tree they never saw. */
+#work .hint{padding:5px 8px;font-size:10px;color:var(--muted);font-style:italic;}
 #goals .body{padding:0;overflow-y:auto;min-height:0;}
 /* One height per row, whatever the goal's length. Ragged rows made the
    chain read as a list of unrelated notes; two lines each, clipped with
@@ -1469,6 +1492,69 @@ function paneFailed(pane, err){
   console.error("[" + pane.id + "]", err);
 }
 
+/* ---------------- work ----------------------------------------------------- */
+/* Read out of git on every poll, because a status file is a claim and git is
+   a fact. Five rows, in the order you actually want them: what is unsaved,
+   what is unpushed, what landed today, what you keep going back to. */
+async function loadWork(){
+  const pane = $("#work");
+  try {
+    const d = await (await fetch("api/work",{cache:"no-store"})).json();
+    const rows = [];
+
+    const row = (k, v, m, cls) =>
+      `<div class="wrow${cls ? " " + cls : ""}"><span class="k">${esc(k)}</span>` +
+      `<span class="v" title="${esc(v)}">${v}</span>` +
+      `<span class="m">${esc(m || "")}</span></div>`;
+
+    // Branch first: everything below is only true of one branch, and on a
+    // machine with worktrees that is not a detail you want to infer.
+    const ab = [];
+    if (d.ahead)  ab.push(d.ahead + " unpushed");
+    if (d.behind) ab.push(d.behind + " behind");
+    rows.push(row("branch", esc(d.branch || "?"), ab.join(" · "),
+                  d.ahead ? "unpushed" : ""));
+
+    // Uncommitted is the only thing here you can still lose. Absent for a
+    // public viewer — `null`, not `0`, so we can tell "none" from "not shown".
+    if (d.dirty === null){
+      rows.push(row("unsaved", "<i>local only</i>", ""));
+    } else if (!d.dirty_count){
+      rows.push(row("unsaved", "clean", ""));
+    } else {
+      const names = d.dirty.map(x => x.path.split("/").pop()).join(", ");
+      rows.push(row("unsaved", esc(names),
+                    d.dirty_count + " file" + (d.dirty_count === 1 ? "" : "s"),
+                    "dirty"));
+    }
+
+    // Today, then the newest subject. A count with no example is a number you
+    // have to go and look up somewhere else.
+    const t = d.today || [];
+    if (t.length){
+      rows.push(row("today", esc(t[0].subject),
+                    t.length + " commit" + (t.length === 1 ? "" : "s")));
+    } else {
+      const r0 = (d.recent || [])[0];
+      rows.push(row("today", r0 ? esc(r0.subject) : "<i>nothing yet</i>",
+                    r0 ? "last: " + esc(r0.sha) : ""));
+    }
+
+    // Where the work has actually been sitting. Subjects say what you meant
+    // to do; the file histogram says what you kept reopening.
+    (d.hot || []).slice(0, 3).forEach((h, i) => {
+      rows.push(row(i ? "" : "hot 7d", esc(h.path), h.touches + "×"));
+    });
+
+    pane.querySelector(".body").innerHTML = rows.join("");
+    pane.querySelector("h2 .n").textContent =
+      d.dirty_count ? d.dirty_count + " unsaved" : "";
+    pane.dataset.state = "ok";
+  } catch (err) {
+    paneFailed(pane, err);
+  }
+}
+
 /* ---------------- horizons and council ------------------------------------ */
 /* Both are read once on load and then every poll. Neither changes often — a
    horizon is a quarter's intent, a council turn takes minutes — so they ride
@@ -1915,6 +2001,10 @@ async function loadArt(){
 // Slower cadence on purpose: a horizon is a quarter's intent and a council
 // turn takes minutes. Polling these at 6s would be pure heat on a box that
 // spent today swapping.
+loadWork();
+// 20s. Commits land in bursts and a stale "unsaved" count is the one number
+// here that would actively mislead — but git is not free, so not every poll.
+setInterval(loadWork, 20000);
 loadHorizons();
 setInterval(loadHorizons, 300000);
 loadArt();
@@ -2081,6 +2171,12 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
 <div id="grid">
   <div class="col">
+    <section class="pane" id="work" data-state="loading">
+      <h2>work &mdash; this repo <span class="n"></span></h2>
+      <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+
     <section class="pane" id="goals" style="flex:1" data-state="loading">
       <h2>goals &mdash; the chain <span class="n"></span></h2>
       <div class="body"></div>
