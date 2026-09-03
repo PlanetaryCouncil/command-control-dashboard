@@ -24,7 +24,7 @@ def test_no_reading_is_called_unknown_not_rich():
 
 
 def test_unknown_is_a_word_the_pane_can_print():
-    assert 'hazy:"unknown"' in SRC.split("CREDIT_WORD")[1].split("}")[0]
+    assert 'hazy:"answer unknown"' in SRC.split("CREDIT_WORD")[1].split("}")[0]
     assert "#credit .st.hazy" in SRC
 
 
@@ -60,12 +60,14 @@ def test_a_daemon_that_answers_is_not_absent():
     assert "if (v.binary === false)      return" not in body
 
 
-def test_every_word_the_column_can_print_is_explained():
-    """Marsita counted six states and asked for "full informational
-    awareness" rather than fewer words -- each carries a different
-    instruction, so the pane says what they mean where they are used."""
-    import re
-    words = re.findall(r'"([a-z ]+)"', SRC.split("CREDIT_WORD")[1].split("}")[0])
-    legend = SRC.split('class="legend"')[1].split("</div>")[0]
-    for w in words:
-        assert w in legend, f"{w!r} is printed but never explained"
+def test_the_words_explain_themselves():
+    """A legend was added unasked and cut the same hour: "I didn't ask for
+    legend". The fix was the words, not a paragraph about them -- jargon
+    ("DRY") and two different silences both called something vague
+    ("absent", "unknown") became plain English."""
+    words = SRC.split("CREDIT_WORD")[1].split("}")[0]
+    assert '"out of credits"' in words
+    assert '"answer unknown"' in words
+    assert '"no answer"' in words
+    assert '"DRY"' not in words
+    assert 'class="legend"' not in SRC

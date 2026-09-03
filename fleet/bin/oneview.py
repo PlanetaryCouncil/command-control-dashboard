@@ -187,14 +187,10 @@ body{margin:0;background:var(--ground);color:var(--ink);
 #credit .st.out{color:var(--warning);}
 #credit .st.hazy{color:var(--muted);}
 #credit .st.free{color:var(--info);}
-/* Six words is a lot for one column, and Marsita counted them: "Too many
-   options: DRY / unknown / has credits / free / absent... But maybe each of
-   them plays a role... We need to have full informational awareness."
-   They do each carry a different instruction, so the answer is not fewer
-   words -- it is saying what they mean, once, where they are used. */
-#credit .legend{padding:4px 7px 6px;color:var(--muted);font-size:9px;
-  line-height:1.7;border-top:1px solid var(--border);}
-#credit .legend b{color:var(--ink-2);font-weight:600;}
+/* No legend. One was added unasked on 2026-09-03 and cut the same hour:
+   "I didn't ask for legend". The words carry themselves once they are the
+   right words -- "out of credits", "no answer", "answer unknown" -- and a
+   paragraph explaining a column is a column that failed to explain itself. */
 #credit .st.idle{color:var(--muted);font-weight:400;}
 #credit .why{color:var(--muted);font-size:10px;}
 #credit .asof{padding:4px 6px;color:var(--muted);font-size:10px;}
@@ -570,8 +566,11 @@ function creditState(v){
   if (v.note === "on PATH")    return ["hazy", "installed, never probed"];
   return ["hazy", v.note || "no reading"];
 }
-const CREDIT_WORD = {rich:"has credit", dry:"DRY", out:"logged out",
-                     hazy:"unknown", free:"free", idle:"absent"};
+/* Marsita's words, 2026-09-03. "DRY" was jargon, "absent" and "unknown"
+   both described silence without saying whose. */
+const CREDIT_WORD = {rich:"has credit", dry:"out of credits",
+                     out:"logged out", hazy:"answer unknown",
+                     free:"free", idle:"no answer"};
 
 function renderCredit(workers){
   const pane = $("#credit");
@@ -2154,14 +2153,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
       <div class="body">
         <table><tbody id="creditbody"></tbody></table>
         <div class="asof" id="creditasof"></div>
-        <div class="legend">
-          <b>DRY</b> spent, comes back on a schedule &middot;
-          <b>logged out</b> needs you at a keyboard &middot;
-          <b>unknown</b> no reading, only a healthy probe &middot;
-          <b>has credit</b> measured or on a plan &middot;
-          <b>free</b> runs here, never had a bill &middot;
-          <b>absent</b> nothing answered
-        </div>
       </div>
     </section>
 

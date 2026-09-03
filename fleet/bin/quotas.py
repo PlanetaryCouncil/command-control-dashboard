@@ -229,6 +229,24 @@ def check_ollama():
     return row
 
 
+def _log_probe_failure(agent, code, out):
+    """Keep the raw text of a probe that did not answer.
+
+    Deliberately local-only: `claude auth status` prints an email address, so
+    this never goes near public_row or the board. It is here so a failure can
+    be reported with its actual output rather than described from memory.
+    """
+    try:
+        f = FLEET / "logs" / "probe-failures.jsonl"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        with f.open("a") as fh:
+            fh.write(json.dumps({
+                "ts": iso(), "agent": agent, "exit": code,
+                "raw": " ".join(str(out).split())[:600]}) + "\n")
+    except OSError:
+        pass
+
+
 def check_claude():
     row = {"agent": "claude", "vendor": vendors.vendor("claude"),
            "binary": chat._agent_ready("claude")}
@@ -238,18 +256,37 @@ def check_claude():
         row["note"] = "CLI not on PATH"
         return row
     code, out = run([chat.resolve("claude"), "auth", "status"])
-    logged_in = False
-    plan = "unknown"
-    try:
-        data = json.loads(out)
-        logged_in = bool(data.get("loggedIn"))
-        plan = str(data.get("subscriptionType") or "unknown")[:24]
-    except ValueError:
-        logged_in = "loggedIn" in out and "true" in out.lower()
-    row["auth"] = "logged-in" if logged_in else "logged-out"
-    row["plan"] = plan
     hits = recent_quota_hits("claude")
     row["quota_errors_24h"] = hits
+
+    # A probe that did not answer is not a logged-out account.
+    #
+    # PROBE_TIMEOUT is 8s and Gaia runs at a load of 4-7 on four cores, so
+    # `claude auth status` overruns it regularly. The old code sent that
+    # straight into `json.loads`, caught ValueError, and fell through to
+    # "logged-out" -- so a slow machine reported the operator's live, paid
+    # session as signed out, on the very board they were talking to Claude
+    # from. Marsita, 2026-09-03: "why claude says logged out if I'm talking
+    # with you here?" Hermes already had this fix; claude did not.
+    #
+    # The raw output is kept so the failure can be reported instead of
+    # guessed at.
+    try:
+        data = json.loads(out)
+    except ValueError:
+        row["auth"] = "unknown"
+        row["ok"] = True                    # unproven, not down
+        row["note"] = ("status timed out" if "timeout" in out.lower()
+                       else "status unreadable")
+        row["probe_exit"] = code
+        row["probe_raw"] = " ".join(str(out).split())[:300]
+        _log_probe_failure("claude", code, out)
+        return row
+
+    logged_in = bool(data.get("loggedIn"))
+    plan = str(data.get("subscriptionType") or "unknown")[:24]
+    row["auth"] = "logged-in" if logged_in else "logged-out"
+    row["plan"] = plan
     if hits:
         row["ok"] = False
         row["note"] = f"quota-shaped errors in last {WINDOW_HOURS}h"
