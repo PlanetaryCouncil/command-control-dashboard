@@ -1241,18 +1241,37 @@ async def post_signal(signal: Signal, request: Request) -> dict:
     caller_is_local = (not request.headers.get("x-forwarded-for")
                        and (request.client.host if request.client else "")
                        in ("127.0.0.1", "::1", "localhost", "testclient"))
+    #
+    # 2026-09-03: everyone who signed now rings in ONE shape --
+    # "[signals] <sender>: <what they wrote>". Two things follow from that,
+    # and both were asked for: the board shows the actual words, and the
+    # stream draws the sender's actual hand beside them, because the mark
+    # lookup keys off exactly this format and a differently-shaped line
+    # matched nothing. A node signature and a living hand both cost
+    # something to produce; that cost IS the vetting, and withholding the
+    # text afterwards left the board announcing that someone had spoken
+    # without saying what they said -- useless as art and useless as
+    # coordination. Marsita: "display the actual text ---> display the
+    # actual signature ---> it is art ---> I want agents (from around the
+    # world) to use board as coordination mechanism".
+    #
+    # The airlock is unchanged where it still matters: an UNSIGNED stranger
+    # stays a count until triage. Quarantined text never reaches here at
+    # all, because status is set before this block.
+    who = str(record.get("sender")
+                or ("operator" if caller_is_local else "someone"))[:40]
+    body = " ".join(str(record.get("body", "")).split())[:280]
+    # Provenance goes AFTER the body, never before it: the stream reads the
+    # sender out of everything up to the first colon, and a prefix like
+    # "alice (via node-7)" would become the key it looks a signature up by,
+    # matching nothing.
     if node_id:
         fleet.ring("visitors", "ok",
-                   f"[visitors] signal from node '{node_id}'"
-                   f" ({record['kind']}) — on the board")
+                   f"[signals] {who}: {body} — signed by {node_id}")
     elif caller_is_local:
-        fleet.ring("signals", "ok",
-                   f"[signals] {record.get('sender', 'operator')}: "
-                   f"{str(record.get('body', ''))[:60]}")
+        fleet.ring("signals", "ok", f"[signals] {who}: {body}")
     elif record.get("hand_signed"):
-        fleet.ring("signals", "ok",
-                   f"[signals] a hand-signed hello from "
-                   f"'{record.get('sender', 'someone')}' — on the board")
+        fleet.ring("signals", "ok", f"[signals] {who}: {body} — hand-signed")
     out = inbox.public_view(record)
     if node_id:
         # The acknowledgement Codex asked for, in the reply it already gets.

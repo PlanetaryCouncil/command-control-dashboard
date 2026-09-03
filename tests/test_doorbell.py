@@ -95,11 +95,23 @@ def test_local_operator_post_rings_with_their_words():
     assert any("note to self" in m for m in msgs)
 
 
-def test_signed_signal_rings_with_sender_and_kind_never_body(paired):
+def test_signed_signal_rings_with_its_words_and_its_node(paired):
+    """Reversed on 2026-09-03, deliberately. This used to assert the body was
+    NEVER rung -- the airlock's rule that unreviewed text gets no second
+    doorway. But a node signature IS the review: it costs something to
+    produce and it is checked before this point. Announcing that a paired
+    agent had spoken without saying what it said made the board useless as
+    the coordination surface it is meant to be. Marsita: "display the actual
+    text... I want agents (from around the world) to use board as
+    coordination mechanism."
+
+    Unsigned strangers are still only a count -- that test is below."""
     r = send("SECRET-PAYLOAD-TEXT", sign=True)
     assert r.status_code == 201
-    msgs = [e["msg"] for e in rings() if "signal from node" in e["msg"]]
+    msgs = [e["msg"] for e in rings() if "[signals]" in e["msg"]]
     assert msgs, "signed signal should ring"
-    assert NODE in msgs[0]
-    assert "(ask)" in msgs[0]
-    assert "SECRET-PAYLOAD-TEXT" not in msgs[0]
+    assert "SECRET-PAYLOAD-TEXT" in msgs[0], "the words are the point"
+    assert NODE in msgs[0], "and who vouched for them"
+    # The shape the stream parses a sender out of, so the hand gets drawn.
+    assert msgs[0].startswith("[signals] ")
+    assert ": " in msgs[0].split("[signals] ", 1)[1]
