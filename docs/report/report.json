@@ -1,0 +1,172 @@
+{
+  "generated_at": "2026-09-03T17:02:59+00:00",
+  "window_hours": 24,
+  "since": "2026-09-02T17:02:59+00:00",
+  "partnership": [
+    {
+      "site": "PlanetaryCouncil.org",
+      "url": "https://planetarycouncil.org",
+      "github": "https://github.com/PlanetaryCouncil",
+      "role": "decides"
+    },
+    {
+      "site": "IndependentTribunal.org",
+      "url": "https://independenttribunal.org",
+      "github": "https://github.com/independenttribunal",
+      "role": "contests"
+    },
+    {
+      "site": "BaseX.com",
+      "url": "https://demo.basex.com",
+      "github": "https://github.com/basexhq",
+      "role": "deploys"
+    }
+  ],
+  "tagline": "We truly build a new civilisation.",
+  "commits": {
+    "count": 11,
+    "list": [
+      {
+        "sha": "20a4f3df",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T16:06:50+01:00",
+        "subject": "the board terminal outlives the board"
+      },
+      {
+        "sha": "6a70f478",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T14:58:13+01:00",
+        "subject": "retire /intro to the dormant drawer"
+      },
+      {
+        "sha": "83749046",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T14:15:27+01:00",
+        "subject": "a silent probe is not a verdict, and the words say what they mean"
+      },
+      {
+        "sha": "a5a05b7f",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T13:57:37+01:00",
+        "subject": "an ask is a post, under the name that wrote it"
+      },
+      {
+        "sha": "517db5f2",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T12:32:01+01:00",
+        "subject": "a signed post shows its words, and the hand that wrote them"
+      },
+      {
+        "sha": "9a6c94ab",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T12:22:29+01:00",
+        "subject": "the heartbeat repair now speaks systemd too"
+      },
+      {
+        "sha": "39cd3c17",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T12:17:51+01:00",
+        "subject": "watchdogs: a missing per-machine list is not a reason to do nothing"
+      },
+      {
+        "sha": "0dff0f56",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T12:04:43+01:00",
+        "subject": "credit pane: a daemon that answers is not absent, and say what the words mean"
+      },
+      {
+        "sha": "d5c92e57",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-02T23:44:59+01:00",
+        "subject": "routine is not an emergency, and the operator is not a visitor"
+      },
+      {
+        "sha": "194b910e",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-02T21:01:43+01:00",
+        "subject": "board: five small things that made it tiring to sit in"
+      },
+      {
+        "sha": "a3a36ea7",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-02T18:31:00+01:00",
+        "subject": "tests: stop the suite posting to the live board"
+      }
+    ]
+  },
+  "pipeline": {
+    "records": 0,
+    "stages": {}
+  },
+  "events": {
+    "count": 8,
+    "by_level": {
+      "ok": 5,
+      "needs_you": 1,
+      "info": 2
+    },
+    "by_agent": {
+      "quotas": 3,
+      "signals": 3,
+      "fleet": 2
+    }
+  },
+  "needs_you": [
+    {
+      "at": "2026-09-03T11:19:10+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    }
+  ],
+  "workers": [
+    {
+      "worker": "agent-comms",
+      "status": "busy",
+      "last_run": "2026-08-18T21:25:03Z",
+      "summary": "deferred \u2014 load 9.0 over 4 on 4 cores; a timeout now would measure the machine, not the agents"
+    },
+    {
+      "worker": "command-control-dashboard",
+      "status": "pass",
+      "last_run": "2026-08-18T23:41:20Z",
+      "summary": "446 passed, 1 warning in 310.58s (0:05:10) (StarletteDeprecationWarning:)"
+    },
+    {
+      "worker": "localvoice",
+      "status": "pass",
+      "last_run": "2026-08-19T05:16:13+00:00",
+      "summary": "llama3.2:1b answered in 72.8s \u2014 the offline fallback is alive"
+    },
+    {
+      "worker": "nuc",
+      "status": "pass",
+      "last_run": "2026-08-20T01:04:35Z",
+      "summary": "human browser (desktop+mobile) \u00b7 desktop 200 8.53s \u00b7 mobile 200 9.8s"
+    },
+    {
+      "worker": "pipeline",
+      "status": "pass",
+      "last_run": "2026-08-19T21:34:53+00:00",
+      "summary": "0 landed, 0 rejected, 0 proposals processed"
+    },
+    {
+      "worker": "pressure",
+      "status": "warn",
+      "last_run": "2026-09-03T17:02:53Z",
+      "summary": "load 6.5 over 4 on 4 cores"
+    },
+    {
+      "worker": "quotas",
+      "status": "pass",
+      "last_run": "2026-09-03T17:02:52Z",
+      "summary": "spending hermes unknown \u00b7 holding claude, grok, openclaw, agy \u00b7 quorum ready via grok"
+    },
+    {
+      "worker": "visitors",
+      "status": "pass",
+      "last_run": "2026-09-03T17:02:36+00:00",
+      "summary": "24h: 2678 public \u00b7 0 homies \u00b7 browser 2350 \u00b7 Python-urllib/3.11 326 \u00b7 Mozilla/5.0 (compatible; Barkrowler/0.9; 2"
+    }
+  ],
+  "proposals_total": 261
+}
