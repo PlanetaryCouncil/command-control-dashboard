@@ -436,45 +436,25 @@ canvas.mark:hover{opacity:1;}
 #foot a:hover{color:var(--accent);text-decoration:underline;}
 #foot span.dead{color:var(--muted);}
 
-/* The footer shuts. It is eight columns of links that are useful twice a week
-   and in the way the rest of the time, sitting under the pane actually being
-   read. Shut, it is one word -- "footer" -- which is also the way back.
-   Marsita, 2026-09-04: "I would like to collapse footer links... And when it
-   is collapsed it just says 'footer'". */
-/* Open, it is a grab handle and says nothing -- the same blue bar every other
-   divider on this board uses, because a word saying "footer" above a footer is
-   a label for something already obvious. Shut, the eight headings are gone and
-   that one word is all that is left, which is when it earns its name.
-   Marsita, 2026-09-04: "No need to call it 'footer'... Only when collapsed all
-   the headers become unified into a single 'footer'". */
-/* row-resize, not pointer: it drags to size the footer, and a hand cursor on
-   a thing you drag is a lie about what it does. Marsita, 2026-09-04: "change
-   cursor to be proper /// please fix the moving part as well, still not
-   moving" -- it collapsed on click but would not drag, which is what a bar
-   that looks exactly like every other divider on this board promises. */
-#foot>.foottoggle{grid-column:1/-1;cursor:row-resize;user-select:none;
-  position:relative;height:3px;padding:0;margin:0 -12px 10px;font-size:0;
-  touch-action:none;}
-#foot>.foottoggle[data-drag="1"]::after{background:var(--info);}
-/* `height`, not `max-height`. A max can only ever shrink a box, so dragging
-   the bar upward did nothing at all -- the footer already fit in less than
-   the number being set. Dragged shorter, the links scroll. */
-#foot[data-sized="1"]{height:var(--hFoot,auto);overflow-y:auto;}
-/* The hit area is far bigger than the line. Three pixels is a target you have
-   to aim at, and this is a thing you click, not a thing you thread. */
-#foot>.foottoggle::before{content:"";position:absolute;left:0;right:0;
-  top:-5px;bottom:-7px;}
-#foot>.foottoggle::after{content:"";position:absolute;inset:0;
-  background:var(--border);}
-#foot>.foottoggle:hover::after{background:var(--info);}
-#foot[data-open="0"]{padding:0 12px 3px;}
+/* The footer shuts, from a chevron in its top-right corner. It used to be a
+   drag handle: Marsita, 2026-09-04: "Cannot go all the way down... And then
+   can go too much up... No need to drag, just full min, or restore to default
+   height. simple way". A drag offers a hundred heights when only two are ever
+   wanted, and gets both ends of its range wrong on the way.
+
+   Shut, the eight section headings are gone and one word -- "footer" -- is
+   all that is left, which is the moment it earns its name. */
+#foot{position:relative;}
+#foot>.footchev{position:absolute;top:4px;right:10px;z-index:2;
+  background:none;border:0;cursor:pointer;padding:2px 6px;line-height:1;
+  font-family:var(--mono);font-size:11px;color:var(--muted);}
+#foot>.footchev:hover{color:var(--accent);}
+#foot>.foottoggle{grid-column:1/-1;font-family:var(--mono);font-size:8px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+  cursor:pointer;user-select:none;padding:0;height:0;overflow:hidden;}
+#foot[data-open="0"]{padding:3px 12px;}
 #foot[data-open="0"]>section{display:none;}
-/* Shut, there is nothing left to size, so it stops pretending to be a grip. */
-#foot[data-open="0"]>.foottoggle{cursor:pointer;height:auto;margin:0;
-  padding:3px 0 0;
-  font-family:var(--mono);font-size:8px;letter-spacing:.18em;
-  text-transform:uppercase;color:var(--muted);}
-#foot[data-open="0"]>.foottoggle::after{display:none;}
+#foot[data-open="0"]>.foottoggle{height:auto;overflow:visible;}
 #foot[data-open="0"]>.foottoggle:hover{color:var(--accent);}
 
 /* A project and its source are one fact, so they get one line: "name | repo".
@@ -2096,13 +2076,18 @@ try {
   if (saved.streamOpen === 0) setPaneOpen($("#stream"), false);
 } catch(e){}
 
-/* The footer, open or shut, remembered. It is the same bar either way -- the
-   word "footer" is both the label and the handle -- so there is no state where
-   the links are gone and nothing says how to get them back. */
+/* The footer, open or shut, remembered. Two states, not a range: a drag
+   offered a hundred heights when only ever two were wanted, and got both ends
+   of its own range wrong. Marsita: "just full min, or restore to default
+   height. simple way". */
 if ($("#foot")){
-  const foot = $("#foot"), tog = $("#foottoggle");
+  const foot = $("#foot"), tog = $("#foottoggle"), chev = $("#footchev");
   const setFoot = (open, save = true) => {
     foot.dataset.open = open ? "1" : "0";
+    // The chevron points where it will take you, and says it in words for
+    // anyone not reading arrows.
+    chev.innerHTML = open ? "&#9650;" : "&#9660;";
+    chev.title = chev.ariaLabel = open ? "hide the links" : "show the links";
     if (!save) return;
     try {
       const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
@@ -2110,59 +2095,15 @@ if ($("#foot")){
       localStorage.setItem(LAYOUT_KEY, JSON.stringify(l));
     } catch(e){}
   };
-  /* Drag to size it, click to shut it -- one bar, told apart by whether the
-     pointer actually moved. A separate handle for each would be two 3px
-     targets stacked on one boundary. */
-  let footH = 0;
-  const setH = (px, save = true) => {
-    px = Math.max(26, Math.min(px, innerHeight * 0.6));
-    footH = px;
-    foot.dataset.sized = "1";
-    document.documentElement.style.setProperty("--hFoot", px + "px");
-    if (!save) return;
-    try {
-      const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
-      l.hFoot = Math.round(px);
-      localStorage.setItem(LAYOUT_KEY, JSON.stringify(l));
-    } catch(e){}
-  };
-
-  tog.addEventListener("pointerdown", e => {
-    if (foot.dataset.open === "0") return;      // nothing to size when shut
-    e.preventDefault();
-    const y0 = e.clientY, h0 = foot.getBoundingClientRect().height;
-    let moved = false;
-    tog.setPointerCapture(e.pointerId);
-    tog.dataset.drag = "1";
-    const move = ev => {
-      // Dragging UP makes it taller: the footer grows from the bottom of the
-      // window, so the boundary and the pointer travel the same way.
-      const dy = y0 - ev.clientY;
-      if (Math.abs(dy) > 3) moved = true;
-      if (moved) setH(h0 + dy, false);
-    };
-    const up = ev => {
-      tog.removeEventListener("pointermove", move);
-      tog.removeEventListener("pointerup", up);
-      delete tog.dataset.drag;
-      // Save the number that was SET, never the height measured afterwards:
-      // the box can be shorter than what it was asked for, and reading it
-      // back turned every drag into a no-op that also forgot itself.
-      if (moved) setH(footH);
-      else setFoot(foot.dataset.open === "0");   // a click, not a drag
-    };
-    tog.addEventListener("pointermove", move);
-    tog.addEventListener("pointerup", up);
-  });
-  // Shut, the bar is only a way back in, and pointerdown above bails out.
+  chev.addEventListener("click", () => setFoot(foot.dataset.open === "0"));
+  // Shut, the word "footer" is the only thing left, so it is a way back too.
   tog.addEventListener("click", () => {
     if (foot.dataset.open === "0") setFoot(true);
   });
   try {
     const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
-    if (l.hFoot) setH(l.hFoot, false);
-    if (l.footOpen === 0) setFoot(false, false);
-  } catch(e){}
+    setFoot(l.footOpen !== 0, false);
+  } catch(e){ setFoot(true, false); }
 }
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
@@ -2471,6 +2412,8 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 </div>
 
 <footer id="foot" data-open="1">
+  <button class="footchev" id="footchev" type="button"
+          title="hide the links" aria-label="hide the links">&#9650;</button>
   <div class="foottoggle" id="foottoggle">footer</div>
   <section>
     <h3>this board</h3>

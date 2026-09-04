@@ -230,72 +230,34 @@ def test_the_footer_collapses_to_a_hairline_not_a_heading_bar():
 
 
 # --------------------------------------------------------------- the footer
+def test_a_chevron_in_the_corner_not_a_drag():
+    """A drag offered a hundred heights when two were wanted, and got both
+    ends of its own range wrong. Marsita: "No need to drag, just full min, or
+    restore to default height. simple way"."""
+    src = (BIN / "oneview.py").read_text()
+    assert 'id="footchev"' in src
+    assert 'chev.addEventListener("click"' in src
+    assert "pointerdown" not in src.split("#foot>")[1][:400], "drag is back"
+    assert "--hFoot" not in src, "the sized footer is back"
+
+
+def test_the_chevron_points_where_it_takes_you():
+    src = (BIN / "oneview.py").read_text()
+    assert 'open ? "&#9650;" : "&#9660;"' in src        # up when open, down shut
+    assert 'open ? "hide the links" : "show the links"' in src
+
+
 def test_the_footer_collapses_to_one_word():
     src = (BIN / "oneview.py").read_text()
     assert '<div class="foottoggle" id="foottoggle">footer</div>' in src
     assert '#foot[data-open="0"]>section{display:none;}' in src
 
 
-def test_open_the_handle_is_a_bar_and_says_nothing():
-    """A word saying "footer" above a footer is a label for the obvious."""
-    src = (BIN / "oneview.py").read_text()
-    i = src.index("#foot>.foottoggle{")
-    assert "font-size:0;" in src[i:i + 220], "the word still shows when open"
-    assert "#foot>.foottoggle:hover::after{background:var(--info);}" in src, \
-        "no blue grab handle"
-
-
-def test_the_handle_sits_on_the_boundary_not_below_it():
-    """It was 13px down, floating in the footer's top padding. Marsita:
-    "line should be exactly at the boundary (no extra gap)"."""
-    src = (BIN / "oneview.py").read_text()
-    i = src.index("#foot{border-top")
-    assert "padding:0 12px 12px;" in src[i:i + 400], "top padding is back"
-    j = src.index("#foot>.foottoggle{")
-    assert "margin:0 -12px" in src[j:j + 200], "not full bleed"
-
-
-def test_the_bar_drags_and_the_cursor_says_so():
-    """A hand cursor on a thing you drag is a lie about what it does."""
-    src = (BIN / "oneview.py").read_text()
-    i = src.index("#foot>.foottoggle{")
-    assert "cursor:row-resize" in src[i:i + 260]
-    assert 'tog.addEventListener("pointerdown"' in src
-
-
-def test_the_footer_is_sized_by_height_not_max_height():
-    """A max can only shrink a box, so dragging upward did nothing: the
-    footer already fit in less than the number being set."""
-    src = (BIN / "oneview.py").read_text()
-    assert '#foot[data-sized="1"]{height:var(--hFoot,auto);' in src
-
-
-def test_a_drag_saves_what_was_set_not_what_was_measured():
-    """The box can be shorter than what it was asked for. Reading it back
-    turned every drag into a no-op that also forgot itself."""
-    src = (BIN / "oneview.py").read_text()
-    assert "if (moved) setH(footH);" in src
-    assert "setH(foot.getBoundingClientRect().height)" not in src
-
-
-def test_a_click_that_did_not_move_still_collapses():
-    """One bar, two jobs, told apart by whether the pointer actually moved."""
-    src = (BIN / "oneview.py").read_text()
-    assert "else setFoot(foot.dataset.open" in src
-    assert "if (Math.abs(dy) > 3) moved = true;" in src
-
-
-def test_the_target_is_bigger_than_the_line():
-    """3px is something you aim at. This is a thing you click."""
-    src = (BIN / "oneview.py").read_text()
-    i = src.index("#foot>.foottoggle::before{")
-    assert "top:-5px" in src[i:i + 160] and "bottom:-7px" in src[i:i + 160]
-
 
 def test_shut_the_word_is_the_only_thing_left_and_the_way_back():
     src = (BIN / "oneview.py").read_text()
     i = src.index('#foot[data-open="0"]>.foottoggle{')
-    assert "font-size:8px" in src[i:i + 220], "the word does not come back"
+    assert "height:auto" in src[i:i + 220], "the word does not come back"
     assert '#foot[data-open="0"]>.foottoggle{display:none' not in src
 
 
@@ -311,3 +273,24 @@ def test_a_project_and_its_repo_share_one_line():
 def test_the_partnership_column_is_wider_than_the_rest():
     """Full repo URLs were being ellipsed in a one-eighth column."""
     assert '#foot section.partners{grid-column:span 2;}' in (BIN / "oneview.py").read_text()
+
+
+# ------------------------------------------------------- the script must parse
+def test_the_boards_javascript_actually_parses():
+    """A stray `} catch(e){}` left by an edit killed the ENTIRE script, and
+    nothing on the Python side could see it: `ast.parse` is happy with any
+    string. Every handler below the error simply never attached, and the page
+    looked fine. Ask a real JS engine instead."""
+    import re
+    import shutil
+    import subprocess
+
+    node = shutil.which("node")
+    if not node:                      # not every machine has one; do not fail
+        return
+    src = (BIN / "oneview.py").read_text()
+    m = re.search(r"^JS = r?\"\"\"(.*?)^\"\"\"", src, re.S | re.M)
+    assert m, "could not find the JS block"
+    r = subprocess.run([node, "--check", "-"], input=m.group(1),
+                       capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr[-1500:]
