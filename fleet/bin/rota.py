@@ -142,6 +142,12 @@ def prompt_for(agent: str, board: dict) -> str:
 
 
 NARRATION = (
+    # The rota's own prompt heading, echoed back. Three near-identical
+    # variants of this filed ~170 rows before anyone noticed the agent was
+    # answering the brief instead of the board.
+    "here are my answers",
+    "here are the answers",
+    "pick one project from the list",
     "the message seems to be",
     "the text you provided appears to be",
     "the text appears to be",
@@ -183,6 +189,9 @@ def harness_failed(out: str) -> bool:
     return "quota reached" in low or "out of credits" in low
 
 
+KNOWN = ("claude", "hermes", "openclaw", "grok", "agy", "ollama")
+
+
 def ask(agent: str, prompt: str, session: str) -> str:
     noop = lambda *a: None
     if agent == "claude":
@@ -198,6 +207,17 @@ def ask(agent: str, prompt: str, session: str) -> str:
     if agent == "ollama":
         return chat.ask_ollama(chat.OLLAMA_MODEL, prompt, [], noop)
     return f"[unknown agent {agent}]"
+
+
+def dispatchable(agents: list[str]) -> list[str]:
+    """Names ask() can actually reach.
+
+    An agent on the roster that has no adapter burns its whole slot producing
+    the string "[unknown agent codex]" -- 547 times before anyone counted. A
+    roster entry is a claim that someone will answer; this is where the claim
+    gets checked, once, instead of being discovered one wasted turn at a time.
+    """
+    return [a for a in agents if a in KNOWN]
 
 
 def turn_hash(board: dict) -> str:
@@ -251,6 +271,9 @@ def main() -> int:
     a = ap.parse_args()
     agents = [x.strip() for x in a.agents.split(",") if x.strip()]
     import quotas
+    # Drop names with no adapter before the quota check, not after a wasted
+    # turn. See dispatchable().
+    agents = dispatchable(agents)
     agents = quotas.eligible(agents)
     if not agents:
         print("no eligible agents (dry or rare)"); return 1
@@ -344,9 +367,22 @@ def main() -> int:
     # a narrated prompt must not freeze the next agent out of the slot.
     if not failed and not unusable:
         record["board_hash"] = fingerprint
-    LEDGER.parent.mkdir(parents=True, exist_ok=True)
-    with LEDGER.open("a") as fh:
-        fh.write(json.dumps(record) + "\n")
+    # A failed or narrated turn is not a proposal, and the ledger is a queue
+    # of work rather than a transcript of everything anyone said. Writing them
+    # anyway is how it reached 4,886 rows of which twelve were waiting: 547
+    # were the literal string "[unknown agent codex]", 263 were an HTTP 402,
+    # and ~170 were an agent reading this file's own prompt heading back. All
+    # of them were classified as junk three lines above and written regardless,
+    # for autotriage to drop later. Fable 5.1 found it triaging the backlog on
+    # 2026-09-04: "events already carry the warn; the ledger does not need the
+    # corpse. autotriage then has nothing to drop."
+    #
+    # The ev.emit branches below are untouched -- a failure stays visible on
+    # the board, it just stops queueing as work.
+    if not failed and not unusable:
+        LEDGER.parent.mkdir(parents=True, exist_ok=True)
+        with LEDGER.open("a") as fh:
+            fh.write(json.dumps(record) + "\n")
 
     STATE.parent.mkdir(parents=True, exist_ok=True)
     STATE.write_text(json.dumps(

@@ -120,8 +120,11 @@ def test_a_failed_turn_does_not_pin_the_skip(tmp_path, monkeypatch):
     monkeypatch.setattr(rota, "ask", lambda agent, prompt, session:
                         box["asked"].append(agent) or "[error] timed out")
     assert run(monkeypatch) == 0
-    assert json.loads(rota.LEDGER.read_text())["outcome"] == "error"
-    assert "board_hash" not in json.loads(rota.LEDGER.read_text())
+    # Reversed 2026-09-04: the error row used to be written and then dropped
+    # by autotriage. 810 such rows were the bulk of a 4,886-row ledger of
+    # which twelve were waiting. It is not filed at all now -- the board still
+    # gets the warn, the queue does not get the corpse.
+    assert not rota.LEDGER.exists(), "a failed turn is not work"
     monkeypatch.setattr(rota, "ask", lambda agent, prompt, session:
                         box["asked"].append(agent) or "a concrete proposal")
     assert run(monkeypatch) == 0
