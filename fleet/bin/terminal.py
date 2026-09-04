@@ -511,8 +511,25 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
                 pass
         stop.set()
 
+    def pump_state():
+        """Is it done yet? -- the one question the board pane answers.
+
+        A separate frame from the output because it is a different kind of
+        thing: the bytes are what happened, this is what is happening. It
+        keeps arriving while the session is silent, which is exactly when
+        somebody is standing there wondering.
+        """
+        w = watch(name)
+        while not stop.is_set() and session.alive:
+            try:
+                _send(sock, json.dumps(w.poll()).encode(), opcode=0x1)
+            except OSError:
+                break
+            time.sleep(1.0)
+
     t = threading.Thread(target=pump_out, daemon=True)
     t.start()
+    threading.Thread(target=pump_state, daemon=True).start()
 
     first_resize = True
     try:
@@ -552,3 +569,129 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
         # board process dies, or when someone asks for it to end.
         stop.set()
         session.unsubscribe(queue)
+
+
+# ------------------------------------------------------------------ what it is
+# The board pane is a WATCHER, not a driver: Marsita types in the real terminal
+# and asks the browser one question -- is it done yet? Answering that needs a
+# state, and a state needs to come from the session rather than from guessing at
+# gaps in the output. tmux already holds the true screen, so ask tmux.
+
+TURNS = pathlib.Path(__file__).resolve().parent.parent / "logs" / "turns.jsonl"
+
+WORKING_MARKS = (
+    "esc to interrupt",       # Claude Code's spinner line, every model
+    "tokens · esc",
+)
+WAITING_MARKS = (
+    "do you want",            # a permission prompt
+    "would you like",
+    "❯ 1.",
+    "> 1. yes",
+)
+
+
+def classify(pane: str) -> str:
+    """working | waiting | idle, from the tail of the visible screen.
+
+    Three states because they mean three different things to a human across
+    the room: keep doing what you are doing, come back, and it needs you NOW.
+    Reading the screen beats timing the output -- a model that thinks for two
+    minutes without printing is still working, and a gap in the bytes says
+    nothing about which of the three it is.
+    """
+    tail = "\n".join(pane.strip().splitlines()[-20:]).lower()
+    if any(m in tail for m in WORKING_MARKS):
+        return "working"
+    if any(m in tail for m in WAITING_MARKS):
+        return "waiting"
+    return "idle"
+
+
+def capture(name: str) -> str:
+    """The visible screen of a tmux session, without attaching to it."""
+    tmux = tmux_bin()
+    if not tmux:
+        return ""
+    try:
+        r = subprocess.run([tmux, "capture-pane", "-p", "-t", name],
+                           capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return r.stdout if r.returncode == 0 else ""
+
+
+def record_turn(seconds: float, path: pathlib.Path = TURNS) -> None:
+    """Remember how long one working spell took, so the next one can be guessed."""
+    if seconds < 2:                       # a blip, not a turn
+        return
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a") as fh:
+            fh.write(json.dumps({"at": time.time(), "seconds": round(seconds, 1)}) + "\n")
+    except OSError:
+        pass
+
+
+def estimate(path: pathlib.Path = TURNS, window: int = 20) -> float | None:
+    """A guess at how long the current turn will take: median of the last few.
+
+    Median, not mean: one turn that ran for an hour should not move the number
+    everything else is measured against. None when there is no history -- a
+    guess with nothing behind it is worse than saying nothing.
+    """
+    try:
+        rows = path.read_text().splitlines()[-window:]
+    except OSError:
+        return None
+    secs = []
+    for line in rows:
+        try:
+            secs.append(float(json.loads(line)["seconds"]))
+        except (ValueError, KeyError, TypeError):
+            continue
+    if not secs:
+        return None
+    secs.sort()
+    mid = len(secs) // 2
+    return secs[mid] if len(secs) % 2 else (secs[mid - 1] + secs[mid]) / 2
+
+
+class _Watch:
+    """One poller per session name, however many browsers are looking.
+
+    Shared because the capture costs a subprocess and the turn log must not be
+    written twice for one turn -- two open tabs would otherwise double every
+    duration in the history the estimate is built from.
+    """
+
+    def __init__(self, name: str):
+        self.name = name
+        self.state = "idle"
+        self.since = time.time()
+        self.lock = threading.Lock()
+        self.checked = 0.0
+
+    def poll(self, every: float = 1.0) -> dict:
+        now = time.time()
+        with self.lock:
+            if now - self.checked >= every:
+                self.checked = now
+                state = classify(capture(self.name))
+                if state != self.state:
+                    if self.state == "working":
+                        record_turn(now - self.since)
+                    self.state, self.since = state, now
+            return {"t": "state", "state": self.state,
+                    "since": self.since, "estimate": estimate()}
+
+
+_WATCH: dict[str, _Watch] = {}
+
+
+def watch(name: str) -> _Watch:
+    with _LIVE_LOCK:
+        w = _WATCH.get(name)
+        if w is None:
+            w = _WATCH[name] = _Watch(name)
+        return w

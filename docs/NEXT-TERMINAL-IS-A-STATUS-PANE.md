@@ -1,6 +1,21 @@
 # Next: the board terminal stops pretending to be a terminal
 
-**Decided 2026-09-03 by Marsita. Not yet built.**
+**Decided 2026-09-03 by Marsita. Built 2026-09-04**, after she restated it in
+one line: *"gaia local terminal ----> one way display ----> and me typing in
+text area for native feel."*
+
+What shipped: the screen is read-only (`term.onData` is gone, `disableStdin`
+on), the compose box is the only way in, and a status pane sits above it
+showing working / waiting for you / idle, an elapsed clock, an estimate from
+the median of recent turns, and a distinct overrun message past 2x. The state
+comes from `tmux capture-pane` rather than from timing gaps in the output --
+a model thinking silently for two minutes is still working.
+
+Image paste was **kept**, as the note below asked: it now always lands in the
+box, because the box is the only path to the session.
+
+The live output stream was kept too. "One way display" means the bytes still
+flow browser-ward; what stopped flowing is keystrokes the other way.
 
 > "This terminal in the browser is shite. I don't like it. It's really
 > non-functional. [...] It won't be very interactive. It will just give me
