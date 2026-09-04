@@ -422,7 +422,10 @@ canvas.mark:hover{opacity:1;}
 
 /* ---------- footer: everything this machine runs, in 7px ---------- */
 #foot{border-top:1px solid var(--border);background:var(--raised);
-  padding:10px 12px 12px;
+  /* No top padding: the handle sits ON the boundary, not 13px below it
+     floating in the middle of a gap. Marsita, 2026-09-04: "line should be
+     exactly at the boundary (no extra gap)". */
+  padding:0 12px 12px;
   display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:4px 18px;}
 #foot section{min-width:0;}
 #foot h3{font-family:var(--mono);font-size:8px;letter-spacing:.18em;
@@ -444,16 +447,31 @@ canvas.mark:hover{opacity:1;}
    that one word is all that is left, which is when it earns its name.
    Marsita, 2026-09-04: "No need to call it 'footer'... Only when collapsed all
    the headers become unified into a single 'footer'". */
-#foot>.foottoggle{grid-column:1/-1;cursor:pointer;user-select:none;
-  position:relative;height:7px;padding:0;margin:0 0 6px;font-size:0;}
+/* row-resize, not pointer: it drags to size the footer, and a hand cursor on
+   a thing you drag is a lie about what it does. Marsita, 2026-09-04: "change
+   cursor to be proper /// please fix the moving part as well, still not
+   moving" -- it collapsed on click but would not drag, which is what a bar
+   that looks exactly like every other divider on this board promises. */
+#foot>.foottoggle{grid-column:1/-1;cursor:row-resize;user-select:none;
+  position:relative;height:3px;padding:0;margin:0 -12px 10px;font-size:0;
+  touch-action:none;}
+#foot>.foottoggle[data-drag="1"]::after{background:var(--info);}
+/* `height`, not `max-height`. A max can only ever shrink a box, so dragging
+   the bar upward did nothing at all -- the footer already fit in less than
+   the number being set. Dragged shorter, the links scroll. */
+#foot[data-sized="1"]{height:var(--hFoot,auto);overflow-y:auto;}
+/* The hit area is far bigger than the line. Three pixels is a target you have
+   to aim at, and this is a thing you click, not a thing you thread. */
 #foot>.foottoggle::before{content:"";position:absolute;left:0;right:0;
-  top:-4px;bottom:-4px;}
-#foot>.foottoggle::after{content:"";position:absolute;left:0;right:0;
-  top:2px;bottom:2px;border-radius:1px;background:var(--border);}
+  top:-5px;bottom:-7px;}
+#foot>.foottoggle::after{content:"";position:absolute;inset:0;
+  background:var(--border);}
 #foot>.foottoggle:hover::after{background:var(--info);}
-#foot[data-open="0"]{padding:3px 12px;}
+#foot[data-open="0"]{padding:0 12px 3px;}
 #foot[data-open="0"]>section{display:none;}
-#foot[data-open="0"]>.foottoggle{height:auto;margin:0;padding:0;
+/* Shut, there is nothing left to size, so it stops pretending to be a grip. */
+#foot[data-open="0"]>.foottoggle{cursor:pointer;height:auto;margin:0;
+  padding:3px 0 0;
   font-family:var(--mono);font-size:8px;letter-spacing:.18em;
   text-transform:uppercase;color:var(--muted);}
 #foot[data-open="0"]>.foottoggle::after{display:none;}
@@ -2092,9 +2110,57 @@ if ($("#foot")){
       localStorage.setItem(LAYOUT_KEY, JSON.stringify(l));
     } catch(e){}
   };
-  tog.addEventListener("click", () => setFoot(foot.dataset.open === "0"));
+  /* Drag to size it, click to shut it -- one bar, told apart by whether the
+     pointer actually moved. A separate handle for each would be two 3px
+     targets stacked on one boundary. */
+  let footH = 0;
+  const setH = (px, save = true) => {
+    px = Math.max(26, Math.min(px, innerHeight * 0.6));
+    footH = px;
+    foot.dataset.sized = "1";
+    document.documentElement.style.setProperty("--hFoot", px + "px");
+    if (!save) return;
+    try {
+      const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+      l.hFoot = Math.round(px);
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(l));
+    } catch(e){}
+  };
+
+  tog.addEventListener("pointerdown", e => {
+    if (foot.dataset.open === "0") return;      // nothing to size when shut
+    e.preventDefault();
+    const y0 = e.clientY, h0 = foot.getBoundingClientRect().height;
+    let moved = false;
+    tog.setPointerCapture(e.pointerId);
+    tog.dataset.drag = "1";
+    const move = ev => {
+      // Dragging UP makes it taller: the footer grows from the bottom of the
+      // window, so the boundary and the pointer travel the same way.
+      const dy = y0 - ev.clientY;
+      if (Math.abs(dy) > 3) moved = true;
+      if (moved) setH(h0 + dy, false);
+    };
+    const up = ev => {
+      tog.removeEventListener("pointermove", move);
+      tog.removeEventListener("pointerup", up);
+      delete tog.dataset.drag;
+      // Save the number that was SET, never the height measured afterwards:
+      // the box can be shorter than what it was asked for, and reading it
+      // back turned every drag into a no-op that also forgot itself.
+      if (moved) setH(footH);
+      else setFoot(foot.dataset.open === "0");   // a click, not a drag
+    };
+    tog.addEventListener("pointermove", move);
+    tog.addEventListener("pointerup", up);
+  });
+  // Shut, the bar is only a way back in, and pointerdown above bails out.
+  tog.addEventListener("click", () => {
+    if (foot.dataset.open === "0") setFoot(true);
+  });
   try {
     const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+    if (l.hFoot) setH(l.hFoot, false);
     if (l.footOpen === 0) setFoot(false, false);
   } catch(e){}
 }

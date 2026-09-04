@@ -245,6 +245,53 @@ def test_open_the_handle_is_a_bar_and_says_nothing():
         "no blue grab handle"
 
 
+def test_the_handle_sits_on_the_boundary_not_below_it():
+    """It was 13px down, floating in the footer's top padding. Marsita:
+    "line should be exactly at the boundary (no extra gap)"."""
+    src = (BIN / "oneview.py").read_text()
+    i = src.index("#foot{border-top")
+    assert "padding:0 12px 12px;" in src[i:i + 400], "top padding is back"
+    j = src.index("#foot>.foottoggle{")
+    assert "margin:0 -12px" in src[j:j + 200], "not full bleed"
+
+
+def test_the_bar_drags_and_the_cursor_says_so():
+    """A hand cursor on a thing you drag is a lie about what it does."""
+    src = (BIN / "oneview.py").read_text()
+    i = src.index("#foot>.foottoggle{")
+    assert "cursor:row-resize" in src[i:i + 260]
+    assert 'tog.addEventListener("pointerdown"' in src
+
+
+def test_the_footer_is_sized_by_height_not_max_height():
+    """A max can only shrink a box, so dragging upward did nothing: the
+    footer already fit in less than the number being set."""
+    src = (BIN / "oneview.py").read_text()
+    assert '#foot[data-sized="1"]{height:var(--hFoot,auto);' in src
+
+
+def test_a_drag_saves_what_was_set_not_what_was_measured():
+    """The box can be shorter than what it was asked for. Reading it back
+    turned every drag into a no-op that also forgot itself."""
+    src = (BIN / "oneview.py").read_text()
+    assert "if (moved) setH(footH);" in src
+    assert "setH(foot.getBoundingClientRect().height)" not in src
+
+
+def test_a_click_that_did_not_move_still_collapses():
+    """One bar, two jobs, told apart by whether the pointer actually moved."""
+    src = (BIN / "oneview.py").read_text()
+    assert "else setFoot(foot.dataset.open" in src
+    assert "if (Math.abs(dy) > 3) moved = true;" in src
+
+
+def test_the_target_is_bigger_than_the_line():
+    """3px is something you aim at. This is a thing you click."""
+    src = (BIN / "oneview.py").read_text()
+    i = src.index("#foot>.foottoggle::before{")
+    assert "top:-5px" in src[i:i + 160] and "bottom:-7px" in src[i:i + 160]
+
+
 def test_shut_the_word_is_the_only_thing_left_and_the_way_back():
     src = (BIN / "oneview.py").read_text()
     i = src.index('#foot[data-open="0"]>.foottoggle{')
