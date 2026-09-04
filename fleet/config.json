@@ -84,6 +84,11 @@
     "at_hour": 19,
     "at_minute": 0
   },
+  "daily": {
+    "_what": "The one message the operator actually reads, sent to Telegram at 09:00. Distinct from `report`, which publishes a page at 19:00 -- one is pushed to a phone in the morning, the other is a link that waits. It ran for weeks as a hand-written systemd unit that apply-config did not generate, so neither machine could be repaired from the repo. Generated now.",
+    "at_hour": 9,
+    "at_minute": 0
+  },
   "builders": {
     "_comment": "One builder at a time. gap_seconds counts from when the last slot FINISHES, so slots cannot overlap however long one runs. max_seconds bounds a slot that hangs. Was three template instances at 30s with a 4h timeout, which pinned six cores for a day and built nothing.",
     "gap_seconds": 300,

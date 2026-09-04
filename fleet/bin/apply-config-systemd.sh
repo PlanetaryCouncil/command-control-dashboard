@@ -133,6 +133,12 @@ fi
 unit council     "Fleet council"          "$(every "$CO_EVERY")"  /bin/bash "$FLEET/bin/council-cycle.sh"
 unit e2e         "Fleet end-to-end tests" "$(daily "$E2_H" "$E2_M")" "$PY" "$FLEET/bin/e2e.py"
 unit report      "Fleet daily report"     "$(daily "$RP_H" "$RP_M")" /bin/bash "$FLEET/bin/report-cycle.sh"
+# The 09:00 Telegram message. Not merged into report: one is pushed to a
+# phone at breakfast, the other is a page that waits until evening. It ran
+# for weeks as a hand-written unit apply-config knew nothing about.
+DY_H="$(python3 -c "import json;print(json.load(open('$CFG')).get('daily',{}).get('at_hour',9))")"
+DY_M="$(python3 -c "import json;print(json.load(open('$CFG')).get('daily',{}).get('at_minute',0))")"
+unit daily       "Fleet daily summary"    "$(daily "$DY_H" "$DY_M")" /bin/bash "$FLEET/bin/daily-summary.sh"
 
 # The builder. ONE unit, not three template instances, and it absorbs the
 # separate pipeline timer -- backlog.sh has always ended by calling
@@ -185,7 +191,7 @@ systemctl --user daemon-reload
 # pulse live on board-medic.
 # report sits too: a summary that is written but never scheduled is a
 # summary of the one day someone remembered to run it.
-SITTING="rota council health e2e report build"
+SITTING="rota council health e2e report build daily"
 for name in $SITTING; do
   systemctl --user enable --now "fleet-$name.timer" >/dev/null
   echo "  enabled fleet-$name.timer"

@@ -18,7 +18,7 @@ from pathlib import Path
 FLEET = Path(__file__).resolve().parent.parent / "fleet"
 APPLY = (FLEET / "bin" / "apply-config-systemd.sh").read_text()
 
-SIX = {"rota", "build", "council", "health", "e2e", "report"}
+SEVEN = {"rota", "build", "council", "health", "e2e", "report", "daily"}
 
 
 def generated() -> set[str]:
@@ -30,15 +30,19 @@ def generated() -> set[str]:
     return names
 
 
-def test_six_units_are_generated():
-    assert generated() == SIX, generated() ^ SIX
+def test_seven_units_are_generated():
+    """Six from the collapse, plus `daily` -- the 09:00 Telegram message that
+    had been a hand-written unit apply-config knew nothing about, so neither
+    machine could be repaired from the repo. It is not merged into `report`:
+    one is pushed to a phone at breakfast, the other is a page that waits."""
+    assert generated() == SEVEN, generated() ^ SEVEN
 
 
-def test_all_six_actually_sit():
+def test_all_seven_actually_sit():
     """Writing a unit without enabling it is how the NUC served the board for
     weeks while running none of the fleet."""
     sitting = re.search(r'^SITTING="([^"]+)"', APPLY, re.M).group(1).split()
-    assert set(sitting) == SIX
+    assert set(sitting) == SEVEN
 
 
 def test_the_collapsed_units_are_retired_not_orphaned():
@@ -63,7 +67,8 @@ def test_no_unit_runs_the_pipeline_twice():
 
 def test_the_wrappers_exist_and_are_executable():
     import os
-    for name in ("health.sh", "council-cycle.sh", "report-cycle.sh"):
+    for name in ("health.sh", "council-cycle.sh", "report-cycle.sh",
+                 "daily-summary.sh"):
         f = FLEET / "bin" / name
         assert f.exists(), name
         assert os.access(f, os.X_OK), f"{name} is not executable"
