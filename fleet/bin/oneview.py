@@ -398,6 +398,28 @@ canvas.mark:hover{opacity:1;}
 .goal.late .d{color:var(--critical);font-weight:600;}
 .goal.soon .d{color:var(--warning);}
 
+/* ---------- issues: eighteen things in eight places ----------
+   Every open issue across every repo, one list, oldest age loudest. Marsita
+   had eighteen of them spread over eight repositories and no screen that
+   showed them together, which is the actual reason none of them moved. The
+   repo tag does the work eight browser tabs were doing. */
+#issues{flex:0 0 auto;max-height:34vh;}
+#issues .body{padding:2px 0;}
+#issues .irow{display:flex;gap:7px;align-items:baseline;padding:2px 7px;
+  font-size:10.5px;line-height:1.35;}
+#issues .irow:hover{background:var(--raised);}
+#issues .irow a{color:var(--ink);text-decoration:none;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#issues .irow a:hover{color:var(--accent);text-decoration:underline;}
+#issues .repo{font-family:var(--mono);font-size:8px;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);flex:none;width:74px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* Age, not date. A date is a fact you have to do arithmetic on; the number of
+   days it has been sitting there is the thing that should make you wince. */
+#issues .age{font-family:var(--mono);font-size:8.5px;color:var(--muted);flex:none;}
+#issues .age.old{color:var(--warning);}
+#issues .age.rotten{color:var(--critical);}
+
 /* ---------- footer: everything this machine runs, in 7px ---------- */
 #foot{border-top:1px solid var(--border);background:var(--raised);
   padding:10px 12px 12px;
@@ -1525,6 +1547,42 @@ function paneFailed(pane, err){
   console.error("[" + pane.id + "]", err);
 }
 
+/* ---------------- issues --------------------------------------------------- */
+/* One list for every repo. The point is not tracking -- GitHub does that --
+   it is SEEING them without eight tabs, because a backlog you cannot see in
+   one glance is a backlog you do not sort. */
+async function loadIssues(){
+  const pane = $("#issues");
+  try {
+    const d = await (await fetch("api/issues",{cache:"no-store"})).json();
+    if (d.local_only){
+      pane.querySelector(".body").innerHTML =
+        '<div class="empty">local only</div>';
+      pane.dataset.state = "ok";
+      return;
+    }
+    const rows = (d.issues || []).map(i => {
+      const age = i.age_days;
+      // Three bands, because "how long" is the only judgement this pane makes:
+      // this week is fine, a fortnight is a nag, a month is a decision you
+      // have not made.
+      const cls = age >= 30 ? "rotten" : age >= 14 ? "old" : "";
+      return `<div class="irow"><span class="repo" title="${esc(i.repo)}">` +
+        `${esc(i.repo)}</span>` +
+        `<a href="${esc(i.url)}" target="_blank" rel="noopener" ` +
+        `title="${esc(i.repo)}#${i.number} — ${esc(i.title)}">${esc(i.title)}</a>` +
+        `<span class="age ${cls}">${age === null ? "" : age + "d"}</span></div>`;
+    });
+    pane.querySelector(".body").innerHTML =
+      rows.join("") || '<div class="empty">nothing open — file one with <code>issue</code></div>';
+    pane.querySelector("h2 .n").textContent =
+      (d.count || 0) + (d.stale ? " · stale" : "");
+    pane.dataset.state = "ok";
+  } catch (err) {
+    pane.dataset.state = "error";
+  }
+}
+
 /* ---------------- work ----------------------------------------------------- */
 /* Read out of git on every poll, because a status file is a claim and git is
    a fact. Five rows, in the order you actually want them: what is unsaved,
@@ -2059,6 +2117,11 @@ loadWork();
 // 20s. Commits land in bursts and a stale "unsaved" count is the one number
 // here that would actively mislead — but git is not free, so not every poll.
 setInterval(loadWork, 20000);
+loadIssues();
+// Five minutes, matching the server-side cache. GitHub rate-limits, and an
+// issue list that refreshed every six seconds would be spending a quota to
+// tell you the same eighteen things.
+setInterval(loadIssues, 300000);
 loadHorizons();
 setInterval(loadHorizons, 300000);
 loadArt();
@@ -2227,6 +2290,12 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <div class="col">
     <section class="pane" id="work" data-state="loading">
       <h2>work &mdash; this repo <span class="n"></span></h2>
+      <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+
+    <section class="pane" id="issues" data-state="loading">
+      <h2>issues &mdash; all repos <span class="n"></span></h2>
       <div class="body"></div>
       <div class="load"><i></i><span class="msg"></span></div>
     </section>

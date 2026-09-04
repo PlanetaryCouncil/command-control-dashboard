@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# File a GitHub issue in one line, from wherever you are standing.
+#
+#   issue ux "the nav wraps on mobile"
+#   issue "the footer will not collapse"        # defaults to this repo
+#
+# The whole point is that it costs a sentence. Marsita, 2026-09-04: "I need to
+# get disciplined to be creating issues and then sorting them out." Discipline
+# is the wrong lever -- filing used to mean leaving the terminal, opening a
+# browser, finding the repo and clicking New. That is the thing that stopped
+# it, not willpower, so this removes that instead of asking for more.
+set -euo pipefail
+
+FLEET="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="$FLEET/../.venv/bin/python3"
+[[ -x "$PY" ]] || PY="$(command -v python3)"
+
+if [[ $# -eq 0 ]]; then
+  echo "usage: issue [repo] \"what is wrong\"" >&2
+  exit 1
+fi
+
+if [[ $# -eq 1 ]]; then
+  REPO="command-control-dashboard"        # where you are, nine times in ten
+  TITLE="$1"
+else
+  REPO="$1"; shift
+  TITLE="$*"
+fi
+
+# The heredoc has no __file__ of its own, so the bin directory is handed in
+# rather than guessed. Guessing it is how this would break on the NUC, whose
+# checkout is at a different path.
+FLEET_BIN="$FLEET/bin" "$PY" - "$REPO" "$TITLE" <<'PY'
+import os, sys
+sys.path.insert(0, os.environ["FLEET_BIN"])
+import issues
+url = issues.create(sys.argv[1], sys.argv[2])
+print(url or "could not file it -- is `gh` logged in, and does that repo exist?")
+sys.exit(0 if url else 1)
+PY

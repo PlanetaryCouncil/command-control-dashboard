@@ -181,6 +181,17 @@ def test_the_window_follows_the_biggest_viewer_not_the_smallest():
     assert '"window-size", "largest"' in src
 
 
+def test_the_size_options_never_block_the_session_starting():
+    """Two subprocess calls inline in __init__ delayed the end of it by
+    seconds, and a session created just after the last one was killed then
+    attached to the dying one. Cosmetic sizing must not be on that path."""
+    src = (BIN / "terminal.py").read_text()
+    i = src.index("def __init__")
+    j = src.index("def _tmux_setup")
+    assert "_tmux_setup, daemon=True" in src[i:j]
+    assert '"window-size", "largest"' not in src[i:j], "still inline"
+
+
 def test_setting_a_tmux_option_never_takes_the_session_down(monkeypatch):
     s = terminal.Session.__new__(terminal.Session)
     s.tmux_name = "board"

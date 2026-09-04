@@ -229,8 +229,13 @@ class Session:
             # sets the size and a smaller client scrolls around it, which is
             # the right way round -- the empty space was the browser being
             # given less than it had room for.
-            self.tmux_opt("window-size", "largest")
-            self.tmux_opt("aggressive-resize", "on", window=True)
+            # In a thread, NEVER inline. Two `subprocess.run`s here delay the
+            # end of __init__ by seconds, and a session created moments after
+            # the previous one was killed then attaches to the dying session
+            # instead of a new one -- `test_a_late_arrival_is_shown_what_it
+            # _missed` went from green to reliably red on that alone. These
+            # options are cosmetic sizing; nothing should wait on them.
+            threading.Thread(target=self._tmux_setup, daemon=True).start()
         # Everything the session has said recently, so a browser that arrives
         # late can be shown the room it walked into. Raw bytes, not lines:
         # this is a terminal stream, and cutting it on newlines would split
@@ -238,8 +243,19 @@ class Session:
         self.buf = bytearray()
         self.lock = threading.Lock()
         self.watchers: list = []               # queues, one per attached page
+        # Every attached page's window size, keyed per socket. One pty is
+        # shared by all of them, so without this the last tab to resize set
+        # the width for everyone and two differently-sized tabs fought over
+        # it -- whichever you touched most recently won and the other drew at
+        # a width it did not have.
+        self.sizes: dict[int, tuple[int, int]] = {}
         self.pump = threading.Thread(target=self._pump, daemon=True)
         self.pump.start()
+
+    def _tmux_setup(self) -> None:
+        """Size options, applied once the session is actually up."""
+        self.tmux_opt("window-size", "largest")
+        self.tmux_opt("aggressive-resize", "on", window=True)
 
     def tmux_opt(self, name: str, value: str, *, window: bool = False) -> None:
         """Set one tmux option on this session, best effort.
@@ -307,6 +323,34 @@ class Session:
         with self.lock:
             if q in self.watchers:
                 self.watchers.remove(q)
+
+    def set_size(self, key: int, cols: int, rows: int) -> None:
+        """Record one page's size and fit the pty to the smallest of them.
+
+        The same rule tmux uses for several attached clients, and for the same
+        reason: a screen drawn wider than a viewer's window wraps into
+        nonsense there, while one drawn narrower merely leaves a margin. The
+        smallest window is the only size every viewer can actually display.
+        """
+        with self.lock:
+            self.sizes[key] = (max(int(cols), 2), max(int(rows), 2))
+            cols = min(c for c, _ in self.sizes.values())
+            rows = min(r for _, r in self.sizes.values())
+        self.resize(cols, rows)
+
+    def drop_size(self, key: int) -> None:
+        """Forget a page that has gone, and give the room back to the rest.
+
+        Without this a closed tab kept its vote forever: shut a narrow one and
+        every remaining tab stayed cramped to a window nobody was looking at.
+        """
+        with self.lock:
+            self.sizes.pop(key, None)
+            if not self.sizes:
+                return                         # nobody left; keep the last fit
+            cols = min(c for c, _ in self.sizes.values())
+            rows = min(r for _, r in self.sizes.values())
+        self.resize(cols, rows)
 
     def resize(self, cols: int, rows: int) -> None:
         try:
@@ -588,6 +632,7 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
     threading.Thread(target=pump_state, daemon=True).start()
 
     first_resize = True
+    viewer = id(queue)          # this page's identity for as long as it is here
     try:
         while not stop.is_set():
             frame = _recv_frame(sock)
@@ -605,7 +650,10 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
                 except ValueError:
                     continue
                 if msg.get("t") == "resize":
-                    session.resize(int(msg.get("cols", 120)), int(msg.get("rows", 32)))
+                    # This page's own vote, not a decree for every other tab.
+                    session.set_size(viewer,
+                                     int(msg.get("cols", 120)),
+                                     int(msg.get("rows", 32)))
                     # tmux sizes a window to its smallest client and redraws on
                     # its own schedule, so the first resize from a new page is
                     # the moment its screen is finally the right shape. Ask for
@@ -625,6 +673,8 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
         # board process dies, or when someone asks for it to end.
         stop.set()
         session.unsubscribe(queue)
+        # Give this page's share of the width back to whoever is still here.
+        session.drop_size(viewer)
 
 
 # ------------------------------------------------------------------ what it is

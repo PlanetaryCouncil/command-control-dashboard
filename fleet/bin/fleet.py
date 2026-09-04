@@ -1179,6 +1179,21 @@ def serve(port):
                 self._send(json.dumps(cached[2]).encode(), "application/json")
                 return
 
+            if path == "/api/issues":
+                # Local only. An open issue is a to-do list, and the board
+                # publishes what the fleet DID, never what it has not got
+                # round to. Some of these repos are private besides.
+                if self._remote():
+                    self._send(json.dumps({"issues": [], "count": 0,
+                                           "local_only": True}).encode(),
+                               "application/json")
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import issues as _issues
+                self._send(json.dumps(_issues.snapshot()).encode(),
+                           "application/json")
+                return
+
             if path == "/api/charge":
                 self._send(json.dumps(charge_tally()).encode(),
                            "application/json")
