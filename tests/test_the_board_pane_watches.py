@@ -265,6 +265,14 @@ def test_a_project_and_its_repo_share_one_line():
     """Marsita: "prefer less vertical". Six stacked rows became three."""
     src = (BIN / "oneview.py").read_text()
     assert src.count('<span class="pair">') == 3
+    # The domain on the left, the bare word on the right. A name you have to
+    # recognise is worse than one you can type, and repeating the full repo
+    # URL spends a line saying where GitHub is.
+    for dom in ("planetarycouncil.org", "independenttribunal.org", "basex.com"):
+        assert f">{dom}</a>" in src, dom
+    assert src.count("<b>|</b><a") == 3
+    assert ">github</a>" in src
+    assert ">github.com/" not in src, "the full repo URL is back"
     # Matched as link TEXT, not as a mention: two comments explain why the
     # arrow rows went, and a test that bans the glyph bans the explanation.
     assert '">&#8627; github.com/' not in src, "the stacked arrow rows are gone"

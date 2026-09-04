@@ -2470,15 +2470,20 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
          can be checked, and all three orgs were verified against the GitHub
          API rather than copied from a note (2026-09-03).
          The pipe does the work the stacked "&#8627;" rows used to: same fact,
-         half the height. -->
+         half the height.
+         The left half is the DOMAIN, not a prose name -- "planetary council"
+         is a thing you have to recognise, "planetarycouncil.org" is a thing
+         you can type. The right half is just "github": repeating
+         github.com/PlanetaryCouncil after it spends a line saying where
+         GitHub is (2026-09-04). -->
     <span class="pair">
-      <a href="https://planetarycouncil.org" title="Where things are decided. The council, the goals, this fleet.">planetary council</a><b>|</b><a href="https://github.com/PlanetaryCouncil" title="The council's source. 28 public repositories, this board among them.">github.com/PlanetaryCouncil</a>
+      <a href="https://planetarycouncil.org" title="Where things are decided. The council, the goals, this fleet.">planetarycouncil.org</a><b>|</b><a href="https://github.com/PlanetaryCouncil" title="The council's source on GitHub. 28 public repositories, this board among them.">github</a>
     </span>
     <span class="pair">
-      <a href="https://independenttribunal.org" title="Where decisions are contested. The other half of deciding anything.">independent tribunal</a><b>|</b><a href="https://github.com/independenttribunal" title="The tribunal's source.">github.com/independenttribunal</a>
+      <a href="https://independenttribunal.org" title="Where decisions are contested. The other half of deciding anything.">independenttribunal.org</a><b>|</b><a href="https://github.com/independenttribunal" title="The tribunal's source on GitHub.">github</a>
     </span>
     <span class="pair">
-      <a href="https://demo.basex.com" title="BaseX, the deployment half — the live demo. Break it and say what broke: that is the most useful thing anyone can do here right now.">basex demo &mdash; try it</a><b>|</b><a href="https://github.com/basexhq" title="BaseX's source.">github.com/basexhq</a>
+      <a href="https://basex.com" title="BaseX, the deployment half. The live demo is at demo.basex.com — break it and say what broke.">basex.com</a><b>|</b><a href="https://github.com/basexhq" title="BaseX's source on GitHub.">github</a>
     </span>
     <a href="/report" title="What the fleet did in the last 24 hours — agents, proposals, branches, merges and mistakes. JSON, Markdown or HTML.">daily report</a>
     <!-- Next to the daily report because they answer the same question at two
