@@ -83,5 +83,10 @@
     "_what": "One page a day saying what the fleet actually did, published to this repo's own GitHub Pages. Written 2026-09-03, after a day that surfaced three failures \u2014 nothing built for two days, the heartbeat dead for 31 hours, the watchdog tier never once run on the NUC \u2014 each of them visible in some log and none of them visible anywhere a person looks. 19:00 so it covers a working day rather than cutting one in half.",
     "at_hour": 19,
     "at_minute": 0
+  },
+  "builders": {
+    "_comment": "One builder at a time. gap_seconds counts from when the last slot FINISHES, so slots cannot overlap however long one runs. max_seconds bounds a slot that hangs. Was three template instances at 30s with a 4h timeout, which pinned six cores for a day and built nothing.",
+    "gap_seconds": 300,
+    "max_seconds": 1800
   }
 }

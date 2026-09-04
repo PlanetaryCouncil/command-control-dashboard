@@ -29,6 +29,36 @@ from pathlib import Path
 FLEET = Path(__file__).resolve().parent.parent
 UPLOADS = FLEET / "uploads"
 OLLAMA = "http://127.0.0.1:11434"
+
+# The model the `claude` CLI runs as, everywhere the fleet shells out to it.
+#
+# The CLI authenticates against the subscription; only the raw HTTP API bills
+# per token. That distinction cost an evening on 2026-09-03: hermes was refused
+# by the Anthropic API ("third-party apps now draw from your extra usage") and
+# by Copilot (30 models listed, no entitlement), while `claude --print` sat on
+# the same box working fine the whole time. Verified on the NUC 2026-09-04:
+#
+#     $ claude --print --model claude-fable-5-1 "reply with exactly: ok"
+#     ok
+#
+# So the orchestrator seat is free. Empty FLEET_CLAUDE_MODEL means "whatever
+# the CLI defaults to" -- no --model flag is passed at all, which is what a box
+# with an older CLI needs.
+CLAUDE_MODEL = os.environ.get("FLEET_CLAUDE_MODEL", "claude-fable-5-1").strip()
+
+
+def claude_argv(*extra: str) -> list[str]:
+    """`claude --print` with the fleet's model, plus whatever else is asked.
+
+    One place, because there were two call sites drifting apart -- pipeline's
+    builder and chat's adapter -- and a model chosen in one of them is a model
+    the other silently disagrees with.
+    """
+    argv = ["claude", "--print", "--permission-mode", "acceptEdits"]
+    if CLAUDE_MODEL:
+        argv += ["--model", CLAUDE_MODEL]
+    return argv + list(extra)
+
 # The local model. dolphin-llama3 (8B, 4.7GB) was measured unable to take a
 # council turn on this 8GB box (2026-08-03: 300s timeout, load 166).
 # llama3.2:1b (1.3GB) measured 2026-08-04: 160 tokens in 17s, 10.4 tok/s.
@@ -232,9 +262,9 @@ def ask_claude(prompt, files, emit, timeout=600):
     # WebSearch/WebFetch: asked for on 2026-08-04 ("ability to browse the
     # web") — claude is the only fleet agent with a tool loop, so it is the
     # only one that can. hermes/openclaw/ollama are single-shot chat calls.
-    return run_cmd(["claude", "--print", "--permission-mode", "acceptEdits",
-                    "--allowedTools", "WebSearch", "WebFetch",
-                    "--add-dir", str(FLEET)], timeout=timeout, stdin_text=prompt)
+    return run_cmd(claude_argv("--allowedTools", "WebSearch", "WebFetch",
+                               "--add-dir", str(FLEET)),
+                   timeout=timeout, stdin_text=prompt)
 
 
 def ask_grok(prompt, files, emit, timeout=600):

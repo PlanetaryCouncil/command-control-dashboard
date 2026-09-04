@@ -76,12 +76,17 @@ import events as ev  # noqa: E402
 
 
 def builder_name() -> str:
-    """Who implements. Default grok: it is here, it has credits, it edits.
+    """Who implements. Default claude, running the model in chat.CLAUDE_MODEL.
 
-    Claude stays selectable via FLEET_BUILDER=claude when that plan is alive
-    again.
+    Was grok, while the Claude plan was assumed dead. It was not: the `claude`
+    CLI runs on the subscription and only the raw API meters, so the strongest
+    available model has been free the whole time. Confirmed on the NUC
+    2026-09-04. Marsita: "Fable 5.1 as an orchestrator... the most capable
+    frontier model leading the pack?"
+
+    Any other agent stays selectable via FLEET_BUILDER=<name>.
     """
-    return os.environ.get("FLEET_BUILDER", "grok").strip() or "grok"
+    return os.environ.get("FLEET_BUILDER", "claude").strip() or "claude"
 
 
 def reviewer_name(builder: str | None = None) -> str:
@@ -139,13 +144,13 @@ def run_builder(prompt, cwd, timeout=BUILD_TIMEOUT):
         return run(["grok", "-p", prompt, "--output-format", "plain",
                     "--always-approve", "--cwd", str(cwd)],
                    cwd=cwd, timeout=timeout)
-    return run(["claude", "--print", "--permission-mode", "acceptEdits",
-                "--allowedTools",
-                "Bash(git add:*)", "Bash(git commit:*)",
-                "Bash(git status:*)", "Bash(git diff:*)",
-                "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
-                "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)",
-                "WebSearch", "WebFetch"],
+    return run(chat.claude_argv(
+                   "--allowedTools",
+                   "Bash(git add:*)", "Bash(git commit:*)",
+                   "Bash(git status:*)", "Bash(git diff:*)",
+                   "Bash(git log:*)", f"Bash({venv_pytest()}:*)",
+                   "Bash(.venv/bin/pytest:*)", "Bash(.venv311/bin/pytest:*)",
+                   "WebSearch", "WebFetch"),
                cwd=cwd, timeout=timeout, stdin_text=prompt)
 
 

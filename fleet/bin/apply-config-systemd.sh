@@ -68,7 +68,7 @@ WorkingDirectory=$FLEET
 Environment=PATH=$HOME/.local/bin:$HOME/.local/share/mise/installs/node/lts/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin
 ExecStart=$cmd
 # A job that hangs must not hold the timer forever.
-TimeoutStartSec=3600
+TimeoutStartSec=${UNIT_TIMEOUT:-3600}
 Nice=10
 IOSchedulingClass=idle
 EOF
@@ -121,13 +121,36 @@ unit local-voice "Fleet local voice"      "$(daily "$LV_H" "$LV_M")" "$PY" "$FLE
 unit self-improve "Self-improvement loop" "$(daily "$SI_H" "$SI_M")" /bin/bash "$REPO/self-improve/loop/run-cycle.sh"
 unit report      "Fleet daily report"     "$(daily "$RP_H" "$RP_M")" /bin/bash "$FLEET/bin/publish-report.sh"
 
+# The builder. ONE unit, not three template instances.
+#
+# What was here before, hand-written and never generated from config:
+#
+#     fleet-build@{agy,claude,grok}.timer   OnUnitInactiveSec=30s
+#     fleet-build@.service                  TimeoutStartSec=14400
+#
+# Three copies of a four-hour job restarted thirty seconds after finishing.
+# Each ran autotriage AND pipeline, each of those called hermes, and hermes on
+# the NUC was a 3B model on the CPU at 5 tokens/sec. Six callers, six cores,
+# 6d05h of CPU burned in 25h of wall clock, the box 3GB into swap -- and the
+# pipeline built nothing at all from 2026-09-01 to 2026-09-04 because every
+# slot was queued behind the last one. Disabled by hand 2026-09-04.
+#
+# The fix is structural, not a smaller number: one unit means one builder at a
+# time and no instance can race another. backlog.sh already picks the name
+# itself via next_builder.py when FLEET_BUILDER is unset, so the round-robin
+# survives -- it just stops happening in parallel.
+BD_GAP="$(python3 -c "import json;print(json.load(open('$CFG')).get('builders',{}).get('gap_seconds',300))")"
+BD_MAX="$(python3 -c "import json;print(json.load(open('$CFG')).get('builders',{}).get('max_seconds',1800))")"
+UNIT_TIMEOUT="$BD_MAX" \
+  unit build     "Fleet builder"          "$(after "$BD_GAP")"    /bin/bash "$FLEET/bin/backlog.sh"
+
 systemctl --user daemon-reload
 # The sitting set. Writing units without enabling them is how NUC served
 # the board for weeks while running none of the fleet. Load and quota
 # pulse live on board-medic.
 # report sits too: a summary that is written but never scheduled is a
 # summary of the one day someone remembered to run it.
-SITTING="rota council heartbeat board-medic pipeline watchdogs report"
+SITTING="rota council heartbeat board-medic pipeline watchdogs report build"
 for name in $SITTING; do
   systemctl --user enable --now "fleet-$name.timer" >/dev/null
   echo "  enabled fleet-$name.timer"
