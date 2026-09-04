@@ -102,9 +102,25 @@ after() { echo "OnBootSec=120
 OnUnitInactiveSec=${1}s"; }
 daily() { printf 'OnCalendar=*-*-* %02d:%02d:00\n' "$1" "$2"; }
 
-unit watchdogs   "Fleet watchdogs"        "$(every "$WD_EVERY")"  /bin/bash "$FLEET/bin/run-watchdogs.sh"
-unit board-medic "Fleet board medic"      "$(every "$BM_EVERY")"  /bin/bash "$FLEET/bin/board-medic.sh"
-unit pipeline    "Fleet build pipeline"   "$(every "$PL_EVERY")"  "$PY" "$FLEET/bin/pipeline.py" run
+# Six units. There were eleven, and two of them ran the same command --
+# fleet-pipeline and fleet-build both called pipeline.py run. Marsita,
+# 2026-09-04, looking at the org chart: "seriously I have such a super duper
+# architecture? [...] we don't need that many processes... If we could get
+# down to 6 or 7 would be great."
+#
+# Each collapse also removes a way for two timers to race each other on a
+# 14GB box, which is the class of bug that pinned six cores for a day.
+#
+#   rota      the loop, unchanged
+#   build     backlog.sh -- absorbs pipeline, it already ran it
+#   council   council.py + self-improve once a day
+#   health    board-medic + watchdogs + heartbeat, gated by stamp files
+#   e2e       daily. the only thing that can say the fleet still works
+#   report    the daily page + the local-voice pulse
+#
+# The tests did not shrink. The processes did.
+
+unit health      "Fleet health"           "$(every "$BM_EVERY")"  /bin/bash "$FLEET/bin/health.sh"
 # rota.continuous_gap_seconds turns the rota from hourly into a loop: one
 # agent at a time, next turn a breath after the last one ends. Absent, it
 # stays on the shared hourly cadence, so Gaia is unaffected.
@@ -114,14 +130,14 @@ if [[ -n "$RO_GAP" ]]; then
 else
   unit rota      "Fleet rota"             "$(every "$RO_EVERY")"  "$PY" "$FLEET/bin/rota.py" --agents "$RO_AGENTS"
 fi
-unit council     "Fleet council"          "$(every "$CO_EVERY")"  "$PY" "$FLEET/bin/council.py" --agents "$CO_AGENTS" --rounds "$CO_ROUNDS"
-unit heartbeat   "Fleet comms heartbeat"  "$(every "$HB_EVERY")"  "$PY" "$FLEET/bin/comms-heartbeat.py" --agents "$HB_AGENTS" --laps "$HB_LAPS"
+unit council     "Fleet council"          "$(every "$CO_EVERY")"  /bin/bash "$FLEET/bin/council-cycle.sh"
 unit e2e         "Fleet end-to-end tests" "$(daily "$E2_H" "$E2_M")" "$PY" "$FLEET/bin/e2e.py"
-unit local-voice "Fleet local voice"      "$(daily "$LV_H" "$LV_M")" "$PY" "$FLEET/bin/localvoice.py"
-unit self-improve "Self-improvement loop" "$(daily "$SI_H" "$SI_M")" /bin/bash "$REPO/self-improve/loop/run-cycle.sh"
-unit report      "Fleet daily report"     "$(daily "$RP_H" "$RP_M")" /bin/bash "$FLEET/bin/publish-report.sh"
+unit report      "Fleet daily report"     "$(daily "$RP_H" "$RP_M")" /bin/bash "$FLEET/bin/report-cycle.sh"
 
-# The builder. ONE unit, not three template instances.
+# The builder. ONE unit, not three template instances, and it absorbs the
+# separate pipeline timer -- backlog.sh has always ended by calling
+# pipeline.py run, so a second timer running the same command was two
+# builders racing for one worktree.
 #
 # What was here before, hand-written and never generated from config:
 #
@@ -133,7 +149,7 @@ unit report      "Fleet daily report"     "$(daily "$RP_H" "$RP_M")" /bin/bash "
 # the NUC was a 3B model on the CPU at 5 tokens/sec. Six callers, six cores,
 # 6d05h of CPU burned in 25h of wall clock, the box 3GB into swap -- and the
 # pipeline built nothing at all from 2026-09-01 to 2026-09-04 because every
-# slot was queued behind the last one. Disabled by hand 2026-09-04.
+# slot was queued behind the last one.
 #
 # The fix is structural, not a smaller number: one unit means one builder at a
 # time and no instance can race another. backlog.sh already picks the name
@@ -144,13 +160,32 @@ BD_MAX="$(python3 -c "import json;print(json.load(open('$CFG')).get('builders',{
 UNIT_TIMEOUT="$BD_MAX" \
   unit build     "Fleet builder"          "$(after "$BD_GAP")"    /bin/bash "$FLEET/bin/backlog.sh"
 
+# Retire what was collapsed. A unit that is no longer generated but is still
+# enabled keeps firing from the last time apply-config wrote it -- which is
+# exactly how three hand-written fleet-build@ instances kept running long
+# after nobody remembered creating them.
+RETIRED="watchdogs board-medic heartbeat pipeline local-voice self-improve"
+for name in $RETIRED; do
+  if systemctl --user list-unit-files "fleet-$name.timer" 2>/dev/null | grep -q "fleet-$name"; then
+    systemctl --user disable --now "fleet-$name.timer" >/dev/null 2>&1 || true
+    rm -f "$UNITS/fleet-$name.timer" "$UNITS/fleet-$name.service"
+    echo "  retired fleet-$name"
+  fi
+done
+# The three template instances the collapse replaces.
+for i in agy claude grok; do
+  systemctl --user disable --now "fleet-build@$i.timer" >/dev/null 2>&1 || true
+  rm -f "$UNITS/fleet-build@$i.timer"
+done
+rm -f "$UNITS/fleet-build@.service"
+
 systemctl --user daemon-reload
 # The sitting set. Writing units without enabling them is how NUC served
 # the board for weeks while running none of the fleet. Load and quota
 # pulse live on board-medic.
 # report sits too: a summary that is written but never scheduled is a
 # summary of the one day someone remembered to run it.
-SITTING="rota council heartbeat board-medic pipeline watchdogs report build"
+SITTING="rota council health e2e report build"
 for name in $SITTING; do
   systemctl --user enable --now "fleet-$name.timer" >/dev/null
   echo "  enabled fleet-$name.timer"

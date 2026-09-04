@@ -114,7 +114,11 @@ def test_it_is_scheduled_on_both_machines():
     day someone remembered to run it."""
     systemd = (ROOT / "fleet" / "bin" / "apply-config-systemd.sh").read_text()
     launchd = (ROOT / "fleet" / "bin" / "apply-config.sh").read_text()
-    assert "publish-report.sh" in systemd and "publish-report.sh" in launchd
+    # systemd reaches it through report-cycle.sh, which also carries the
+    # local-voice pulse that used to hold a timer of its own.
+    assert "report-cycle.sh" in systemd
+    assert "publish-report.sh" in (ROOT / "fleet" / "bin" / "report-cycle.sh").read_text()
+    assert "publish-report.sh" in launchd
     assert "report" in systemd.split('SITTING="')[1].split('"')[0]
 
 

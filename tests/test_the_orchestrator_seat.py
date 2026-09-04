@@ -116,8 +116,12 @@ def test_there_is_one_builder_not_three_instances():
     """The comment above the unit names the old template on purpose -- that is
     history worth keeping. What must not come back is a live `unit` line
     generating instances."""
-    code = [l for l in APPLY.splitlines() if not l.lstrip().startswith("#")]
-    assert "fleet-build@" not in "\n".join(code), "instances race each other"
+    live = [l for l in APPLY.splitlines()
+            if re.match(r"\s*unit\s", l) and not l.lstrip().startswith("#")]
+    assert "fleet-build@" not in "\n".join(live), "instances race each other"
+    # The only place the old name may still appear in live code is the
+    # retirement loop that deletes them.
+    assert 'disable --now "fleet-build@$i.timer"' in APPLY
 
 
 def test_the_gap_counts_from_the_end_of_the_last_slot():
