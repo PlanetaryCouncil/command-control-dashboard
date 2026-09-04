@@ -302,7 +302,7 @@ def page(token: str, nav_html: str, nav_css: str) -> str:
 <div id="drop">drop an image — the path will be typed in</div>
 <div id="compose">
   <textarea id="box" rows="1" spellcheck="false" autocomplete="off"
-            placeholder="type here — instant, nothing leaves the browser until Enter"></textarea>
+            placeholder="..."></textarea>
   <span class="hint">Enter sends &middot; Shift+Enter newline &middot; Ctrl+C interrupts</span>
 </div>
 <footer>

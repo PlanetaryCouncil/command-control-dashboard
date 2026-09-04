@@ -109,3 +109,19 @@ def test_the_page_says_where_the_real_terminal_is():
     page = termview.page("tok", "", "")
     assert "tmux attach -t board" in page
     assert 'id="state"' in page and 'id="clock"' in page
+
+
+# ------------------------------------------------------------- no instructions
+def test_the_compose_box_says_nothing_but_dots():
+    """Marsita, 2026-09-04: "please skip the placeholder... The only
+    placeholder is '...' (I know how it works)".
+
+    A placeholder is a hint for someone who has never seen the box. She owns
+    it. Explaining Enter and Shift+Enter to her every time she looks at the
+    page is text she has to skip, forever, to reach a box she was already
+    going to type in.
+    """
+    import re
+    for mod in (termview.page("tok", "", ""), (BIN / "oneview.py").read_text()):
+        for hint in re.findall(r'placeholder="([^"]*)"', mod):
+            assert hint in ("...", "you") or hint.startswith("{"), hint
