@@ -20,6 +20,15 @@ set -euo pipefail
 # terminal at all.
 exec </dev/null
 
+# `set -e` kills the script at the failing line and prints nothing, which is
+# how two runs died at "== user" with no clue what went wrong. Say which line,
+# which command and which exit code, every time.
+trap 'code=$?; echo; echo "FAILED at line $LINENO (exit $code): $BASH_COMMAND" >&2; exit $code' ERR
+
+# Everything below writes to stderr as well as stdout, because over ssh the
+# two get separated and a message on the wrong stream reads as silence.
+exec 2>&1
+
 USER_NAME="grokbot"
 TEMPLATE="james"          # the working reference: desktop groups, no sudo
 
@@ -43,7 +52,10 @@ else
   # reads EOF and dies under `set -e` having printed nothing -- which is
   # exactly what happened on the first run, 2026-09-04. useradd takes every
   # answer as a flag and never asks.
-  useradd --create-home --shell /bin/bash --comment "GrokBot" "$USER_NAME"
+  echo "  useradd: $(command -v useradd || echo NOT-FOUND)"
+  useradd --create-home --shell /bin/bash --comment "GrokBot" "$USER_NAME" \
+    || { echo "  useradd exited $? -- is the name taken in LDAP/AD, or is" >&2
+         echo "  /etc/login.defs or /home unusual on this box?" >&2; exit 1; }
   echo "$USER_NAME:$PASSWORD" | chpasswd
   echo "  created $USER_NAME"
 fi
