@@ -16,6 +16,9 @@
 #
 # Run on the NUC as a user with sudo:   sudo bash setup-grokbot.sh
 set -euo pipefail
+# Nothing here may wait for a human: this is run over ssh, often without a
+# terminal at all.
+exec </dev/null
 
 USER_NAME="grokbot"
 TEMPLATE="james"          # the working reference: desktop groups, no sudo
@@ -35,7 +38,12 @@ else
   # A generated password, printed once. Nobody has to invent one, and it is
   # never weaker than whatever gets typed at 3am.
   PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)"
-  adduser --disabled-password --gecos "GrokBot" "$USER_NAME"
+  # useradd, not adduser. adduser is a Perl wrapper that asks for confirmation
+  # even with --disabled-password, and over `ssh -t` from a non-terminal it
+  # reads EOF and dies under `set -e` having printed nothing -- which is
+  # exactly what happened on the first run, 2026-09-04. useradd takes every
+  # answer as a flag and never asks.
+  useradd --create-home --shell /bin/bash --comment "GrokBot" "$USER_NAME"
   echo "$USER_NAME:$PASSWORD" | chpasswd
   echo "  created $USER_NAME"
 fi
