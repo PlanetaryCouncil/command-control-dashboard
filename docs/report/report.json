@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-03T18:00:04+00:00",
+  "generated_at": "2026-09-04T18:00:04+00:00",
   "window_hours": 24,
-  "since": "2026-09-02T18:00:02+00:00",
+  "since": "2026-09-03T18:00:04+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,85 +24,109 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 13,
+    "count": 17,
     "list": [
       {
-        "sha": "1296497f",
+        "sha": "4f23b43d",
         "author": "Marsita the Ultra",
-        "at": "2026-09-03T18:51:28+01:00",
-        "subject": "the board knows what the repo is doing"
+        "at": "2026-09-04T16:10:45+01:00",
+        "subject": "a branch nobody reviewed comes back; the reviewer only fact-checks"
       },
       {
-        "sha": "748f08ad",
+        "sha": "96def205",
         "author": "Marsita the Ultra",
-        "at": "2026-09-03T18:06:21+01:00",
-        "subject": "a daily report, and the three orgs beside the three sites"
+        "at": "2026-09-04T12:49:42+01:00",
+        "subject": "setup-grokbot: an apostrophe in a ${VAR:-default} ate the last line"
       },
       {
-        "sha": "46d53d40",
+        "sha": "f4c0b29f",
         "author": "Marsita the Ultra",
-        "at": "2026-09-03T18:02:59+01:00",
+        "at": "2026-09-04T12:45:34+01:00",
+        "subject": "setup-grokbot: the password line was a SIGPIPE trap"
+      },
+      {
+        "sha": "a4e862e6",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T12:43:29+01:00",
+        "subject": "setup-grokbot: say which line failed"
+      },
+      {
+        "sha": "34a914ae",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T12:39:13+01:00",
+        "subject": "setup-grokbot: useradd, not adduser"
+      },
+      {
+        "sha": "c72b888d",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T12:37:42+01:00",
+        "subject": "setup-grokbot.sh: a desktop for the agent, no sudo"
+      },
+      {
+        "sha": "437163fa",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T11:11:13+01:00",
+        "subject": "an error is not a proposal: stop filing the drama"
+      },
+      {
+        "sha": "4b8a6ef5",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T10:18:34+01:00",
+        "subject": "silence is not a rejection, and the ledger is a queue not an archive"
+      },
+      {
+        "sha": "5ddd7979",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T03:13:25+01:00",
+        "subject": "fable is in the pool, and the slot runs current code"
+      },
+      {
+        "sha": "0eaf90cf",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T03:09:36+01:00",
+        "subject": "the 09:00 message becomes a generated unit, not an orphan"
+      },
+      {
+        "sha": "2bb3c7c7",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T02:43:08+01:00",
+        "subject": "eleven timers become six, and two of them were the same command"
+      },
+      {
+        "sha": "d5b9f128",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T02:29:33+01:00",
+        "subject": "fable 5.1 leads the pack, and one builder runs at a time"
+      },
+      {
+        "sha": "efdb593f",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-04T02:04:14+01:00",
+        "subject": "nuc brief: GrokBot's login in full, and why hermes has no cloud brain"
+      },
+      {
+        "sha": "28040c4c",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T22:16:22+01:00",
+        "subject": "nuc task: lean the box \u2014 kill the builder loop, ollama daily, GrokBot login"
+      },
+      {
+        "sha": "53a7a38e",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T21:27:13+01:00",
+        "subject": "next: the board terminal stops pretending to be a terminal"
+      },
+      {
+        "sha": "23232bb6",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T19:22:35+01:00",
+        "subject": "a reattached page gets one screen, not the whole history"
+      },
+      {
+        "sha": "011933ac",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-03T19:00:08+01:00",
         "subject": "report: 2026-09-03 fleet summary"
-      },
-      {
-        "sha": "20a4f3df",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T16:06:50+01:00",
-        "subject": "the board terminal outlives the board"
-      },
-      {
-        "sha": "6a70f478",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T14:58:13+01:00",
-        "subject": "retire /intro to the dormant drawer"
-      },
-      {
-        "sha": "83749046",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T14:15:27+01:00",
-        "subject": "a silent probe is not a verdict, and the words say what they mean"
-      },
-      {
-        "sha": "a5a05b7f",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T13:57:37+01:00",
-        "subject": "an ask is a post, under the name that wrote it"
-      },
-      {
-        "sha": "517db5f2",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T12:32:01+01:00",
-        "subject": "a signed post shows its words, and the hand that wrote them"
-      },
-      {
-        "sha": "9a6c94ab",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T12:22:29+01:00",
-        "subject": "the heartbeat repair now speaks systemd too"
-      },
-      {
-        "sha": "39cd3c17",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T12:17:51+01:00",
-        "subject": "watchdogs: a missing per-machine list is not a reason to do nothing"
-      },
-      {
-        "sha": "0dff0f56",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T12:04:43+01:00",
-        "subject": "credit pane: a daemon that answers is not absent, and say what the words mean"
-      },
-      {
-        "sha": "d5c92e57",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-02T23:44:59+01:00",
-        "subject": "routine is not an emergency, and the operator is not a visitor"
-      },
-      {
-        "sha": "194b910e",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-02T21:01:43+01:00",
-        "subject": "board: five small things that made it tiring to sit in"
       }
     ]
   },
@@ -111,25 +135,17 @@
     "stages": {}
   },
   "events": {
-    "count": 8,
+    "count": 6,
     "by_level": {
       "ok": 5,
-      "needs_you": 1,
-      "info": 2
+      "info": 1
     },
     "by_agent": {
-      "quotas": 3,
-      "signals": 3,
-      "fleet": 2
+      "visitors": 5,
+      "quotas": 1
     }
   },
-  "needs_you": [
-    {
-      "at": "2026-09-03T11:19:10+00:00",
-      "agent": "quotas",
-      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
-    }
-  ],
+  "needs_you": [],
   "workers": [
     {
       "worker": "agent-comms",
@@ -163,21 +179,21 @@
     },
     {
       "worker": "pressure",
-      "status": "pass",
-      "last_run": "2026-09-03T17:57:23Z",
-      "summary": "ok \u00b7 disk 89% 25G free"
+      "status": "warn",
+      "last_run": "2026-09-04T17:59:52Z",
+      "summary": "disk 91% 21.5G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-09-03T17:57:21Z",
-      "summary": "spending hermes unknown \u00b7 holding claude, grok, openclaw, agy \u00b7 quorum ready via grok"
+      "last_run": "2026-09-04T17:59:52Z",
+      "summary": "spending hermes unknown \u00b7 claude unknown \u00b7 holding grok, openclaw, agy"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-03T17:50:06+00:00",
-      "summary": "24h: 3225 public \u00b7 0 homies \u00b7 browser 2863 \u00b7 Python-urllib/3.11 360 \u00b7 Mozilla/5.0 (compatible; Barkrowler/0.9; 2"
+      "last_run": "2026-09-04T17:58:38+00:00",
+      "summary": "24h: 2385 public \u00b7 2 homies \u00b7 browser 1802 \u00b7 Python-urllib/3.11 501 \u00b7 Mozilla/5.0 (compatible; Barkrowler/0.9; 19 \u00b7 Googlebot 14 \u00b7 Applebot 13 \u00b7 MJ12bot 8 \u00b7 GPT"
     }
   ],
   "proposals_total": 261
