@@ -142,3 +142,23 @@ def test_the_builder_actually_sits():
     weeks while running none of the fleet."""
     sitting = re.search(r'^SITTING="([^"]+)"', APPLY, re.M).group(1).split()
     assert "build" in sitting
+
+
+# --- the pool ----------------------------------------------------------
+
+def test_claude_is_actually_in_the_builder_pool():
+    """The default in builder_name() is theatre on its own: backlog.sh sets
+    FLEET_BUILDER from next_builder.py, so a name absent from POOL never
+    builds however the default reads. Fable 5.1 found this auditing its own
+    fleet on 2026-09-04 -- it had been made the orchestrator and then left
+    out of the rotation that chooses one."""
+    import next_builder
+    assert "claude" in next_builder.POOL
+    assert next_builder.POOL[0] == "claude", "it leads"
+
+
+def test_claude_is_allowed_to_spend():
+    """eligible() reads the spend table. Marked 'rare' while the plan was
+    believed dead, it would be skipped in favour of an exhausted vendor."""
+    cfg = json.loads((BIN.parent / "config.json").read_text())
+    assert cfg["quotas"]["spend"]["claude"] == "plenty"

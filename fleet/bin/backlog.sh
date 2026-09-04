@@ -10,6 +10,15 @@ REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 PY=$REPO/.venv/bin/python
 trap "$PY fleet/bin/pipeline.py discard-unfinished || true" EXIT
 cd "$REPO"
+# Run the code that is on main, not the code that was on main whenever
+# someone last pulled by hand. pipeline.py already builds off origin/main via
+# remote_main(), but next_builder.py, autotriage.py and this script are read
+# from the checkout -- so on 2026-09-04 the NUC was choosing builders with a
+# copy of next_builder.py that predated claude being added to the pool.
+# --ff-only so a checkout with local work is left alone rather than merged.
+if [[ -z "$(git status --porcelain)" ]]; then
+  git fetch -q origin main 2>/dev/null && git merge -q --ff-only origin/main 2>/dev/null || true
+fi
 if [[ -z "${FLEET_BUILDER:-}" ]]; then
   FLEET_BUILDER=$($PY fleet/bin/next_builder.py)
 fi

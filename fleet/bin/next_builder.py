@@ -5,8 +5,15 @@ One name, one slot, then the next name. A hung grok does not own the
 following turn: the timer kills the slot at 15 minutes and this file
 hands the next slot to someone else.
 
-Pool is who can actually edit (grok, agy). hermes on the NUC is a 3B
-local model — a different string, not a different pair of hands.
+Pool is who can actually edit. hermes on the NUC is a 3B local model — a
+different string, not a different pair of hands.
+
+claude leads the pool as of 2026-09-04. It had been left out entirely while
+the Anthropic plan was believed dead, and the belief was wrong: the `claude`
+CLI runs on the subscription and only the raw HTTP API meters. Leaving it out
+made the new default in pipeline.builder_name() theatre — backlog.sh sets
+FLEET_BUILDER from this file, so a name absent here never builds, whatever
+the default says.
 """
 from __future__ import annotations
 
@@ -19,7 +26,7 @@ STATE = FLEET / "state" / "builder-turn.json"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import quotas  # noqa: E402
 
-POOL = ["grok", "agy"]
+POOL = ["claude", "grok", "agy"]
 
 
 def next_name(last: str, live: list[str]) -> str:
