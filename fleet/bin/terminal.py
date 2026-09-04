@@ -465,6 +465,45 @@ def tmux_has(name: str) -> bool:
         return False
 
 
+# How much history the pane keeps. tmux ships with 2000 lines, which is a
+# handful of screens of a conversation and nothing at all of a test run.
+HISTORY_LIMIT = 50000
+
+
+def configure_tmux(name: str, tries: int = 40) -> bool:
+    """Turn the mouse on for this session, so the wheel scrolls.
+
+    Without it the pane simply does not scroll (2026-09-04: "wish I could
+    scroll up on Claude output... currently scrolling does nothing"), and the
+    reason is not obvious: xterm.js has its own 8000-line scrollback, but tmux
+    is a full-screen program that repaints in place, so nothing ever leaves
+    the viewport to scroll back TO. The wheel has no target until tmux asks
+    for mouse events, which is what `mouse on` does -- then the wheel enters
+    tmux's own history instead.
+
+    The session is created by an exec in a forked child, so it does not exist
+    the instant this returns; retry briefly rather than race it.
+    """
+    tmux = tmux_bin()
+    if not tmux:
+        return False
+    for _ in range(tries):
+        if tmux_has(name):
+            break
+        time.sleep(0.05)
+    else:
+        return False
+    ok = True
+    for opt, val in (("mouse", "on"), ("history-limit", str(HISTORY_LIMIT))):
+        try:
+            r = subprocess.run([tmux, "set-option", "-t", name, opt, val],
+                               capture_output=True, timeout=5)
+            ok = ok and r.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            ok = False
+    return ok
+
+
 def attach(name: str, cwd: str, claude_bin: str = "claude"):
     """The session called `name`, started if it is not already running.
 
@@ -480,7 +519,12 @@ def attach(name: str, cwd: str, claude_bin: str = "claude"):
         resumed = tmux_has(name)
         s = Session(cwd, claude_bin=claude_bin, name=name)
         _LIVE[name] = s
-        return s, resumed
+    # Outside the lock: this waits on a process that is still starting, and
+    # holding the registry lock while it does would stall every other page.
+    if s.tmux_name:
+        threading.Thread(target=configure_tmux, args=(name,),
+                         daemon=True).start()
+    return s, resumed
 
 
 def forget(name: str) -> None:

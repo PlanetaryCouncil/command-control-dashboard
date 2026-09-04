@@ -217,10 +217,19 @@ def test_the_footer_collapses_to_one_word():
     assert '#foot[data-open="0"]>section{display:none;}' in src
 
 
-def test_the_word_footer_is_also_the_way_back():
-    """Shut, the toggle is the only thing left, so it must stay visible."""
+def test_open_the_handle_is_a_bar_and_says_nothing():
+    """A word saying "footer" above a footer is a label for the obvious."""
     src = (BIN / "oneview.py").read_text()
-    assert '#foot[data-open="0"]>.foottoggle{padding:0;}' in src
+    i = src.index("#foot>.foottoggle{")
+    assert "font-size:0;" in src[i:i + 220], "the word still shows when open"
+    assert "#foot>.foottoggle:hover::after{background:var(--info);}" in src, \
+        "no blue grab handle"
+
+
+def test_shut_the_word_is_the_only_thing_left_and_the_way_back():
+    src = (BIN / "oneview.py").read_text()
+    i = src.index('#foot[data-open="0"]>.foottoggle{')
+    assert "font-size:8px" in src[i:i + 220], "the word does not come back"
     assert '#foot[data-open="0"]>.foottoggle{display:none' not in src
 
 

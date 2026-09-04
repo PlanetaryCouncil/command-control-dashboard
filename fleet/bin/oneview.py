@@ -438,13 +438,26 @@ canvas.mark:hover{opacity:1;}
    read. Shut, it is one word -- "footer" -- which is also the way back.
    Marsita, 2026-09-04: "I would like to collapse footer links... And when it
    is collapsed it just says 'footer'". */
-#foot>.foottoggle{grid-column:1/-1;font-family:var(--mono);font-size:8px;
-  letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
-  cursor:pointer;user-select:none;padding:0 0 5px;}
-#foot>.foottoggle:hover{color:var(--accent);}
+/* Open, it is a grab handle and says nothing -- the same blue bar every other
+   divider on this board uses, because a word saying "footer" above a footer is
+   a label for something already obvious. Shut, the eight headings are gone and
+   that one word is all that is left, which is when it earns its name.
+   Marsita, 2026-09-04: "No need to call it 'footer'... Only when collapsed all
+   the headers become unified into a single 'footer'". */
+#foot>.foottoggle{grid-column:1/-1;cursor:pointer;user-select:none;
+  position:relative;height:7px;padding:0;margin:0 0 6px;font-size:0;}
+#foot>.foottoggle::before{content:"";position:absolute;left:0;right:0;
+  top:-4px;bottom:-4px;}
+#foot>.foottoggle::after{content:"";position:absolute;left:0;right:0;
+  top:2px;bottom:2px;border-radius:1px;background:var(--border);}
+#foot>.foottoggle:hover::after{background:var(--info);}
 #foot[data-open="0"]{padding:3px 12px;}
 #foot[data-open="0"]>section{display:none;}
-#foot[data-open="0"]>.foottoggle{padding:0;}
+#foot[data-open="0"]>.foottoggle{height:auto;margin:0;padding:0;
+  font-family:var(--mono);font-size:8px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--muted);}
+#foot[data-open="0"]>.foottoggle::after{display:none;}
+#foot[data-open="0"]>.foottoggle:hover{color:var(--accent);}
 
 /* A project and its source are one fact, so they get one line: "name | repo".
    They were stacked, each site above a "&#8627; github.com/..." of its own,
