@@ -538,25 +538,24 @@ canvas.mark:hover{opacity:1;}
 #grid[data-r="0"] #gripR:hover::after,#grid[data-r="0"] #gripR[data-drag="1"]::after{
   background:var(--info);}
 #term{height:100%;padding:5px 7px;}
-/* A place to write that the session cannot overwrite.
-   Typing straight into a terminal means composing inside a buffer the agent
-   is also writing to: a long message gets shoved around by whatever arrives
-   while you are still thinking. Marsita, 2026-09-02: "I want to be able to
-   type natively... without fear that it will be override". So the box is
-   ordinary HTML, outside xterm entirely, and only its finished text is sent. */
-#compose{flex:none;display:flex;gap:6px;padding:5px 7px;border-top:1px solid var(--border);
-  background:var(--raised);}
-#compose textarea{flex:1;resize:vertical;min-height:34px;max-height:40vh;
-  background:var(--surface);color:var(--ink);border:1px solid var(--border);
-  border-radius:4px;padding:5px 7px;font-family:var(--mono);font-size:11.5px;
-  line-height:1.5;}
-#compose textarea:focus{outline:none;border-color:var(--info);}
-#compose button{background:var(--surface);color:var(--ink-2);cursor:pointer;
-  border:1px solid var(--border);border-radius:4px;padding:0 12px;
-  font-family:var(--mono);font-size:10px;text-transform:uppercase;
-  letter-spacing:.08em;align-self:stretch;}
-#compose button:hover{color:var(--accent);border-color:var(--accent);}
-#termpane[data-open="0"] #compose{display:none;}
+/* The stream. Three kinds of line and nothing else: what was asked, what was
+   answered, and one grey signpost per tool so the gaps are explained.
+   Marsita, 2026-09-05: "No extra noise... Only the stuff I need to see." */
+#termpane .body{overflow-y:auto;padding:4px 0;}
+.sline{display:flex;gap:8px;align-items:baseline;padding:2px 8px;
+  font-size:11px;line-height:1.45;}
+.sline .w{flex:none;width:44px;text-align:right;font-family:var(--mono);
+  font-size:8px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);}
+/* Pre-wrap, because the answers have paragraphs and lists in them and
+   collapsing that into one run is how a readable thing becomes a wall. */
+.sline .tx{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere;}
+.sline .at{flex:none;font-family:var(--mono);font-size:8px;color:var(--muted);}
+.sline.you{background:var(--raised);}
+.sline.you .w{color:var(--accent);}
+.sline.you .tx{color:var(--ink);}
+.sline.claude .tx{color:var(--ink-2);}
+/* A tool line is a signpost, not content. It should be skimmable past. */
+.sline.tool .tx{font-family:var(--mono);font-size:10px;color:var(--muted);}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
   background:#0d0d0d;transition:height .18s ease;}
@@ -575,7 +574,7 @@ const $ = s => document.querySelector(s);
    One event-stream connection and one polling timer for the whole page. The
    five separate pages this replaces each opened their own. */
 const blocked = new Map();
-let termReady = false, ws = null, killToken = null, armTimer = null;
+let killToken = null, armTimer = null;
 
 const emoji = n => (AGENTS[n]||["⚙"])[0];
 const hue   = n => (AGENTS[n]||[null,"#7d838b"])[1];
@@ -1360,166 +1359,44 @@ if ($("#bgate")) $("#bgate").addEventListener("click", async () => {
 });
 loadGate();
 
-/* ---------------- terminal drawer, opened only on request ------------------ */
-async function toggleTerm(){
-  const d = $("#termpane"), btn = $("#termbtn");
-  if (!d) return;
-  const opening = d.dataset.open !== "1";
-  setPaneOpen(d, opening);
-  if (btn) btn.setAttribute("aria-pressed", String(opening));
-  if (!opening || termReady) { if (opening && window.__fit) window.__fit.fit(); return; }
+/* ---------------- the stream: one way, no terminal -------------------------- */
+/* Marsita, 2026-09-05: "terminal in the browser is unworkable... Just stream
+   me stuff 1 way only... No extra noise... Only the stuff I need to see."
 
-  // Load xterm and open the socket only when first asked: an idle drawer
-  // should cost nothing.
-  //
-  // Say so while it happens. Two scripts and a websocket is fast on an idle
-  // laptop and slow on one that is swapping, and the drawer used to show an
-  // unexplained black rectangle for the whole wait — indistinguishable from
-  // broken. A failed script load left it black forever with nothing in the UI
-  // to say why, so failures are printed here rather than only in the console.
-  const term_el = $("#term");
-  term_el.innerHTML = '<div id="termboot" style="padding:10px;font:11px/1.6 '
-    + 'ui-monospace,Menlo,monospace;color:#8a8f95">starting terminal…</div>';
-  const boot = m => { const b = $("#termboot"); if (b) b.textContent = m; };
+   So there is no terminal here any more. No xterm, no websocket, no pty, no
+   compose box -- nothing on this page can put a keystroke into the machine.
+   It reads Claude Code's own transcript and prints what was said and one grey
+   line per tool. The laptop terminal is where you type; `tmux attach -t board`
+   joins the same session. */
+let streamSeen = "";
 
-  const load = (src, what) => new Promise((res, rej) => {
-    const s = document.createElement("script");
-    s.src = src;
-    s.onload = res;
-    s.onerror = () => rej(new Error("could not load " + what));
-    document.head.appendChild(s);
-  });
-
+async function loadStream(){
+  const pane = $("#termpane");
+  if (!pane) return;
+  const body = pane.querySelector(".body");
   try {
-    boot("loading terminal… (1/2)");
-    await load("/static/xterm.js", "xterm.js");
-    boot("loading terminal… (2/2)");
-    await load("/static/xterm-addon-fit.js", "xterm-addon-fit.js");
-    boot("connecting…");
-  } catch (err) {
-    boot(err.message + " — the pane stays empty until this loads.");
-    return;                       // termReady stays false, so a retry is possible
-  }
-  const term = new Terminal({fontFamily:"ui-monospace, Menlo, monospace", fontSize:11,
-    lineHeight:1.2, cursorBlink:true, scrollback:5000,
-    theme:{background:"#0d0d0d", foreground:"#e6e9ec", cursor:"#d89b45"}});
-  const fit = new FitAddon.FitAddon(); term.loadAddon(fit);
-  term_el.innerHTML = "";               // clear the boot line before xterm mounts
-  term.open(term_el); fit.fit(); window.__fit = fit;
-  term.write("\x1b[90mconnecting…\x1b[0m\r\n");
-
-  // Protocol-matched, not hardcoded ws:. A page served over https can only open
-  // a wss: socket; hardcoding ws: works on localhost and fails silently the
-  // moment this is reached through the funnel.
-  const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-  ws = new WebSocket(`${scheme}//${location.host}/ws/terminal?token=${encodeURIComponent(TOKEN)}&s=board`);
-  ws.binaryType = "arraybuffer";
-  ws.onopen = () => ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows}));
-  // Raw terminal bytes arrive binary; a text frame is the server telling us
-  // something about the session itself -- so far, why it died.
-  let endedWhy = "";
-  ws.onmessage = e => {
-    if (typeof e.data === "string"){
-      try { const m = JSON.parse(e.data);
-            if (m.t === "ended") endedWhy = m.why;
-            if (m.t === "attached" && m.resumed)
-              term.write("\r\n\x1b[90m— reattached, " + m.bytes +
-                         " bytes of scrollback —\x1b[0m\r\n");
-      } catch(err){}
-      return;
-    }
-    term.write(new Uint8Array(e.data));
-  };
-  ws.onerror = () => term.write("\r\n\x1b[31m— could not connect —\x1b[0m\r\n");
-  ws.onclose = () => term.write("\r\n\x1b[90m— session ended" +
-    (endedWhy ? ": " + endedWhy : "") +
-    ". your work is on disk; reload to continue it —\x1b[0m\r\n");
-  term.onData(d => ws?.readyState===1 && ws.send(JSON.stringify({t:"input",d})));
-
-  /* The composer. Its whole job is to be a buffer the session cannot reach:
-     you write at your own pace while claude writes at its own, and the two
-     never share a line. Sending is one bracketed paste plus a newline, so a
-     multi-line message arrives as one message rather than as several
-     half-finished ones. */
-  const box = $("#composeBox"), composeForm = $("#compose");
-  const sendCompose = () => {
-    const text = box.value;
-    if (!text.trim() || ws?.readyState !== 1) return;
-    // Bracketed paste: readline treats what is inside as literal text, so
-    // newlines inside the message do not each submit a turn.
-    ws.send(JSON.stringify({t:"input", d:"\x1b[200~" + text + "\x1b[201~"}));
-    ws.send(JSON.stringify({t:"input", d:"\r"}));
-    box.value = "";
-    box.style.height = "";
-    term.focus();
-  };
-  composeForm?.addEventListener("submit", e => { e.preventDefault(); sendCompose(); });
-  box?.addEventListener("keydown", e => {
-    // Enter sends; shift+enter is a newline. The opposite of a terminal, and
-    // the same as every message box anyone has used since 2010.
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing){
-      e.preventDefault(); sendCompose();
-    }
-  });
-  // Grow with the text up to the CSS max, so a long message is visible while
-  // it is being written rather than scrolling inside two rows.
-  box?.addEventListener("input", () => {
-    box.style.height = "auto";
-    box.style.height = Math.min(box.scrollHeight, innerHeight * 0.4) + "px";
-  });
-
-  /* Paste an image straight into the session.
-     Claude reads images by path, so a screenshot has to become a file before
-     it can become context. /api/paste-image already existed and nothing on
-     this page had ever called it -- the endpoint was written for the chat UI
-     and the terminal was left doing without, which meant every screenshot
-     went out to the filesystem by hand first.
-     The listener goes on xterm's own textarea: that is what actually receives
-     the paste, and a handler on the container only sees it if xterm lets it
-     bubble, which it does not always do. */
-  const pasteTarget = term.textarea || term_el;
-  pasteTarget.addEventListener("paste", async ev => {
-    const items = Array.from((ev.clipboardData || {}).items || []);
-    const shot = items.find(i => i.type && i.type.startsWith("image/"));
-    if (!shot) return;                       // plain text: let xterm have it
-    ev.preventDefault();
-    const file = shot.getAsFile();
-    if (!file) return;
-    term.write("\r\n\x1b[90m— saving pasted image —\x1b[0m\r\n");
-    try {
-      const data = await new Promise((res, rej) => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result);
-        fr.onerror = () => rej(new Error("could not read the clipboard image"));
-        fr.readAsDataURL(file);
-      });
-      const r = await fetch("api/paste-image", {
-        method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({token: TOKEN,
-                              name: file.name || "pasted.png", data})});
-      const out = await r.json();
-      if (out.path && ws && ws.readyState === 1){
-        // Type the path in, do not send it. The operator still writes the
-        // sentence around it -- a path arriving on its own line as a finished
-        // message is a question nobody asked.
-        ws.send(JSON.stringify({t: "input", d: out.path + " "}));
-      } else {
-        term.write("\r\n\x1b[31m— " + (out.error || "could not save it")
-                   + " —\x1b[0m\r\n");
-      }
-    } catch (err) {
-      term.write("\r\n\x1b[31m— " + err.message + " —\x1b[0m\r\n");
-    }
-  });
-  addEventListener("resize", () => { if (d.dataset.open === "1"){ fit.fit();
-    ws?.readyState===1 && ws.send(JSON.stringify({t:"resize",cols:term.cols,rows:term.rows})); }});
-  termReady = true;
-  term.focus();
+    const d = await (await fetch("api/stream",{cache:"no-store"})).json();
+    if (d.local_only){ body.innerHTML = '<div class="empty">local only</div>'; return; }
+    const lines = d.lines || [];
+    // Cheap identity for "has anything changed": rerendering on every poll
+    // throws away the scroll position, and this is a thing you read.
+    const sig = lines.length + "|" + (lines[lines.length - 1]?.at || "");
+    if (sig === streamSeen) return;
+    // Only stick to the bottom if that is where you already were. Scrolling
+    // up to read something and being yanked back is the exact behaviour that
+    // made the old pane unusable.
+    const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 40;
+    body.innerHTML = lines.map(l =>
+      `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
+      `<span class="tx">${esc(l.text)}</span>` +
+      `<span class="at">${esc(l.at)}</span></div>`).join("")
+      || '<div class="empty">nothing yet</div>';
+    if (atEnd || !streamSeen) body.scrollTop = body.scrollHeight;
+    streamSeen = sig;
+    pane.querySelector("h2 .n").textContent = d.session || "";
+    pane.dataset.state = "ok";
+  } catch (err) { pane.dataset.state = "error"; }
 }
-// Remote renders omit the terminal button; wiring a missing element used
-// to throw here and kill every pane below ("Cannot read properties of
-// null" — the funnel view froze on 'loading'). Guard everything hidden.
-{ const tb = $("#termbtn"); if (tb) tb.addEventListener("click", toggleTerm); }
 
 /* Text from JSON goes into innerHTML in the two panes below, so it has to be
    escaped. The rest of this file builds nodes with textContent and never
@@ -2054,7 +1931,7 @@ if ($("#gripT")){
   // Collapsed, the bar itself is a way back in as well as the heading.
   $("#gripT").addEventListener("click", () => {
     const t = $("#termpane");
-    if (t && t.dataset.open === "0") toggleTerm();
+    if (t && t.dataset.open === "0") setPaneOpen(t, true);
   });
 }
 // Boot it on load rather than on a click. "Right there" was the whole point of
@@ -2069,7 +1946,10 @@ if ($("#termpane")){
   let wanted = 1;
   try { wanted = (JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}")
                   || {}).termpaneOpen; } catch(e){}
-  if (wanted !== 0) toggleTerm();
+  if (wanted !== 0) setPaneOpen($("#termpane"), true);
+  loadStream();
+  // Three seconds. It is a thing you glance at, not a frame buffer.
+  setInterval(loadStream, 3000);
 }
 try {
   const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
@@ -2242,7 +2122,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
-    TERMPANE_HTML = '<!-- starts closed so the boot call below opens it; a pane that renders\n           open and then has to be opened again is two states pretending\n           to be one -->\n      <section class="pane" id="termpane" data-open="0">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"><div id="term"></div></div>\n      <form id="compose">\n        <textarea id="composeBox" rows="2" placeholder="..."></textarea>\n        <button type="submit" id="composeSend">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
+    TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
     CONTROLS_HTML = '<div class="buildgate">\n        <button id="bgate" data-on="1">build: on</button>\n        <span id="bgatenote"></span>\n      </div>\n      <div class="kill">\n        <button id="kill" data-armed="0">kill fleet work</button>\n        <span id="killnote"></span>\n      </div>'
     import html as _html
     import nav
@@ -2281,7 +2161,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 <html lang="en" data-theme="dark"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{nav.title(remote=remote)}</title>
-<link rel="stylesheet" href="/static/xterm.css">
 <script src="/static/signature.js?v=2"></script>
 <style>{CSS}\n{nav.CSS}</style></head>
 <body>
@@ -2424,7 +2303,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="/live" title="A stripped-down streaming window, meant to float always-on-top on a second screen.">live</a>
     <a href="/signatures" title="Every agent's mark, drawn from the shape of its real work — when it acted, how hard, and the gaps between.">signatures</a>
     {'' if remote else '<a href="/chat" title="Ask one question and fan it out to any subset of agents at once. Their answers arrive side by side.">chat</a>'}
-    {'' if remote else '<a href="/terminal" title="A real Claude session in the browser, with image paste a terminal cannot do. Local only — 404 from the internet.">terminal</a>'}
+
   </section>
   <section>
     <h3>cockpit</h3>

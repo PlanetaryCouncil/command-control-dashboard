@@ -71,25 +71,9 @@ def test_the_title_survives_the_collapse():
 
 
 # 5 -- a composer the session cannot trample
-def test_the_terminal_has_a_box_the_agent_cannot_write_into():
-    assert '<form id="compose">' in LOCAL
-    assert 'id="composeBox"' in LOCAL
-
 
 def test_the_composer_is_local_only_like_the_terminal():
     assert '<form id="compose">' not in REMOTE
     assert 'id="composeBox"' not in REMOTE
 
 
-def test_a_multiline_message_arrives_as_one_message():
-    """Without bracketed paste each newline submits its own half-written
-    turn."""
-    assert "\\x1b[200~" in SRC and "\\x1b[201~" in SRC
-
-
-def test_enter_sends_and_shift_enter_is_a_newline():
-    assert 'e.key === "Enter" && !e.shiftKey' in SRC
-
-
-def test_the_composer_goes_away_with_the_pane():
-    assert '#termpane[data-open="0"] #compose{display:none;}' in LOCAL

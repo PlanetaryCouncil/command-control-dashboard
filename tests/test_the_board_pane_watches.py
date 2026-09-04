@@ -1,12 +1,10 @@
-"""The board pane answers one question -- is it done yet? -- and takes no keys.
+"""Is it done yet, how big is the window, and does the footer shut.
 
-Marsita drives from the laptop terminal; the browser watches and has a box to
-send into it. These tests hold the two halves of that: the state the pane shows
-comes from the session's own screen, and nothing on the page can put a
-keystroke into the pseudo-terminal except a deliberate send.
+The browser terminal these started life around is retired -- see
+`fleet/dormant/termview.py` and `test_the_stream_is_one_way.py`. What survives
+here is what still runs: the session state read out of tmux, the sizing that
+stopped the pane being two-thirds empty, and the footer.
 """
-import importlib.util
-import json
 import pathlib
 import sys
 
@@ -15,7 +13,6 @@ BIN = ROOT / "fleet" / "bin"
 sys.path.insert(0, str(BIN))
 
 import terminal            # noqa: E402
-import termview            # noqa: E402
 
 
 # ------------------------------------------------------------------- the state
@@ -83,34 +80,6 @@ def test_the_frame_carries_what_the_pane_draws():
     assert set(frame) == {"t", "state", "since", "estimate"}
 
 
-# -------------------------------------------------------------- no keys, ever
-def test_the_screen_takes_no_keystrokes():
-    """`term.onData(...)` is the line that piped every key into the pty. Gone.
-
-    Matched as a CALL, not a mention: the comment explaining why it is absent
-    contains the name, and a test that forbids the name forbids the comment.
-    """
-    assert "term.onData(" not in termview.JS
-    assert "disableStdin = true" in termview.JS
-
-
-def test_the_box_is_still_the_way_in():
-    assert "function submit()" in termview.JS
-    assert "sendRaw(v.includes" in termview.JS
-
-
-def test_a_pasted_image_lands_in_the_box_not_the_session():
-    """There is no other way in, so an upload has exactly one destination."""
-    assert "ws.send(JSON.stringify({t:'input', d: d.path" not in termview.JS
-    assert "box.value +=" in termview.JS
-
-
-def test_the_page_says_where_the_real_terminal_is():
-    page = termview.page("tok", "", "")
-    assert "tmux attach -t board" in page
-    assert 'id="state"' in page and 'id="clock"' in page
-
-
 # --------------------------------------------------------------- scroll back
 def test_history_asks_tmux_for_the_region_above_the_screen(monkeypatch):
     """Ending at -1 is the whole point: the repaint draws line 0 onwards, so
@@ -151,29 +120,6 @@ def test_the_browsers_scrollback_is_no_longer_wiped_on_attach():
     assert "\\x1b[H\\x1b[2J\\x1b[3J" not in src
 
 
-def test_the_pane_keeps_enough_scrollback_to_hold_the_history():
-    import re
-    kept = int(re.search(r"scrollback:\s*(\d+)", termview.JS).group(1))
-    assert kept >= 3000
-
-
-# ------------------------------------------------------------- no instructions
-def test_the_compose_box_says_nothing_but_dots():
-    """Marsita, 2026-09-04: "please skip the placeholder... The only
-    placeholder is '...' (I know how it works)".
-
-    A placeholder is a hint for someone who has never seen the box. She owns
-    it. Explaining Enter and Shift+Enter to her every time she looks at the
-    page is text she has to skip, forever, to reach a box she was already
-    going to type in.
-    """
-    import re
-    for mod in (termview.page("tok", "", ""), (BIN / "oneview.py").read_text()):
-        for hint in re.findall(r'placeholder="([^"]*)"', mod):
-            assert hint in ("...", "you") or hint.startswith("{"), hint
-
-
-# ------------------------------------------------------------- room to breathe
 def test_the_window_follows_the_biggest_viewer_not_the_smallest():
     """tmux defaults to `smallest`, which let the laptop clamp the browser and
     left two-thirds of the pane black."""
@@ -251,7 +197,6 @@ def test_the_footer_collapses_to_one_word():
     src = (BIN / "oneview.py").read_text()
     assert '<div class="foottoggle" id="foottoggle">footer</div>' in src
     assert '#foot[data-open="0"]>section{display:none;}' in src
-
 
 
 def test_shut_the_word_is_the_only_thing_left_and_the_way_back():

@@ -67,8 +67,3 @@ def test_eintr_is_not_death():
     assert "EINTR" in body
 
 
-def test_the_page_repeats_the_reason():
-    for view in ("oneview.py", "termview.py"):
-        src = (BIN / view).read_text()
-        assert '"ended"' in src or "'ended'" in src, view
-        assert "endedWhy" in src, view

@@ -1179,6 +1179,19 @@ def serve(port):
                 self._send(json.dumps(cached[2]).encode(), "application/json")
                 return
 
+            if path == "/api/stream":
+                # Local only, and read-only by construction: this endpoint
+                # cannot be written to, and the page it feeds has no way in.
+                if self._remote():
+                    self._send(json.dumps({"lines": [], "local_only": True})
+                               .encode(), "application/json")
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import stream as _stream
+                self._send(json.dumps(_stream.tail(str(FLEET.parent))).encode(),
+                           "application/json")
+                return
+
             if path == "/api/issues":
                 # Local only. An open issue is a to-do list, and the board
                 # publishes what the fleet DID, never what it has not got
@@ -1624,10 +1637,13 @@ def serve(port):
                 return
 
             if path == "/terminal":
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import nav, termview
-                self._send(termview.page(KILL_TOKEN, nav.html("/terminal"),
-                                         nav.CSS).encode())
+                # Retired 2026-09-05 -- see fleet/dormant/termview.py. The
+                # browser terminal was the wrong product; the board's stream
+                # pane replaced it. The path still answers, so an old tab or
+                # a bookmark lands somewhere real instead of on a 404.
+                self.send_response(301)
+                self.send_header("Location", "/")
+                self.end_headers()
                 return
 
             if path.startswith("/static/"):

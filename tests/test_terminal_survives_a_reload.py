@@ -70,6 +70,3 @@ def test_a_dead_session_is_not_resumed():
         terminal.end(n)
 
 
-def test_both_pages_ask_for_the_same_session():
-    for view in ("oneview.py", "termview.py"):
-        assert "&s=board" in (BIN / view).read_text(), view

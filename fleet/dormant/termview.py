@@ -1,3 +1,26 @@
+"""RETIRED 2026-09-05 — served /terminal until the whole idea was the problem.
+
+Weeks went into making a real xterm work in the browser: pty, websocket,
+resize, image paste, scrollback replay, transcript resume, tmux ownership so it
+survived a restart. Every one of those was a correct fix for a real bug, and
+the product was still wrong. Marsita, 2026-09-05: "terminal in the browser is
+unworkable... scroll does not work... 1 command only. And then nothing works,
+neither the typing in console, neither the text area ---> bad UX... Terrible.
+Not functional."
+
+A terminal is a thing you TYPE into, and there is already a perfect one on the
+laptop -- `tmux attach -t board` joins the very same session. The browser is
+good at being read from across the room, so the board pane became a one-way
+stream (`fleet/bin/stream.py`) built from Claude Code's own transcript instead:
+what was asked, what was answered, one grey line per tool, and nothing else.
+
+/terminal now 301s to /.
+
+Kept rather than deleted: the paste-to-path trick and the status-pane wiring
+are the only place that reasoning is written down, and a drawer a human can
+read beats a diff they would have to go looking for.
+"""
+
 #!/usr/bin/env python3
 """The board pane: a one-way view of the session, and a box to send into it.
 
