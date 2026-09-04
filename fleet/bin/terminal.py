@@ -229,13 +229,12 @@ class Session:
             # sets the size and a smaller client scrolls around it, which is
             # the right way round -- the empty space was the browser being
             # given less than it had room for.
-            # In a thread, NEVER inline. Two `subprocess.run`s here delay the
-            # end of __init__ by seconds, and a session created moments after
-            # the previous one was killed then attaches to the dying session
-            # instead of a new one -- `test_a_late_arrival_is_shown_what_it
-            # _missed` went from green to reliably red on that alone. These
-            # options are cosmetic sizing; nothing should wait on them.
-            threading.Thread(target=self._tmux_setup, daemon=True).start()
+            # Session options are set by `configure_tmux`, from `attach`, in a
+            # thread. NEVER inline here: two `subprocess.run`s in __init__
+            # delay the end of it by seconds, and a session created moments
+            # after the previous one was killed then attaches to the DYING
+            # session instead of a new one.
+            pass
         # Everything the session has said recently, so a browser that arrives
         # late can be shown the room it walked into. Raw bytes, not lines:
         # this is a terminal stream, and cutting it on newlines would split
@@ -251,11 +250,6 @@ class Session:
         self.sizes: dict[int, tuple[int, int]] = {}
         self.pump = threading.Thread(target=self._pump, daemon=True)
         self.pump.start()
-
-    def _tmux_setup(self) -> None:
-        """Size options, applied once the session is actually up."""
-        self.tmux_opt("window-size", "largest")
-        self.tmux_opt("aggressive-resize", "on", window=True)
 
     def tmux_opt(self, name: str, value: str, *, window: bool = False) -> None:
         """Set one tmux option on this session, best effort.
@@ -471,7 +465,13 @@ HISTORY_LIMIT = 50000
 
 
 def configure_tmux(name: str, tries: int = 40) -> bool:
-    """Turn the mouse on for this session, so the wheel scrolls.
+    """Every tmux option this session needs, once it exists.
+
+    One place on purpose: mouse and history were set here and the window size
+    was set in `Session.__init__`, which is two owners of one session's
+    configuration and two chances to race its startup.
+
+    **mouse on**, so the wheel scrolls.
 
     Without it the pane simply does not scroll (2026-09-04: "wish I could
     scroll up on Claude output... currently scrolling does nothing"), and the
@@ -494,9 +494,20 @@ def configure_tmux(name: str, tries: int = 40) -> bool:
     else:
         return False
     ok = True
-    for opt, val in (("mouse", "on"), ("history-limit", str(HISTORY_LIMIT))):
+    # window-size largest: tmux sizes a window to its SMALLEST client by
+    # default, so the laptop's `tmux attach -t board` clamped the browser and
+    # left a status bar two-thirds up the pane with dead black below it
+    # (2026-09-04: "loads of empty space... claude should take more"). Not
+    # `latest` -- the board pane is read-only, so it is never the most
+    # recently active client and would never win.
+    # The `-w` pair are window options, not session options.
+    for opt, val, win in (("mouse", "on", False),
+                          ("history-limit", str(HISTORY_LIMIT), False),
+                          ("window-size", "largest", False),
+                          ("aggressive-resize", "on", True)):
         try:
-            r = subprocess.run([tmux, "set-option", "-t", name, opt, val],
+            r = subprocess.run([tmux, "set-option", *(["-w"] if win else []),
+                                "-t", name, opt, val],
                                capture_output=True, timeout=5)
             ok = ok and r.returncode == 0
         except (OSError, subprocess.SubprocessError):
@@ -521,7 +532,7 @@ def attach(name: str, cwd: str, claude_bin: str = "claude"):
         _LIVE[name] = s
     # Outside the lock: this waits on a process that is still starting, and
     # holding the registry lock while it does would stall every other page.
-    if s.tmux_name:
+    if getattr(s, "tmux_name", ""):
         threading.Thread(target=configure_tmux, args=(name,),
                          daemon=True).start()
     return s, resumed

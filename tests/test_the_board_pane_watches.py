@@ -184,12 +184,31 @@ def test_the_window_follows_the_biggest_viewer_not_the_smallest():
 def test_the_size_options_never_block_the_session_starting():
     """Two subprocess calls inline in __init__ delayed the end of it by
     seconds, and a session created just after the last one was killed then
-    attached to the dying one. Cosmetic sizing must not be on that path."""
+    attached to the DYING one. No tmux call belongs on that path."""
     src = (BIN / "terminal.py").read_text()
     i = src.index("def __init__")
-    j = src.index("def _tmux_setup")
-    assert "_tmux_setup, daemon=True" in src[i:j]
-    assert '"window-size", "largest"' not in src[i:j], "still inline"
+    j = src.index("def tmux_opt")
+    # The CALL, not the mention: the comment explaining why none belongs here
+    # names it, and a test that bans the name bans its own explanation.
+    assert "subprocess.run(" not in src[i:j], "a tmux call is back in __init__"
+
+
+def test_one_owner_of_the_sessions_options():
+    """mouse and history were set in `configure_tmux`, size in `__init__`.
+    Two owners of one session's setup is two chances to race its startup."""
+    src = (BIN / "terminal.py").read_text()
+    assert "_tmux_setup" not in src, "the second owner is back"
+    i = src.index("def configure_tmux")
+    body = src[i:i + 2500]
+    for opt in ('"mouse", "on"', '"history-limit"',
+                '"window-size", "largest"', '"aggressive-resize", "on"'):
+        assert opt in body, opt
+
+
+def test_attach_does_not_assume_it_got_a_real_session():
+    """The tests fake one. A page must not 500 because of an attribute."""
+    src = (BIN / "terminal.py").read_text()
+    assert 'getattr(s, "tmux_name", "")' in src
 
 
 def test_setting_a_tmux_option_never_takes_the_session_down(monkeypatch):
