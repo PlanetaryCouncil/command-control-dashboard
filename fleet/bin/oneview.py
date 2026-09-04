@@ -411,6 +411,30 @@ canvas.mark:hover{opacity:1;}
 #foot a:hover{color:var(--accent);text-decoration:underline;}
 #foot span.dead{color:var(--muted);}
 
+/* The footer shuts. It is eight columns of links that are useful twice a week
+   and in the way the rest of the time, sitting under the pane actually being
+   read. Shut, it is one word -- "footer" -- which is also the way back.
+   Marsita, 2026-09-04: "I would like to collapse footer links... And when it
+   is collapsed it just says 'footer'". */
+#foot>.foottoggle{grid-column:1/-1;font-family:var(--mono);font-size:8px;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+  cursor:pointer;user-select:none;padding:0 0 5px;}
+#foot>.foottoggle:hover{color:var(--accent);}
+#foot[data-open="0"]{padding:3px 12px;}
+#foot[data-open="0"]>section{display:none;}
+#foot[data-open="0"]>.foottoggle{padding:0;}
+
+/* A project and its source are one fact, so they get one line: "name | repo".
+   They were stacked, each site above a "&#8627; github.com/..." of its own,
+   which spent two lines and a glyph on saying what a pipe says. Marsita:
+   "prefer less vertical". Wider too -- these are full URLs, and the column
+   they shared with six others was ellipsing them. */
+#foot section.partners{grid-column:span 2;}
+#foot .pair{display:block;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-family:var(--mono);font-size:9px;line-height:1.7;}
+#foot .pair a{display:inline;}
+#foot .pair b{color:var(--muted);font-weight:400;padding:0 6px;}
+
 /* ---------- terminal ----------
    It used to live in a drawer that slid up over the board, so using it meant
    losing sight of the stream -- the two things you actually want side by side,
@@ -1982,6 +2006,27 @@ try {
   const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
   if (saved.streamOpen === 0) setPaneOpen($("#stream"), false);
 } catch(e){}
+
+/* The footer, open or shut, remembered. It is the same bar either way -- the
+   word "footer" is both the label and the handle -- so there is no state where
+   the links are gone and nothing says how to get them back. */
+if ($("#foot")){
+  const foot = $("#foot"), tog = $("#foottoggle");
+  const setFoot = (open, save = true) => {
+    foot.dataset.open = open ? "1" : "0";
+    if (!save) return;
+    try {
+      const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+      l.footOpen = open ? 1 : 0;
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(l));
+    } catch(e){}
+  };
+  tog.addEventListener("click", () => setFoot(foot.dataset.open === "0"));
+  try {
+    const l = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+    if (l.footOpen === 0) setFoot(false, false);
+  } catch(e){}
+}
 (__SEED__||[]).forEach(addEvent);
 disarm(); poll(); setInterval(poll, 6000); connect();
 // The gallery slot. This board is a home dashboard and the home makes art —
@@ -2277,7 +2322,8 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </div>
 </div>
 
-<footer id="foot">
+<footer id="foot" data-open="1">
+  <div class="foottoggle" id="foottoggle">footer</div>
   <section>
     <h3>this board</h3>
     <a href="/" title="This page. Agents, goals, the shared stream, processes, and a box to post from.">dashboard</a>
@@ -2326,18 +2372,23 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
     <a href="/poems" title="Two-line poems that close each agent turn, newest first.">poems</a>
   </section>
-  <section>
+  <section class="partners">
     <h3>the partnership</h3>
-    <!-- Each site paired with the org that builds it. A claim about building
-         a civilisation is cheap; the source is the part that can be checked,
-         and all three orgs were verified against the GitHub API rather than
-         copied from a note (2026-09-03). -->
-    <a href="https://planetarycouncil.org" title="Where things are decided. The council, the goals, this fleet.">planetary council</a>
-    <a href="https://github.com/PlanetaryCouncil" title="The council's source. 28 public repositories, this board among them.">&#8627; github.com/PlanetaryCouncil</a>
-    <a href="https://independenttribunal.org" title="Where decisions are contested. The other half of deciding anything.">independent tribunal</a>
-    <a href="https://github.com/independenttribunal" title="The tribunal's source.">&#8627; github.com/independenttribunal</a>
-    <a href="https://demo.basex.com" title="BaseX, the deployment half — the live demo. Break it and say what broke: that is the most useful thing anyone can do here right now.">basex demo &mdash; try it</a>
-    <a href="https://github.com/basexhq" title="BaseX's source.">&#8627; github.com/basexhq</a>
+    <!-- Each site paired with the org that builds it, on ONE line. A claim
+         about building a civilisation is cheap; the source is the part that
+         can be checked, and all three orgs were verified against the GitHub
+         API rather than copied from a note (2026-09-03).
+         The pipe does the work the stacked "&#8627;" rows used to: same fact,
+         half the height. -->
+    <span class="pair">
+      <a href="https://planetarycouncil.org" title="Where things are decided. The council, the goals, this fleet.">planetary council</a><b>|</b><a href="https://github.com/PlanetaryCouncil" title="The council's source. 28 public repositories, this board among them.">github.com/PlanetaryCouncil</a>
+    </span>
+    <span class="pair">
+      <a href="https://independenttribunal.org" title="Where decisions are contested. The other half of deciding anything.">independent tribunal</a><b>|</b><a href="https://github.com/independenttribunal" title="The tribunal's source.">github.com/independenttribunal</a>
+    </span>
+    <span class="pair">
+      <a href="https://demo.basex.com" title="BaseX, the deployment half — the live demo. Break it and say what broke: that is the most useful thing anyone can do here right now.">basex demo &mdash; try it</a><b>|</b><a href="https://github.com/basexhq" title="BaseX's source.">github.com/basexhq</a>
+    </span>
     <a href="/report" title="What the fleet did in the last 24 hours — agents, proposals, branches, merges and mistakes. JSON, Markdown or HTML.">daily report</a>
     <!-- Next to the daily report because they answer the same question at two
          scales: the report is what the fleet did overnight, this is what the

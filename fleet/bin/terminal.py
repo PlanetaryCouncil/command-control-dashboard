@@ -191,6 +191,20 @@ class Session:
         if self.pid == 0:                     # child
             os.chdir(cwd)
             env = dict(os.environ, TERM="xterm-256color", COLORTERM="truecolor")
+            # The board sets TRUST_PROXY=1 for itself, correctly: it sits
+            # behind the Tailscale funnel and must read the caller from
+            # X-Forwarded-For. This terminal does not sit behind anything.
+            #
+            # Inheriting it leaked the board's networking assumption into
+            # every shell in the session -- and into every test run from one.
+            # The TestClient sends no such header, so `steering_caller`
+            # returned "" and 28 local-only writes were refused as strangers.
+            # The suite passed outside this terminal and failed inside it,
+            # which makes a test run worth nothing (2026-09-04).
+            #
+            # tmux copies its environment into a server that outlives every
+            # pane, so this has to be dropped before the fork, not after.
+            env.pop("TRUST_PROXY", None)
             # Only ever claude, or tmux running claude — never a shell.
             os.execvpe(argv[0], argv, env)
             os._exit(1)                       # unreachable

@@ -197,3 +197,31 @@ def test_the_footer_collapses_to_a_hairline_not_a_heading_bar():
     css = (BIN / "oneview.py").read_text()
     assert '#stream[data-open="0"]>h2{' in css
     assert '#stream[data-open="0"]>h2:hover{opacity:1;}' in css, "no way back"
+
+
+# --------------------------------------------------------------- the footer
+def test_the_footer_collapses_to_one_word():
+    src = (BIN / "oneview.py").read_text()
+    assert '<div class="foottoggle" id="foottoggle">footer</div>' in src
+    assert '#foot[data-open="0"]>section{display:none;}' in src
+
+
+def test_the_word_footer_is_also_the_way_back():
+    """Shut, the toggle is the only thing left, so it must stay visible."""
+    src = (BIN / "oneview.py").read_text()
+    assert '#foot[data-open="0"]>.foottoggle{padding:0;}' in src
+    assert '#foot[data-open="0"]>.foottoggle{display:none' not in src
+
+
+def test_a_project_and_its_repo_share_one_line():
+    """Marsita: "prefer less vertical". Six stacked rows became three."""
+    src = (BIN / "oneview.py").read_text()
+    assert src.count('<span class="pair">') == 3
+    # Matched as link TEXT, not as a mention: two comments explain why the
+    # arrow rows went, and a test that bans the glyph bans the explanation.
+    assert '">&#8627; github.com/' not in src, "the stacked arrow rows are gone"
+
+
+def test_the_partnership_column_is_wider_than_the_rest():
+    """Full repo URLs were being ellipsed in a one-eighth column."""
+    assert '#foot section.partners{grid-column:span 2;}' in (BIN / "oneview.py").read_text()

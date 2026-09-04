@@ -15,6 +15,28 @@ APPEND_ONLY = ("EVENTS_PATH", "BRAINFARTS_PATH")
 
 
 @pytest.fixture(autouse=True)
+def no_ambient_proxy(monkeypatch):
+    """A test must not care what was exported in the shell that started it.
+
+    `TRUST_PROXY=1` tells the app "a tunnel is in front of you, read the
+    caller from X-Forwarded-For instead of the socket". The TestClient sends
+    no such header, so `steering_caller` returns "" and every local-only WRITE
+    is refused: 28 tests across approvals, dashboard, inbox and sync failed
+    with 403 where they expected 404 or 200.
+
+    Nothing was wrong with the code. The suite had simply been inheriting the
+    variable from whatever launched it -- on 2026-09-04 that was a tmux server
+    started with it set, so every run under that terminal failed and every run
+    elsewhere passed. A suite whose result depends on the shell it was started
+    from cannot be used to decide anything.
+
+    Cleared by default; the tests that mean it (test_public_tunnel,
+    test_ratelimit) set it themselves and still do.
+    """
+    monkeypatch.delenv("TRUST_PROXY", raising=False)
+
+
+@pytest.fixture(autouse=True)
 def reset_rate_limiter():
     """The signals limiter is process-global by design.
 
