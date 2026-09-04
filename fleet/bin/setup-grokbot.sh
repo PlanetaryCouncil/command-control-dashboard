@@ -46,7 +46,11 @@ if id "$USER_NAME" >/dev/null 2>&1; then
 else
   # A generated password, printed once. Nobody has to invent one, and it is
   # never weaker than whatever gets typed at 3am.
-  PASSWORD="$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20)"
+  # `tr </dev/urandom | head -c 20` is the obvious one-liner and it is a
+  # SIGPIPE trap: head closes the pipe at twenty bytes, tr dies with 141, and
+  # `set -o pipefail` makes the whole line fail. Exit 141 at line 49, run of
+  # 2026-09-04. Bounding the SOURCE instead means every stage ends on its own.
+  PASSWORD="$(head -c 400 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 20)"
   # useradd, not adduser. adduser is a Perl wrapper that asks for confirmation
   # even with --disabled-password, and over `ssh -t` from a non-terminal it
   # reads EOF and dies under `set -e` having printed nothing -- which is
