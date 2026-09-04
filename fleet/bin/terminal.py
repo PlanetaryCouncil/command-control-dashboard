@@ -201,6 +201,22 @@ class Session:
         # repaint it, which is a far better answer on reattach than replaying
         # our own byte log -- see `repaint`.
         self.tmux_name = name if tmux_bin() else ""
+        if self.tmux_name:
+            # tmux sizes a window to its SMALLEST client by default. With two
+            # attached -- the board pane and `tmux attach -t board` on the
+            # laptop -- the smaller one clamped the other, so the browser drew
+            # a status bar two-thirds up the pane and dead black below it.
+            # Marsita, 2026-09-04: "loads of empty space... claude should take
+            # more."
+            #
+            # `largest`, not `latest`: latest follows the most recently ACTIVE
+            # client, and this pane is read-only, so it is never the active one
+            # and would never get the window. Under `largest` the big viewer
+            # sets the size and a smaller client scrolls around it, which is
+            # the right way round -- the empty space was the browser being
+            # given less than it had room for.
+            self.tmux_opt("window-size", "largest")
+            self.tmux_opt("aggressive-resize", "on", window=True)
         # Everything the session has said recently, so a browser that arrives
         # late can be shown the room it walked into. Raw bytes, not lines:
         # this is a terminal stream, and cutting it on newlines would split
@@ -210,6 +226,23 @@ class Session:
         self.watchers: list = []               # queues, one per attached page
         self.pump = threading.Thread(target=self._pump, daemon=True)
         self.pump.start()
+
+    def tmux_opt(self, name: str, value: str, *, window: bool = False) -> None:
+        """Set one tmux option on this session, best effort.
+
+        Best effort on purpose: the session may still be starting up when this
+        runs, and an option that failed to apply is a slightly wrong window
+        size, not a reason to refuse to open a terminal.
+        """
+        tmux = tmux_bin()
+        if not tmux:
+            return
+        flags = ["-w"] if window else []
+        try:
+            subprocess.run([tmux, "set-option", *flags, "-t", self.tmux_name,
+                            name, value], capture_output=True, timeout=5)
+        except (OSError, subprocess.SubprocessError):
+            pass
 
     def _pump(self):
         """Drain the pty forever, whether or not anyone is watching.
@@ -479,7 +512,16 @@ def serve_socket(handler, cwd: str, token: str, claude_bin: str = "claude") -> N
         _send(sock, json.dumps({"t": "attached", "resumed": resumed,
                                 "bytes": len(backlog)}).encode(), opcode=0x1)
         if session.tmux_name:
-            _send(sock, b"\x1b[H\x1b[2J\x1b[3J", opcode=0x2)
+            # \x1b[2J clears the SCREEN. \x1b[3J, which used to be here too,
+            # clears the browser's saved scrollback -- so the page arrived with
+            # nothing above the fold and the wheel did nothing. The history
+            # comes from tmux instead, written in above the repaint, and the
+            # conversation can be scrolled back through like any other page.
+            _send(sock, b"\x1b[H\x1b[2J", opcode=0x2)
+            past = history(name)
+            if past.strip():
+                _send(sock, past.replace("\n", "\r\n").encode() + b"\r\n",
+                      opcode=0x2)
             # The repaint itself waits for the browser's first resize: drawing
             # now would draw at whatever size the last viewer had, and the new
             # page would get a screen laid out for someone else's window.
@@ -608,17 +650,36 @@ def classify(pane: str) -> str:
     return "idle"
 
 
-def capture(name: str) -> str:
-    """The visible screen of a tmux session, without attaching to it."""
+def _capture(name: str, *args: str) -> str:
     tmux = tmux_bin()
     if not tmux:
         return ""
     try:
-        r = subprocess.run([tmux, "capture-pane", "-p", "-t", name],
+        r = subprocess.run([tmux, "capture-pane", "-p", "-t", name, *args],
                            capture_output=True, text=True, timeout=5)
     except (OSError, subprocess.SubprocessError):
         return ""
     return r.stdout if r.returncode == 0 else ""
+
+
+def capture(name: str) -> str:
+    """The visible screen of a tmux session, without attaching to it."""
+    return _capture(name)
+
+
+def history(name: str, lines: int = 3000) -> str:
+    """What scrolled off the top -- the conversation, not the current screen.
+
+    A page that shows only the live screen cannot be scrolled back, because
+    there is nothing above it: tmux owns the scrollback, and the repaint on
+    attach paints one screen. Marsita, 2026-09-04: "I also want to scroll up
+    on the Claude messages back."
+
+    `-S -N -E -1` is the history region ONLY. tmux numbers the top visible
+    line 0 and counts backwards into the past, so ending at -1 stops exactly
+    where the repaint is about to start -- no line appears twice.
+    """
+    return _capture(name, "-S", f"-{int(lines)}", "-E", "-1")
 
 
 def record_turn(seconds: float, path: pathlib.Path = TURNS) -> None:

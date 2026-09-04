@@ -452,6 +452,15 @@ canvas.mark:hover{opacity:1;}
 /* Collapsed, the pills filter a list nobody can see. The heading keeps only
    its name, which is what makes it a way back in. */
 .pane[data-open="0"] .filters{display:none;}
+/* The footer collapses FULLY: shut, its heading shrinks to a hairline so the
+   terminal above gets the room. Marsita, 2026-09-04: "the footer pane to be
+   fully collapsible" -- a heading bar you are not reading is still a bar, and
+   at the bottom of the middle column it was the last thing between claude and
+   the edge of the window. It stays visible and clickable, faintly, because a
+   pane with no way back is a pane you have deleted. */
+#stream[data-open="0"]>h2{padding:0 7px;font-size:7px;line-height:9px;
+  opacity:.4;border-bottom:none;}
+#stream[data-open="0"]>h2:hover{opacity:1;}
 #stream h2{display:flex;align-items:center;gap:10px;}
 #stream h2 .title{white-space:nowrap;}
 #stream h2 .filters{margin-left:auto;}

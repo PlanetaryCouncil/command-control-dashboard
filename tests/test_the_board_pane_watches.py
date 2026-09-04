@@ -111,6 +111,52 @@ def test_the_page_says_where_the_real_terminal_is():
     assert 'id="state"' in page and 'id="clock"' in page
 
 
+# --------------------------------------------------------------- scroll back
+def test_history_asks_tmux_for_the_region_above_the_screen(monkeypatch):
+    """Ending at -1 is the whole point: the repaint draws line 0 onwards, so
+    history must stop just short of it or every screen appears twice."""
+    seen = []
+    monkeypatch.setattr(terminal, "tmux_bin", lambda: "/usr/bin/tmux")
+
+    class R:
+        returncode, stdout = 0, "older\n"
+
+    monkeypatch.setattr(terminal.subprocess, "run",
+                        lambda argv, **kw: (seen.append(argv), R)[1])
+    assert terminal.history("board", 3000) == "older\n"
+    assert seen[0][-4:] == ["-S", "-3000", "-E", "-1"]
+
+
+def test_the_visible_screen_is_captured_without_the_history_flags(monkeypatch):
+    seen = []
+    monkeypatch.setattr(terminal, "tmux_bin", lambda: "/usr/bin/tmux")
+
+    class R:
+        returncode, stdout = 0, "now\n"
+
+    monkeypatch.setattr(terminal.subprocess, "run",
+                        lambda argv, **kw: (seen.append(argv), R)[1])
+    terminal.capture("board")
+    assert "-S" not in seen[0]
+
+
+def test_no_tmux_means_no_history_not_a_crash(monkeypatch):
+    monkeypatch.setattr(terminal, "tmux_bin", lambda: "")
+    assert terminal.history("board") == ""
+
+
+def test_the_browsers_scrollback_is_no_longer_wiped_on_attach():
+    """\x1b[3J clears the saved lines, which is exactly what the wheel needs."""
+    src = (BIN / "terminal.py").read_text()
+    assert "\\x1b[H\\x1b[2J\\x1b[3J" not in src
+
+
+def test_the_pane_keeps_enough_scrollback_to_hold_the_history():
+    import re
+    kept = int(re.search(r"scrollback:\s*(\d+)", termview.JS).group(1))
+    assert kept >= 3000
+
+
 # ------------------------------------------------------------- no instructions
 def test_the_compose_box_says_nothing_but_dots():
     """Marsita, 2026-09-04: "please skip the placeholder... The only
@@ -125,3 +171,29 @@ def test_the_compose_box_says_nothing_but_dots():
     for mod in (termview.page("tok", "", ""), (BIN / "oneview.py").read_text()):
         for hint in re.findall(r'placeholder="([^"]*)"', mod):
             assert hint in ("...", "you") or hint.startswith("{"), hint
+
+
+# ------------------------------------------------------------- room to breathe
+def test_the_window_follows_the_biggest_viewer_not_the_smallest():
+    """tmux defaults to `smallest`, which let the laptop clamp the browser and
+    left two-thirds of the pane black."""
+    src = (BIN / "terminal.py").read_text()
+    assert '"window-size", "largest"' in src
+
+
+def test_setting_a_tmux_option_never_takes_the_session_down(monkeypatch):
+    s = terminal.Session.__new__(terminal.Session)
+    s.tmux_name = "board"
+    monkeypatch.setattr(terminal, "tmux_bin", lambda: "/usr/bin/tmux")
+
+    def boom(*a, **k):
+        raise OSError("tmux went away")
+
+    monkeypatch.setattr(terminal.subprocess, "run", boom)
+    s.tmux_opt("window-size", "largest")        # must not raise
+
+
+def test_the_footer_collapses_to_a_hairline_not_a_heading_bar():
+    css = (BIN / "oneview.py").read_text()
+    assert '#stream[data-open="0"]>h2{' in css
+    assert '#stream[data-open="0"]>h2:hover{opacity:1;}' in css, "no way back"
