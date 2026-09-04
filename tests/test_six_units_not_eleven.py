@@ -107,3 +107,39 @@ def test_the_fleet_merges_without_a_human():
     src = (FLEET / "bin" / "pipeline.py").read_text()
     assert re.search(r'^\s+land\(r\)\s*$', src, re.M), "land() not called"
     assert "No human in the loop" in src
+
+
+# --- the ledger is a queue, not an archive -----------------------------
+
+def test_health_trims_the_ledger_daily():
+    src = (FLEET / "bin" / "health.sh").read_text()
+    assert "trim-ledger.py" in src
+    assert "due trim-ledger 86400" in src
+
+
+def test_trimming_never_drops_unprocessed_work():
+    """Both conditions, not either. Unprocessed-but-ancient is still work
+    nobody has done, and archiving it would silently lose it."""
+    import datetime as dt
+    import sys
+    sys.path.insert(0, str(FLEET / "bin"))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "trim_ledger", FLEET / "bin" / "trim-ledger.py")
+    trim_ledger = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(trim_ledger)
+
+    now = dt.datetime(2026, 9, 4, tzinfo=dt.timezone.utc)
+    old, older = "2026-08-01T00:00:00Z", "2026-08-02T00:00:00Z"
+    recent = "2026-09-04T00:00:00Z"
+    ledger = [
+        {"ts": old, "text": "done and old"},
+        {"ts": older, "text": "never built"},
+        {"ts": recent, "text": "done but recent"},
+        {"ts": "not-a-date", "text": "unparseable"},
+    ]
+    seen = {old, recent}
+    keep, archive = trim_ledger.split(ledger, seen, now=now)
+    kept = {r["text"] for r in keep}
+    assert kept == {"never built", "done but recent", "unparseable"}
+    assert [r["text"] for r in archive] == ["done and old"]

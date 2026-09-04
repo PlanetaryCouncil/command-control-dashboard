@@ -45,3 +45,8 @@ HB_LAPS="$(cfg "['heartbeat'].get('laps',1)")"
 due heartbeat "$(cfg "['heartbeat']['every_seconds']")" \
     "$FLEET/../.venv/bin/python" "$FLEET/bin/comms-heartbeat.py" \
     --agents "$HB_AGENTS" --laps "$HB_LAPS"
+
+# Once a day: keep the proposal ledger the size of the queue. Settled rows
+# older than a few days move to an archive beside it. Nothing unprocessed is
+# ever moved, however old.
+due trim-ledger 86400 "$FLEET/../.venv/bin/python" "$FLEET/bin/trim-ledger.py"

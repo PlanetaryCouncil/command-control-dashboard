@@ -129,6 +129,45 @@ def reviewer_name(builder: str | None = None) -> str:
     return ""
 
 
+def verdict_of(review) -> bool | None:
+    """APPROVE, REJECT, or None for "did not answer".
+
+    Was `.strip().upper().startswith("APPROVE")`, which read a preamble as a
+    rejection. A real one, logged 2026-09-04: "I'll load the brief and inspect
+    the merged change against the surrounding fleet-model wiring." That is an
+    agent about to work, scored as an agent that said no.
+
+    None matters as much as False. Silence is not disapproval, and the caller
+    needs to tell them apart to know whether to ask someone else.
+    """
+    text = " ".join(str(review or "").split()).upper()
+    if not text or text.startswith("[STDERR]"):
+        return None
+    for token in text.replace("*", " ").split():
+        word = token.strip(".,:;!?'\"()[]")
+        if word in ("APPROVE", "APPROVED"):
+            return True
+        if word in ("REJECT", "REJECTED"):
+            return False
+    return None
+
+
+def _other_reviewers(tried: str) -> list[str]:
+    """Independent vendors left to ask, after `tried` said nothing."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import vendors  # noqa: E402
+    builder = builder_name()
+    out = []
+    for cand in ASKERS:
+        if cand in (tried, builder):
+            continue
+        cv = vendors.vendor(cand)
+        if cv in ("local", "unknown") or cv == vendors.vendor(builder):
+            continue
+        out.append(cand)
+    return out
+
+
 ASKERS = {
     "hermes": lambda chat, prompt, noop: chat.ask_hermes(prompt, noop),
     "agy": lambda chat, prompt, noop: chat.ask_agy(prompt, [], noop),
@@ -428,16 +467,42 @@ def verify(built: dict) -> dict:
         return record(stage="verify", proposal_ts=built["proposal_ts"],
                       branch=branch, ok=False, tests=tests_line,
                       review="no independent reviewer available")
-    review = ASKERS[who](
-        chat,
+    brief = (
         "You are the verify stage of a pipeline. Another agent implemented a "
         "proposal on a branch, which has been merged with current main "
         "before testing — so these results reflect the tree that would "
         "actually ship. Tests: "
         f"{'PASS' if tests_ok else 'FAIL'} ({tests_line}). Review this diff "
-        "for correctness and scope creep. First line of your answer must be "
-        f"exactly APPROVE or REJECT, then one sentence why.\n\n{diff}", noop)
-    approved = str(review).strip().upper().startswith("APPROVE")
+        "for correctness and scope creep.\n\n"
+        # Three sentences that exist because of three real rejections, all
+        # logged 2026-09-04. The reviewer reached for a tool and headless mode
+        # auto-denied it, so it produced nothing at all: "no output produced —
+        # a tool required the 'command' permission that headless mode cannot
+        # prompt for". Everything it needs is already below.
+        "The complete diff is included below. Do NOT use any tool, do NOT "
+        "read files, do NOT run commands — you have everything already, and "
+        "a tool call in this context is auto-denied and costs you your turn. "
+        "Answer immediately from what you can see.\n\n"
+        "Your answer must contain the word APPROVE or the word REJECT on its "
+        "own line, then one sentence why. Do not narrate what you are about "
+        f"to do.\n\n{diff}")
+    review = ASKERS[who](chat, brief, noop)
+    approved = verdict_of(review)
+    if approved is None:
+        # A reviewer that says nothing has not rejected the branch -- it has
+        # failed to review it, and recording that as a rejection blames the
+        # code for the roster. On 2026-09-04 this cost every branch for three
+        # days: "no reviewer produced a verdict", over and over, while the
+        # tests were passing. Ask the next independent vendor instead.
+        for alt in _other_reviewers(who):
+            review = ASKERS[alt](chat, brief, noop)
+            got = verdict_of(review)
+            if got is not None:
+                who, approved = alt, got
+                break
+        else:
+            approved = False
+    approved = bool(approved)
     verdict = "approved" if (tests_ok and approved) else "rejected"
     ev.emit("pipeline", "needs_you" if verdict == "approved" else "warn",
             f"[pipeline] {branch}: tests {'pass' if tests_ok else 'FAIL'}, "
