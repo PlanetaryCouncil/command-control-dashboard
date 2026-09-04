@@ -473,7 +473,12 @@ def verify(built: dict) -> dict:
         "before testing — so these results reflect the tree that would "
         "actually ship. Tests: "
         f"{'PASS' if tests_ok else 'FAIL'} ({tests_line}). Review this diff "
-        "for correctness and scope creep.\n\n"
+        "This is a FACT CHECK, not a design review. The orchestrator that "
+        "wrote it is a frontier model and the tests already ran. You are "
+        "looking for things that are objectively wrong: a claim in a comment "
+        "that the code does not do, a change that touches files the proposal "
+        "never mentioned, an obvious break. Style, taste and better ways to "
+        "do it are not your call. If nothing is factually wrong, APPROVE.\n\n"
         # Three sentences that exist because of three real rejections, all
         # logged 2026-09-04. The reviewer reached for a tool and headless mode
         # auto-denied it, so it produced nothing at all: "no output produced —
@@ -486,6 +491,9 @@ def verify(built: dict) -> dict:
         "Your answer must contain the word APPROVE or the word REJECT on its "
         "own line, then one sentence why. Do not narrate what you are about "
         f"to do.\n\n{diff}")
+    reopens = sum(1 for r in state()
+                  if r.get("proposal_ts") == built["proposal_ts"]
+                  and r.get("stage") == "reopen")
     review = ASKERS[who](chat, brief, noop)
     approved = verdict_of(review)
     if approved is None:
@@ -500,8 +508,27 @@ def verify(built: dict) -> dict:
             if got is not None:
                 who, approved = alt, got
                 break
-        else:
-            approved = False
+        if approved is None and reopens >= 2:
+            # A retry that never stops is a loop. Two is enough to survive a
+            # reviewer that was briefly down; a third means the roster is
+            # broken and a human should hear about it rather than the queue
+            # churning quietly forever.
+            approved = False            # falls through to a real rejection
+            ev.emit("pipeline", "needs_you",
+                    f"[pipeline] {branch}: no reviewer has answered in "
+                    f"{reopens + 1} attempts — the roster needs you")
+        if approved is None:
+            # Nobody answered. That is not a rejection of the code, and
+            # recording it as one buries work that was finished and green --
+            # on 2026-09-04 two branches sat rejected with "991 passed" beside
+            # them while every reviewer was failing on a denied tool.
+            run(["git", "worktree", "remove", "--force", str(wt)], cwd=REPO)
+            ev.emit("pipeline", "warn",
+                    f"[pipeline] {branch}: no reviewer answered — reopening")
+            return record(stage="reopen", proposal_ts=built["proposal_ts"],
+                          branch=branch, ok=False, tests=tests_line,
+                          review="no reviewer answered; reopened for a "
+                                 f"later slot (attempt {reopens + 1})")
     approved = bool(approved)
     verdict = "approved" if (tests_ok and approved) else "rejected"
     ev.emit("pipeline", "needs_you" if verdict == "approved" else "warn",

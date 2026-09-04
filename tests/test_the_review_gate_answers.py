@@ -72,3 +72,47 @@ def test_a_silent_reviewer_gets_replaced_not_obeyed():
 def test_the_fallback_stays_independent_of_the_builder(monkeypatch):
     monkeypatch.setenv("FLEET_BUILDER", "grok")
     assert "grok" not in pipeline._other_reviewers("agy")
+
+
+# --- a branch nobody reviewed comes back -------------------------------
+
+def test_reopen_is_not_a_closed_stage():
+    """`drop`, `land`, `verify` and friends close a proposal. A reopen must
+    put it back in the queue -- on 2026-09-04 two branches sat closed and
+    rejected with "991 passed" beside them, while every reviewer on the roster
+    was failing on a denied tool. The code was finished. Nobody read it."""
+    assert "reopen" not in pipeline.CLOSED_STAGES
+
+
+def test_a_reopened_proposal_is_waiting_again():
+    prop = {"ts": "2026-09-04T02:11:21Z", "text": "a real proposal"}
+    closed = {prop["ts"]: {"stage": "verify", "ok": False}}
+    reopened = {prop["ts"]: {"stage": "reopen", "ok": False}}
+    assert pipeline.is_waiting(prop, closed) is False
+    assert pipeline.is_waiting(prop, reopened) is True
+
+
+def test_verify_reopens_rather_than_rejecting_when_nobody_answers():
+    src = (BIN / "pipeline.py").read_text()
+    block = src[src.index("def verify("):]
+    assert 'record(stage="reopen"' in block
+    assert "no reviewer answered" in block
+
+
+def test_the_retry_is_bounded():
+    """A retry that never stops is a loop. After two, a human hears about it
+    instead of the queue churning quietly forever."""
+    src = (BIN / "pipeline.py").read_text()
+    block = src[src.index("def verify("):]
+    assert "reopens >= 2" in block
+    assert '"needs_you"' in block
+
+
+def test_the_reviewer_is_asked_for_a_fact_check_not_a_design_review():
+    """Marsita, 2026-09-04: "Fable proposes, rest signoffs? Basic
+    fact-checking layer." The builder is a frontier model and the tests have
+    already run; the second pair of eyes is there for things that are
+    objectively wrong, not for taste."""
+    src = (BIN / "pipeline.py").read_text()
+    assert "This is a FACT CHECK, not a design review" in src
+    assert "If nothing is factually wrong, APPROVE" in src
