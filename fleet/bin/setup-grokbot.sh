@@ -39,18 +39,25 @@ fi
 
 say() { printf '\n== %s\n' "$*"; }
 
+# A generated password, printed once and never stored. Nobody has to invent
+# one, and it is never weaker than whatever gets typed at 3am.
+#
+# `tr </dev/urandom | head -c 20` is the obvious one-liner and it is a SIGPIPE
+# trap: head closes the pipe at twenty bytes, tr dies with 141, and pipefail
+# fails the line. Bounding the SOURCE means every stage ends on its own.
+newpass() { head -c 400 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 20; }
+
 say "user"
 if id "$USER_NAME" >/dev/null 2>&1; then
-  echo "  $USER_NAME already exists, leaving it alone"
-  PASSWORD=""
+  # A re-run resets the password rather than leaving the account alone. The
+  # password is only ever printed, so if the printing failed -- which it did on
+  # 2026-09-04, at the very last line of an otherwise successful run -- a new
+  # one is the only way back in.
+  echo "  $USER_NAME already exists, resetting its password"
+  PASSWORD="$(newpass)"
+  echo "$USER_NAME:$PASSWORD" | chpasswd
 else
-  # A generated password, printed once. Nobody has to invent one, and it is
-  # never weaker than whatever gets typed at 3am.
-  # `tr </dev/urandom | head -c 20` is the obvious one-liner and it is a
-  # SIGPIPE trap: head closes the pipe at twenty bytes, tr dies with 141, and
-  # `set -o pipefail` makes the whole line fail. Exit 141 at line 49, run of
-  # 2026-09-04. Bounding the SOURCE instead means every stage ends on its own.
-  PASSWORD="$(head -c 400 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9' | head -c 20)"
+  PASSWORD="$(newpass)"
   # useradd, not adduser. adduser is a Perl wrapper that asks for confirmation
   # even with --disabled-password, and over `ssh -t` from a non-terminal it
   # reads EOF and dies under `set -e` having printed nothing -- which is
@@ -98,14 +105,21 @@ command -v google-chrome-stable || echo "  WARNING: chrome not found on PATH"
 
 say "done"
 IP="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+# Plain variables below, never ${VAR:-default}. A default containing an
+# apostrophe -- "the NUC's Tailscale IP" -- opens a quote bash never closes, so
+# the whole heredoc dies with "bad substitution: no closing }". That killed the
+# last line of a run on 2026-09-04 in which everything else had succeeded, and
+# took the only copy of the generated password with it.
+[[ -n "$IP" ]] || IP="unknown -- run: tailscale ip -4"
+
 cat <<TXT
 
   Hand GrokBot these four lines, nothing else:
 
-    host      ${IP:-<the NUC's Tailscale IP>}
+    host      $IP
     port      3389 (RDP)
     user      $USER_NAME
-    password  ${PASSWORD:-<unchanged — the account already existed>}
+    password  $PASSWORD
 
   Chrome is on the desktop. The profile is fresh: it shares the home IP and
   none of Marsita's logins.
