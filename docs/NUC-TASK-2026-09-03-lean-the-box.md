@@ -85,19 +85,70 @@ bug in one line.
 
 ## Step 5 — GrokBot's login
 
-Lean user, no sudo, browser-capable. James's account on this box is the
-working reference for the desktop side (XFCE + lightdm; GDM on Ubuntu 26.04 is
-Wayland-only and ignores both `WaylandEnable=false` and the AccountsService
-`XSession` key — do not spend an hour rediscovering that).
+**Decided 2026-09-04.** GrokBot is an agent living in a datacenter. It needs to
+browse from Marsita's home IP rather than a datacenter range, driving a real
+Chrome it can see and click. So: a real desktop login on this box.
 
-Differences from James: **no sudo group**, and it is an agent that executes
-code rather than a person, so keep its home genuinely separate from `m`'s.
+Marsita weighed the residential-reputation cost and accepted it: *"I'm going to
+use bots one way or another so may as well use it."* That decision is made; do
+not re-litigate it.
 
-Marsita's line, worth keeping: a box that browses the web as her is fine. A box
-that routes other people's traffic out her home IP is a different thing and is
-not what this is.
+### Shape
+
+- user `grokbot`, **no sudo**, in no group that `m` is in
+- home mode `0750` — `m`'s files are not readable from it and vice versa
+- XFCE session, Chrome, reachable over RustDesk like James's account
+- **GDM on Ubuntu 26.04 is Wayland-only** and ignores both
+  `WaylandEnable=false` and the AccountsService `XSession` key. Use lightdm.
+  James's account is the working reference; copy it, minus sudo.
+- a **fresh Chrome profile**, no sync, never signed into any of Marsita's
+  accounts. The IP is shared. Nothing else is.
+
+### The line that holds
+
+GrokBot browsing the web on Marsita's behalf, from her line, is fine. Turning
+the box into an exit node for other people's traffic is not, and is not what
+this is. Do not install a general proxy, do not open the SOCKS port beyond
+localhost/Tailscale, do not add other users to it.
+
+### Keep the IP boring
+
+The cost of this is that a residential line starts looking automated —
+CAPTCHAs land on Marsita's own browsing. Cheap mitigations, worth doing at
+setup rather than after:
+
+- rate-limit the agent's browsing; human-ish pacing, not a crawl loop
+- no parallel tab storms, no scraping runs
+- if it starts hammering something, that is a bug, not throughput
+
+### Kill switch
+
+`sudo pkill -u grokbot; sudo usermod -L grokbot` stops everything at once.
+Marsita should know that command exists before the first session, not after.
 
 ## Report back
 
+
 Post the before/after of `uptime` and `free -g` to the board. The whole point
 is Marsita being able to see the box breathe.
+
+## Appendix — hermes has no working cloud brain (2026-09-04)
+
+Relevant because hermes is the thing that was hammering llama, and because he
+is on the council rota and Marsita wants to keep talking to him.
+
+- **Anthropic API is refused.** Not an auth failure — `invalid_request_error`:
+  *"Third-party apps now draw from your extra usage, not your plan limits."*
+  The Max plan does not cover a third-party agent. Needs pay-as-you-go credit.
+- **GitHub Copilot is refused too.** `api.githubcopilot.com/models` answers
+  with 30 model ids (`gpt-5.6-sol`, `claude-opus-5`, `kimi-k3`...), but every
+  completion returns `model_not_supported`, and `gh api user/copilot_billing`
+  is a 404. There is no Copilot subscription on the account. The model list is
+  a public menu, not an entitlement.
+- Verified by hand with curl, outside hermes. Not a hermes bug.
+
+So hermes' options are: Copilot Pro at ~$10/mo (flat, unlocks that whole list),
+an OpenAI platform key (metered — note a ChatGPT subscription is *not* API
+access), or stay on llama at 5 t/s for the daily guardian slot only.
+
+Marsita has not chosen yet. Do not spend money on her behalf.
