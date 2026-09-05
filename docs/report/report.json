@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-04T18:00:04+00:00",
+  "generated_at": "2026-09-05T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-09-03T18:00:04+00:00",
+  "since": "2026-09-04T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,109 +24,79 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 17,
+    "count": 12,
     "list": [
       {
-        "sha": "4f23b43d",
+        "sha": "30997e20",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T16:10:45+01:00",
-        "subject": "a branch nobody reviewed comes back; the reviewer only fact-checks"
+        "at": "2026-09-05T00:20:14+01:00",
+        "subject": "board: the terminal is retired, the pane is a one-way stream"
       },
       {
-        "sha": "96def205",
+        "sha": "fca92131",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T12:49:42+01:00",
-        "subject": "setup-grokbot: an apostrophe in a ${VAR:-default} ate the last line"
+        "at": "2026-09-04T23:22:45+01:00",
+        "subject": "board: the partnership rows are domain | github"
       },
       {
-        "sha": "f4c0b29f",
+        "sha": "d534732f",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T12:45:34+01:00",
-        "subject": "setup-grokbot: the password line was a SIGPIPE trap"
+        "at": "2026-09-04T23:15:44+01:00",
+        "subject": "board: a chevron in the corner, not a drag"
       },
       {
-        "sha": "a4e862e6",
+        "sha": "85cede3f",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T12:43:29+01:00",
-        "subject": "setup-grokbot: say which line failed"
+        "at": "2026-09-04T22:30:10+01:00",
+        "subject": "board: the footer bar sits on the boundary, and actually drags"
       },
       {
-        "sha": "34a914ae",
+        "sha": "64a8efcc",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T12:39:13+01:00",
-        "subject": "setup-grokbot: useradd, not adduser"
+        "at": "2026-09-04T21:44:10+01:00",
+        "subject": "terminal: one owner of a session's tmux options"
       },
       {
-        "sha": "c72b888d",
+        "sha": "3cf95814",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T12:37:42+01:00",
-        "subject": "setup-grokbot.sh: a desktop for the agent, no sudo"
+        "at": "2026-09-04T21:39:55+01:00",
+        "subject": "board: the footer's handle is a bar, not the word \"footer\""
       },
       {
-        "sha": "437163fa",
+        "sha": "ccc1de06",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T11:11:13+01:00",
-        "subject": "an error is not a proposal: stop filing the drama"
+        "at": "2026-09-04T20:59:42+01:00",
+        "subject": "issues: eighteen things in eight places, on one screen"
       },
       {
-        "sha": "4b8a6ef5",
+        "sha": "c81adc00",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T10:18:34+01:00",
-        "subject": "silence is not a rejection, and the ledger is a queue not an archive"
+        "at": "2026-09-04T19:55:53+01:00",
+        "subject": "board: the footer shuts, and a project fits on one line"
       },
       {
-        "sha": "5ddd7979",
+        "sha": "cf9800ad",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T03:13:25+01:00",
-        "subject": "fable is in the pool, and the slot runs current code"
+        "at": "2026-09-04T19:33:11+01:00",
+        "subject": "board: scroll back, fill the pane, collapse the footer"
       },
       {
-        "sha": "0eaf90cf",
+        "sha": "0704cfe4",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T03:09:36+01:00",
-        "subject": "the 09:00 message becomes a generated unit, not an orphan"
+        "at": "2026-09-04T19:27:44+01:00",
+        "subject": "board: the compose box says nothing but \"...\""
       },
       {
-        "sha": "2bb3c7c7",
+        "sha": "cae77ee4",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T02:43:08+01:00",
-        "subject": "eleven timers become six, and two of them were the same command"
+        "at": "2026-09-04T19:16:01+01:00",
+        "subject": "board: the terminal pane stops pretending to be a terminal"
       },
       {
-        "sha": "d5b9f128",
+        "sha": "f6864c59",
         "author": "Marsita the Ultra",
-        "at": "2026-09-04T02:29:33+01:00",
-        "subject": "fable 5.1 leads the pack, and one builder runs at a time"
-      },
-      {
-        "sha": "efdb593f",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-04T02:04:14+01:00",
-        "subject": "nuc brief: GrokBot's login in full, and why hermes has no cloud brain"
-      },
-      {
-        "sha": "28040c4c",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T22:16:22+01:00",
-        "subject": "nuc task: lean the box \u2014 kill the builder loop, ollama daily, GrokBot login"
-      },
-      {
-        "sha": "53a7a38e",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T21:27:13+01:00",
-        "subject": "next: the board terminal stops pretending to be a terminal"
-      },
-      {
-        "sha": "23232bb6",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T19:22:35+01:00",
-        "subject": "a reattached page gets one screen, not the whole history"
-      },
-      {
-        "sha": "011933ac",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-03T19:00:08+01:00",
-        "subject": "report: 2026-09-03 fleet summary"
+        "at": "2026-09-04T19:00:05+01:00",
+        "subject": "report: 2026-09-04 fleet summary"
       }
     ]
   },
@@ -135,15 +105,9 @@
     "stages": {}
   },
   "events": {
-    "count": 6,
-    "by_level": {
-      "ok": 5,
-      "info": 1
-    },
-    "by_agent": {
-      "visitors": 5,
-      "quotas": 1
-    }
+    "count": 0,
+    "by_level": {},
+    "by_agent": {}
   },
   "needs_you": [],
   "workers": [
@@ -180,20 +144,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-09-04T17:59:52Z",
-      "summary": "disk 91% 21.5G free"
+      "last_run": "2026-09-05T17:55:31Z",
+      "summary": "disk 90% 22.2G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-09-04T17:59:52Z",
+      "last_run": "2026-09-05T17:55:31Z",
       "summary": "spending hermes unknown \u00b7 claude unknown \u00b7 holding grok, openclaw, agy"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-04T17:58:38+00:00",
-      "summary": "24h: 2385 public \u00b7 2 homies \u00b7 browser 1802 \u00b7 Python-urllib/3.11 501 \u00b7 Mozilla/5.0 (compatible; Barkrowler/0.9; 19 \u00b7 Googlebot 14 \u00b7 Applebot 13 \u00b7 MJ12bot 8 \u00b7 GPT"
+      "last_run": "2026-09-05T17:59:29+00:00",
+      "summary": "24h: 1645 public \u00b7 1 homies \u00b7 browser 994 \u00b7 Python-urllib/3.11 594 \u00b7 SofyaBot/1.0 (+https://sofya.co/bot) 28 \u00b7 Mozilla/5.0 (compatible; IbouBot/1.0; +b 9 \u00b7 Amaz"
     }
   ],
   "proposals_total": 261
