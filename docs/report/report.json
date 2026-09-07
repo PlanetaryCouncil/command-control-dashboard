@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-06T18:00:03+00:00",
+  "generated_at": "2026-09-07T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-09-05T18:00:03+00:00",
+  "since": "2026-09-06T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,17 +24,28 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 0,
-    "list": []
+    "count": 1,
+    "list": [
+      {
+        "sha": "36cfe5f1",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-06T19:00:03+01:00",
+        "subject": "report: 2026-09-06 fleet summary"
+      }
+    ]
   },
   "pipeline": {
     "records": 0,
     "stages": {}
   },
   "events": {
-    "count": 0,
-    "by_level": {},
-    "by_agent": {}
+    "count": 2,
+    "by_level": {
+      "ok": 2
+    },
+    "by_agent": {
+      "visitors": 2
+    }
   },
   "needs_you": [],
   "workers": [
@@ -71,20 +82,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-09-06T17:56:05Z",
-      "summary": "load 4.1 over 4 on 4 cores; disk 90% 22.1G free"
+      "last_run": "2026-09-07T17:56:40Z",
+      "summary": "disk 90% 22.2G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-09-06T17:56:05Z",
+      "last_run": "2026-09-07T17:56:40Z",
       "summary": "spending hermes unknown \u00b7 claude unknown \u00b7 holding grok, openclaw, agy"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-06T17:39:42+00:00",
-      "summary": "24h: 1405 public \u00b7 2 homies \u00b7 browser 1396 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 3 \u00b7 Amazonbot 2 \u00b7 SemrushBot 2 \u00b7 Hello from Palo Alto Networks, find out  "
+      "last_run": "2026-09-07T17:53:29+00:00",
+      "summary": "24h: 70 public \u00b7 1 homies \u00b7 browser 43 \u00b7 Mozilla/5.0 (compatible; AwarioBot/1.0;  14 \u00b7 Applebot 5 \u00b7 Censys 4 \u00b7 Hello from Palo Alto Networks, find out  3 \u00b7 Amaz"
     }
   ],
   "proposals_total": 261

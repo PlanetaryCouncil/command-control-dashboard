@@ -1,12 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-09-06T18:00:03+00:00*
+*2026-09-07T18:00:00+00:00*
 
-**Nothing was merged in the last 24 hours.**
+**1 commit merged in the last 24 hours.**
 
 ## Merged
 
-Nothing.
+| commit | subject |
+|---|---|
+| `36cfe5f1` | report: 2026-09-06 fleet summary |
 
 ## Pipeline
 
@@ -25,9 +27,9 @@ Nothing.
 | localvoice | pass | llama3.2:1b answered in 72.8s — the offline fallback is alive |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | load 4.1 over 4 on 4 cores; disk 90% 22.1G free |
+| pressure | warn | disk 90% 22.2G free |
 | quotas | pass | spending hermes unknown · claude unknown · holding grok, openclaw, agy |
-| visitors | pass | 24h: 1405 public · 2 homies · browser 1396 · Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 3 ·  |
+| visitors | pass | 24h: 70 public · 1 homies · browser 43 · Mozilla/5.0 (compatible; AwarioBot/1.0;  14 · App |
 
 ## The partnership
 
