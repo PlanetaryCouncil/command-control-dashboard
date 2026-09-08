@@ -1,14 +1,12 @@
 # The fleet — last 24 hours
 
-*2026-09-07T18:00:00+00:00*
+*2026-09-08T18:00:05+00:00*
 
-**1 commit merged in the last 24 hours.**
+**Nothing was merged in the last 24 hours.**
 
 ## Merged
 
-| commit | subject |
-|---|---|
-| `36cfe5f1` | report: 2026-09-06 fleet summary |
+Nothing.
 
 ## Pipeline
 
@@ -29,7 +27,7 @@ Nothing.
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
 | pressure | warn | disk 90% 22.2G free |
 | quotas | pass | spending hermes unknown · claude unknown · holding grok, openclaw, agy |
-| visitors | pass | 24h: 70 public · 1 homies · browser 43 · Mozilla/5.0 (compatible; AwarioBot/1.0;  14 · App |
+| visitors | pass | 24h: 93 public · 3 homies · Mozilla/5.0 (compatible; SERankingBackli 37 · browser 27 · App |
 
 ## The partnership
 
