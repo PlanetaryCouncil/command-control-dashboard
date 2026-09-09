@@ -28,7 +28,7 @@ def test_the_message_flexes_and_the_chrome_does_not():
     """Fixed chrome is what makes a run of rows read as a column when the
     messages are ragged."""
     i = SRC.index(".ev{display:flex;")
-    body = SRC[i:i + 600]
+    body = SRC[i:i + 900]
     assert ".ev .t{flex:none" in body
     assert ".ev .who{flex:none" in body
     assert ".ev .m{flex:1" in body
@@ -63,3 +63,14 @@ def test_collapsing_the_stream_takes_the_post_box_with_it():
     row: "collapse, it looks ugly"."""
     assert '.pane[data-open="0"] .body,.pane[data-open="0"] form,' in SRC
     assert '#stream[data-open="0"] #say{display:flex !important;}' not in SRC
+
+
+def test_the_chrome_leaves_room_for_the_message():
+    """It was 219px of a 528px pane -- 41% of every row spent saying when and
+    who before a word of what, and a message starting that far right wraps
+    into a deep empty gutter that reads as a gap in the log rather than a long
+    line. Marsita, 2026-09-09: "seems like a gap"."""
+    i = SRC.index(".ev{display:flex;")
+    body = SRC[i:i + 800]
+    assert ".ev .who{flex:none;width:58px" in body
+    assert "font-size:8.5px" in body

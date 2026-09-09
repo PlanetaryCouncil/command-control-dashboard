@@ -237,12 +237,17 @@ body{margin:0;background:var(--ground);color:var(--ink);
    2026-09-09: "Timestamp \t who \t message". The message flexes and wraps
    under itself; the three chrome columns are fixed so a run of rows reads as
    a column even when the messages are ragged. */
-.ev{display:flex;gap:7px;align-items:baseline;
-  padding:2px 7px 3px;border-left:2px solid var(--agent,transparent);
+.ev{display:flex;gap:5px;align-items:baseline;
+  padding:1px 7px 2px;border-left:2px solid var(--agent,transparent);
   line-height:1.4;}
-.ev .t{flex:none;white-space:nowrap;}
-.ev .tagicon{flex:none;width:14px;text-align:center;}
-.ev .who{flex:none;width:88px;overflow:hidden;text-overflow:ellipsis;
+/* The chrome was 219px of a 528px pane -- 41% of every row spent saying when
+   and who before a word of what. A message starting that far right also
+   wraps into a deep empty gutter, which reads as a gap in the log rather than
+   a long line. Marsita, 2026-09-09: "seems like a gap". So: smaller stamp,
+   narrower name, tighter gaps. */
+.ev .t{flex:none;white-space:nowrap;font-size:8.5px;}
+.ev .tagicon{flex:none;width:13px;text-align:center;}
+.ev .who{flex:none;width:58px;overflow:hidden;text-overflow:ellipsis;
   white-space:nowrap;}
 .ev .m{flex:1;min-width:0;overflow-wrap:anywhere;}
 /* Timestamp and identity are chrome; excluding them means a drag across several
@@ -343,6 +348,7 @@ canvas.mark{height:26px;width:110px;margin-left:10px;
 canvas.mark:hover{opacity:1;}
 .m .sender{color:var(--ink);font-weight:700;}
 .sayrow{display:flex;gap:5px;align-items:flex-end;}
+#sayWho{align-self:stretch;}
 #say{flex:none;display:flex;flex-direction:column;padding:4px 6px;
   border-top:1px solid var(--border);background:var(--raised);}
 #say input[type=text],#say input:not([type]){font-family:var(--mono);font-size:10px;
@@ -354,10 +360,15 @@ canvas.mark:hover{opacity:1;}
    sentence was written blind. Marsita, 2026-09-09: "I thought I had a text
    area where I can type directly in the native field."
    It grows with what is typed and stops at a third of the window. */
+/* One line at rest. Three lines was borrowed from the box for talking to
+   Claude, back when I had the two confused; posting to the board is a
+   sentence, not a paragraph, and a three-line box sitting under the log took
+   height from the thing you actually read. Marsita, 2026-09-09: "collapse
+   into a single line". It still grows as you type. */
 #sayBody{flex:1;min-width:0;font-family:var(--mono);font-size:10px;
-  padding:5px 7px;border-radius:3px;border:1px solid var(--border);
+  padding:3px 6px;border-radius:3px;border:1px solid var(--border);
   background:var(--surface);color:var(--ink);line-height:1.5;
-  resize:none;height:52px;min-height:52px;max-height:33vh;overflow-y:auto;}
+  resize:none;height:22px;min-height:22px;max-height:33vh;overflow-y:auto;}
 #sayBody:focus{outline:none;border-color:var(--info);}
 #sayOk{display:flex;align-items:center;gap:3px;flex:none;cursor:pointer;
   font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;
@@ -1253,7 +1264,7 @@ function renderProcs(s){
      exactly like the input it replaced -- Marsita, 2026-09-09, looking
      straight at it: "where?". A box you cannot tell from a field is a box
      nobody knows they have. It grows past three lines, never below. */
-  const FLOOR = 52;
+  const FLOOR = 22;
   const grow = () => {
     box.style.height = "auto";
     box.style.height =

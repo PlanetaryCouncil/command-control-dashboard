@@ -67,13 +67,15 @@ def test_the_retired_compose_box_stays_retired():
     assert 'id="composeBox"' not in page
 
 
-def test_it_looks_like_a_textarea_at_rest():
-    """It already WAS one and looked exactly like the input it replaced --
-    Marsita, looking straight at it: "where?". A box you cannot tell from a
-    field is a box nobody knows they have."""
+def test_it_sits_on_one_line_and_grows_from_there():
+    """Three lines at rest was borrowed from the box for talking to Claude,
+    back when the two were confused. Posting to the board is a sentence, and a
+    three-line box under the log took height from the thing you read.
+    Marsita, 2026-09-09: "collapse into a single line"."""
     src = (BIN / "oneview.py").read_text()
     i = src.index("#sayBody{flex:1;")
-    assert "height:52px;min-height:52px" in src[i:i + 400]
+    assert "height:22px;min-height:22px" in src[i:i + 500]
+    assert "const FLOOR = 22;" in src
 
 
 def test_it_never_shrinks_below_three_lines():
