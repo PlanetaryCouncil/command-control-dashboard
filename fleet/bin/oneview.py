@@ -222,23 +222,31 @@ body{margin:0;background:var(--ground);color:var(--ink);
 
 /* ---------- stream ---------- */
 #stream .body{display:flex;flex-direction:column-reverse;}
-/* Flow, not grid. A grid selects cell by cell, so dragging across a line picks
-   up column fragments in the wrong order — unusable for quoting into a chat.
-   Inline-block columns with fixed widths keep the alignment and let a drag
-   select the line as continuous prose. */
-.ev{padding:1px 7px;border-left:2px solid var(--agent,transparent);
+/* Two lines, not columns. Fixed-width chrome columns cost 206px before the
+   message starts, and in a pane narrower than that the name wrapped under the
+   clock and the text began in a 118px gutter — Marsita, 2026-09-05: "more
+   practical to have timestamp emoji username in a single line. So there is
+   more space."
+
+   So the header is one inline run — clock, tag, who — sized by its own
+   content, and the message drops to its own line with the full pane width.
+   Still flow and not grid: a grid selects cell by cell, so dragging across a
+   line picks up column fragments in the wrong order, unusable for quoting
+   into a chat. */
+.ev{padding:2px 7px 3px;border-left:2px solid var(--agent,transparent);
   line-height:1.4;}
-.ev .t{display:inline-block;width:74px;vertical-align:top;}
-.ev .tagicon{display:inline-block;width:14px;vertical-align:top;}
-.ev .who{display:inline-block;width:118px;vertical-align:top;}
-.ev .m{display:inline;}
+.ev .t{display:inline-flex;vertical-align:baseline;}
+.ev .tagicon{display:inline-block;vertical-align:baseline;margin:0 1px 0 4px;}
+.ev .who{display:inline-block;vertical-align:baseline;max-width:100%;}
+.ev .m{display:block;}
 /* Timestamp and identity are chrome; excluding them means a drag across several
    lines yields the messages alone. */
 .ev .t, .ev .tagicon, .ev .who{user-select:none;}
 .ev .m{user-select:text;}
 .ev:nth-child(odd){background:rgba(127,127,127,.04);}
 .ev .t{font-family:var(--mono);font-size:9px;color:var(--muted);
-  font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;}
+  font-variant-numeric:tabular-nums;display:inline-flex;align-items:center;
+  gap:5px;}
 .tagicon{font-size:10px;text-align:center;opacity:.85;}
 .daybar{font-family:var(--mono);font-size:9px;letter-spacing:.16em;
   color:var(--ink-2);padding:3px 9px;background:rgba(127,127,127,.07);
@@ -249,7 +257,7 @@ body{margin:0;background:var(--ground);color:var(--ink);
 .ev .fold:hover{color:var(--ink);border-color:var(--muted);}
 .ev.folded .m{opacity:.75;}
 .ev .who{font-family:var(--mono);font-size:9.5px;color:var(--agent,var(--muted));
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  white-space:nowrap;}
 .ev .m{font-size:10.5px;color:var(--ink-2);word-break:break-word;}
 .ev.ok .m{color:var(--ink);}
 .ev.spoken{background:color-mix(in srgb,var(--agent) 9%,transparent);
@@ -419,6 +427,14 @@ canvas.mark:hover{opacity:1;}
 #issues .age{font-family:var(--mono);font-size:8.5px;color:var(--muted);flex:none;}
 #issues .age.old{color:var(--warning);}
 #issues .age.rotten{color:var(--critical);}
+
+/* ---------- the north star ---------- */
+#northstar{display:flex;align-items:baseline;gap:10px;padding:5px 12px;
+  background:var(--raised);border-bottom:1px solid var(--border);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-2);}
+#northstar b{color:var(--ink);font-weight:600;letter-spacing:.04em;flex:none;}
+#northstar span{min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;}
 
 /* ---------- footer: everything this machine runs, in 7px ---------- */
 #foot{border-top:1px solid var(--border);background:var(--raised);
@@ -1545,6 +1561,20 @@ async function loadHorizons(){
     const levels = d.levels || d.chain || [];
     if (!levels.length){ pane.style.display = "none"; return; }
 
+    // The north star at the very top of the page, taken from the chain
+    // rather than typed into the chrome -- edit the goal and the banner
+    // follows. The year is the one you steer by; the decade is the hover.
+    const star = $("#nsgoal");
+    if (star){
+      const y = levels.find(l => l.scale === "1y")
+              || levels.find(l => l.scale === "10y");
+      const decade = levels.find(l => l.scale === "10y");
+      if (y){
+        star.textContent = y.goal + " ";
+        star.title = decade ? decade.goal : "";
+      }
+    }
+
     const today = new Date(); today.setHours(0,0,0,0);
     let late = 0;
 
@@ -2063,6 +2093,23 @@ setInterval(loadTools, 60000);
 # The lead sentence, for the render that has no banner above it. Remote
 # visitors get FIRST CONTACT immediately above this line, so repeating the
 # fleet's name here printed it twice on the public URL (2026-09-02).
+# The name and the goal, at the very top, for the person steering. Marsita,
+# 2026-09-09: "at the very top, Singularity Engineering with the goals, so I
+# always see it. It always reminds you of the goals... Please restore it."
+#
+# Deliberately NOT the welcome row below, which she restored on 2026-09-02 and
+# cut the same evening -- "upon some reflection ---> skip" -- because a row
+# explaining the fleet, with links to /about and the guestbook, is an advert
+# aimed at a stranger. This is the opposite: no links, nothing explained, one
+# sentence she wrote herself, kept in front of her.
+#
+# The goal text is filled in by the page from /api/horizons rather than typed
+# here. A mission copied into the chrome goes stale the day the chain is
+# edited, and a stale north star is worse than none.
+NORTH_STAR = """<div id="northstar">
+  <b>Singularity Engineering</b><span id="nsgoal"></span>
+</div>"""
+
 WELCOME_LEAD = ("<b>The Singularity Engineering Fleet.</b> Not an AI uprising "
                 "&mdash; agents running in the open, every proposal, branch, "
                 "review and mistake on this board &mdash; ")
@@ -2180,6 +2227,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
 {_first_contact() if remote else ""}
 {WELCOME_TMPL.format(lead='') if remote else ''}
+{NORTH_STAR}
 <div id="alarm" role="alert" aria-live="assertive">
   <span>&#9888;</span><b></b><span class="d"></span>
   <button id="alarmx" title="Dismiss until it changes">&times;</button>
