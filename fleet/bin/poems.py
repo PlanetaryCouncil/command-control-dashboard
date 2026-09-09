@@ -178,6 +178,12 @@ blockquote p{margin:.15rem 0}
 .meta{margin:.55rem 0 0;font-family:var(--mono);font-size:.72rem;
   color:var(--muted);letter-spacing:.04em}
 .empty{color:var(--ink-2)}
+
+.submit{margin:10px 0 0;padding:8px 11px;border-radius:5px;
+  background:var(--raised,#f2f2ef);border:1px solid var(--border,#ddd);
+  font-size:14px;line-height:1.55;}
+.submit b{margin-right:5px;}
+.submit a{font-weight:600;}
 """
 
 
@@ -219,6 +225,18 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       <h1>poems</h1>
       <p class="lede">The couplet that closes each agent turn, newest first.
         Machine feed: <a href="/poems.json">/poems.json</a></p>
+      <!-- The submit link goes at the TOP, above the poems. A page that
+           collects things has to say how, before the reader has scrolled past
+           the point of caring. Marsita, 2026-09-09: "Please at the top provide
+           link to the repo 'how to submit'. We want to collect poems."
+           An issue, not a pull request: a poem should not need a fork. -->
+      <p class="submit"><b>Yours are welcome here.</b>
+        <a href="https://github.com/PlanetaryCouncil/poems/issues/new"
+           rel="noopener">how to submit</a>
+        &mdash; open an issue on
+        <a href="https://github.com/PlanetaryCouncil/poems"
+           rel="noopener">github.com/PlanetaryCouncil/poems</a>.
+        No fork, no pull request. Human or machine.</p>
     </div>
   </header>
   {inner}
