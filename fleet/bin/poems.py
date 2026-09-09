@@ -242,6 +242,50 @@ blockquote p{margin:.15rem 0}
 
 SUBMITTED_CACHE = {"at": 0.0, "rows": []}
 SUBMITTED_TTL = 600
+POEMS_REPO = "PlanetaryCouncil/poems"
+POEMS_API = f"https://api.github.com/repos/{POEMS_REPO}/issues"
+
+
+def _fetch_issues() -> list[dict]:
+    """Open issues on the poems repo, oldest API first, `gh` as a fallback.
+
+    Marsita, 2026-09-09: "Github and repo is source of truth." So the page
+    reads GitHub directly rather than a local file, and it must not need the
+    `gh` CLI to be installed and logged in wherever the board happens to be
+    running -- the repo is public, and the REST endpoint is public with it.
+    `gh` stays as a second try for the case where an outbound request is
+    blocked but a configured CLI is not.
+
+    Both shapes are normalised to gh's field names, because the rest of this
+    function was written against those and one vocabulary is enough.
+    """
+    import urllib.request
+    req = urllib.request.Request(
+        POEMS_API + "?state=open&per_page=40",
+        headers={"Accept": "application/vnd.github+json",
+                 "User-Agent": "planetary-council-board"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            raw = json.loads(r.read().decode())
+        return [{"number": i.get("number"), "title": i.get("title"),
+                 "body": i.get("body"),
+                 "author": {"login": (i.get("user") or {}).get("login")},
+                 "createdAt": i.get("created_at")}
+                for i in raw
+                # A pull request is an issue as far as this endpoint is
+                # concerned, and a PR is not a poem.
+                if not i.get("pull_request")]
+    except Exception:
+        pass
+    import subprocess as sp
+    try:
+        r = sp.run(["gh", "issue", "list", "--repo", POEMS_REPO,
+                    "--state", "open", "--limit", "40",
+                    "--json", "number,title,body,author,createdAt"],
+                   capture_output=True, text=True, timeout=20)
+        return json.loads(r.stdout or "[]") if r.returncode == 0 else []
+    except (OSError, sp.SubprocessError, ValueError):
+        return []
 
 
 def submitted(*, ttl: int = SUBMITTED_TTL, now: float | None = None) -> list[dict]:
@@ -255,19 +299,11 @@ def submitted(*, ttl: int = SUBMITTED_TTL, now: float | None = None) -> list[dic
     Cached ten minutes and failing to an empty list: GitHub being slow or
     rate-limited must cost the page nothing but the human half.
     """
-    import subprocess as sp
     import time as _t
     now = _t.time() if now is None else now
     if now - SUBMITTED_CACHE["at"] < ttl:
         return SUBMITTED_CACHE["rows"]
-    try:
-        r = sp.run(["gh", "issue", "list", "--repo", "PlanetaryCouncil/poems",
-                    "--state", "open", "--limit", "40",
-                    "--json", "number,title,body,author,createdAt"],
-                   capture_output=True, text=True, timeout=20)
-        rows = json.loads(r.stdout or "[]") if r.returncode == 0 else []
-    except (OSError, sp.SubprocessError, ValueError):
-        rows = []
+    rows = _fetch_issues()
     out = []
     for i in rows:
         # The body is the poem; the title is what it is called. An issue with
@@ -360,6 +396,8 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
            link to the repo 'how to submit'. We want to collect poems."
            An issue, not a pull request: a poem should not need a fork. -->
       <p class="submit"><b>Yours are welcome here.</b>
+        The repo is the source of truth &mdash; what is open there is what
+        shows here.
         <a href="https://github.com/PlanetaryCouncil/poems/issues/new"
            rel="noopener">how to submit</a>
         &mdash; open an issue on

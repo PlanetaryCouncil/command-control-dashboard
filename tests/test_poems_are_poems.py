@@ -56,22 +56,47 @@ def test_a_single_full_line_survives():
 # ------------------------------------------------------ hers, at the top
 def test_submitted_poems_come_from_the_repos_issues(monkeypatch):
     """That is where "how to submit" points, so that is where they arrive."""
-    seen = {}
-
-    class R:
-        returncode = 0
-        stdout = json.dumps([{"number": 4, "title": "Merge and undo",
-                              "body": "> line one\n> line two",
-                              "author": {"login": "marsrobertson"},
-                              "createdAt": "2026-09-09T10:00:00Z"}])
-
-    monkeypatch.setattr(subprocess, "run",
-                        lambda a, **k: (seen.update(argv=a), R)[1])
+    monkeypatch.setattr(poems, "_fetch_issues", lambda: [
+        {"number": 4, "title": "Merge and undo",
+         "body": "> line one\n> line two",
+         "author": {"login": "marsrobertson"},
+         "createdAt": "2026-09-09T10:00:00Z"}])
     poems.SUBMITTED_CACHE.update(at=0.0, rows=[])
     got = poems.submitted(now=1000.0)
-    assert "PlanetaryCouncil/poems" in seen["argv"]
     assert got[0]["lines"] == ["line one", "line two"], "quote markers kept"
     assert got[0]["author"] == "marsrobertson"
+
+
+def test_it_reads_github_without_needing_the_gh_cli(monkeypatch):
+    """Marsita, 2026-09-09: "Github and repo is source of truth." The repo is
+    public and so is the REST endpoint, so the page must not depend on a CLI
+    being installed and logged in wherever the board is running."""
+    src = (BIN / "poems.py").read_text()
+    i = src.index("def _fetch_issues(")
+    body = src[i:i + 1800]
+    assert "urllib.request" in body
+    assert body.index("urllib.request") < body.index("import subprocess")
+
+
+def test_a_pull_request_is_not_a_poem(monkeypatch):
+    """GitHub's issues endpoint returns PRs as issues."""
+    import urllib.request
+
+    class Resp:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def read(self):
+            return json.dumps([
+                {"number": 1, "title": "a poem", "body": "two words here",
+                 "user": {"login": "x"}, "created_at": "2026-09-09T00:00:00Z"},
+                {"number": 2, "title": "a patch", "body": "code",
+                 "user": {"login": "x"}, "created_at": "2026-09-09T00:00:00Z",
+                 "pull_request": {"url": "..."}},
+            ]).encode()
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *a, **k: Resp())
+    got = poems._fetch_issues()
+    assert [i["title"] for i in got] == ["a poem"]
 
 
 def test_a_screenshot_is_not_printed_as_a_tag(monkeypatch):
@@ -84,7 +109,7 @@ def test_a_screenshot_is_not_printed_as_a_tag(monkeypatch):
                               "author": {"login": "marsrobertson"},
                               "createdAt": "2026-08-19T10:00:00Z"}])
 
-    monkeypatch.setattr(subprocess, "run", lambda a, **k: R)
+    monkeypatch.setattr(poems, "_fetch_issues", lambda: json.loads(R.stdout))
     poems.SUBMITTED_CACHE.update(at=0.0, rows=[])
     got = poems.submitted(now=2000.0)
     assert "<img" not in " ".join(got[0]["lines"])
@@ -92,17 +117,21 @@ def test_a_screenshot_is_not_printed_as_a_tag(monkeypatch):
 
 
 def test_github_being_down_costs_the_page_nothing(monkeypatch):
+    """Neither route available is an empty band, never a broken page."""
+    import urllib.request
+
     def boom(*a, **k):
         raise OSError("no network")
 
+    monkeypatch.setattr(urllib.request, "urlopen", boom)
     monkeypatch.setattr(subprocess, "run", boom)
     poems.SUBMITTED_CACHE.update(at=0.0, rows=[])
     assert poems.submitted(now=3000.0) == []
 
 
 def test_it_is_cached_so_a_reload_is_not_an_api_call(monkeypatch):
-    monkeypatch.setattr(subprocess, "run",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("refetched")))
+    monkeypatch.setattr(poems, "_fetch_issues",
+                        lambda: (_ for _ in ()).throw(AssertionError("refetched")))
     poems.SUBMITTED_CACHE.update(at=5000.0, rows=[{"title": "x"}])
     assert poems.submitted(now=5100.0) == [{"title": "x"}]
 
