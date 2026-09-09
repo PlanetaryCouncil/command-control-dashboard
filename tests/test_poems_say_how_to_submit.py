@@ -66,5 +66,9 @@ def test_it_invites_people_as_well_as_agents():
 
 
 def test_the_links_open_safely():
-    block = html()[html().index('class="submit"'):][:900]
+    # Bounded at the block's own closing tag: a fixed window now spills into
+    # the submitted-poems section below, whose links are also noopener.
+    page = html()
+    i = page.index('class="submit"')
+    block = page[i:page.index("</p>", i)]
     assert block.count('rel="noopener"') == 2

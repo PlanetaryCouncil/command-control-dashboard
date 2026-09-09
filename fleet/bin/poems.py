@@ -43,12 +43,55 @@ def _plain(line: str) -> str:
     return " ".join(BOX_RE.sub(" ", line).split())
 
 
+# A line has to carry an image or a turn to be worth keeping, and the cheapest
+# proxy for that is that it is a SENTENCE rather than a word. "go" got filed as
+# a poem on 2026-09-09 -- Marsita: ""go" is not a poem". So did "Please let me
+# know if these answers meet the requirements!" and "(The update would unblock
+# the Project Future Vision XPRIZE)". None of them were poems; all of them were
+# simply the last line of something.
+# A markdown or HTML image on a line of its own. GitHub turns a dragged
+# screenshot into one of these, and the poems page has no business printing
+# the tag or fetching the picture.
+IMG_RE = re.compile(r"^(!\[.*?\]\(.*?\)|<img\b[^>]*/?>)$", re.I)
+
+# Per LINE: one word is not a line. Across the whole poem: three words and a
+# dozen characters, which "go" fails and "the couplet stays" passes. An earlier
+# pass put both thresholds on every line and threw out real short poems --
+# short is the point of a couplet, so the floor belongs on the whole thing.
+MIN_LINE_WORDS = 2
+MIN_WORDS = 3
+MIN_CHARS = 12
+
+# Things a machine says when it is finishing a job, not closing a turn. They
+# are all last lines, which is exactly why the last-line rule kept catching
+# them.
+CHATTER = (
+    "let me know", "meet the requirements", "hope this helps", "anything else",
+    "here you go", "here are the", "as requested", "i have ", "i've ",
+    "done.", "completed", "successfully", "no changes", "unblock",
+)
+
+
 def _unpoetic(val: str) -> bool:
     s = val.strip()
     u = s.upper()
     if u == "NOTHING TO ADD" or u.startswith("SKIP:"):
         return True
-    return s.startswith(("[timed out", "[error", "[unknown", "[stderr]"))
+    if s.startswith(("[timed out", "[error", "[unknown", "[stderr]")):
+        return True
+    # One word is not a line, however short a poem may be.
+    if len(s.split()) < MIN_LINE_WORDS:
+        return True
+    low = s.lower()
+    if any(c in low for c in CHATTER):
+        return True
+    # A parenthetical aside is a footnote to something else, and a bare
+    # question is a machine asking for instructions.
+    if s.startswith("(") and s.endswith(")"):
+        return True
+    if s.endswith("?"):
+        return True
+    return False
 
 
 def couplet(text) -> list[str]:
@@ -87,6 +130,10 @@ def couplet(text) -> list[str]:
         i -= 1
     taken.reverse()
     if not taken:
+        return []
+    # The floor is on the poem, not the line.
+    joined = " ".join(taken)
+    if len(joined.split()) < MIN_WORDS or len(joined) < MIN_CHARS:
         return []
     if i < 0:
         return taken
@@ -184,7 +231,71 @@ blockquote p{margin:.15rem 0}
   font-size:14px;line-height:1.55;}
 .submit b{margin-right:5px;}
 .submit a{font-weight:600;}
+
+.band{font-family:var(--mono,monospace);font-size:11px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--muted,#888);margin:22px 0 8px;
+  border-bottom:1px solid var(--border,#ddd);padding-bottom:4px;}
+.poem.sent{border-left:3px solid var(--good,#0ca30c);}
+.poem.sent .title{margin:0 0 6px;font-weight:600;}
 """
+
+
+SUBMITTED_CACHE = {"at": 0.0, "rows": []}
+SUBMITTED_TTL = 600
+
+
+def submitted(*, ttl: int = SUBMITTED_TTL, now: float | None = None) -> list[dict]:
+    """Poems people sent, as open issues on the poems repo.
+
+    Marsita, 2026-09-09: "I just want to see my on top." Hers arrive as
+    issues -- that is what "how to submit" points at -- and a page that
+    invites submissions and then shows only its own machine output is asking
+    people to post into a void.
+
+    Cached ten minutes and failing to an empty list: GitHub being slow or
+    rate-limited must cost the page nothing but the human half.
+    """
+    import subprocess as sp
+    import time as _t
+    now = _t.time() if now is None else now
+    if now - SUBMITTED_CACHE["at"] < ttl:
+        return SUBMITTED_CACHE["rows"]
+    try:
+        r = sp.run(["gh", "issue", "list", "--repo", "PlanetaryCouncil/poems",
+                    "--state", "open", "--limit", "40",
+                    "--json", "number,title,body,author,createdAt"],
+                   capture_output=True, text=True, timeout=20)
+        rows = json.loads(r.stdout or "[]") if r.returncode == 0 else []
+    except (OSError, sp.SubprocessError, ValueError):
+        rows = []
+    out = []
+    for i in rows:
+        # The body is the poem; the title is what it is called. An issue with
+        # no body is a title someone meant as the whole poem.
+        lines = []
+        for ln in str(i.get("body") or "").splitlines():
+            ln = ln.strip()
+            # People paste poems as quotes. The marker is the quoting, not the
+            # poem, and "❯ STOP automerge to main" is not how it should read.
+            ln = re.sub(r"^[>❯]+\s*", "", ln).strip()
+            # An issue can carry a screenshot. A raw <img> tag printed as text
+            # is worse than nothing, and rendering someone's remote image into
+            # this page is not something the page should decide to do.
+            if not ln or IMG_RE.match(ln) or ln.startswith(("```", "---")):
+                continue
+            lines.append(ln)
+        lines = lines[:12]
+        if not lines and not str(i.get("title") or "").strip():
+            continue                       # nothing to show, so show nothing
+        out.append({
+            "title": str(i.get("title") or "").strip(),
+            "lines": lines or [str(i.get("title") or "").strip()],
+            "author": ((i.get("author") or {}).get("login") or "someone"),
+            "ts": str(i.get("createdAt") or "")[:10],
+            "url": f"https://github.com/PlanetaryCouncil/poems/issues/{i.get('number')}",
+        })
+    SUBMITTED_CACHE.update(at=now, rows=out)
+    return out
 
 
 def page(nav_html: str = "", nav_css: str = "") -> str:
@@ -209,6 +320,24 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
         inner = "\n".join(body)
     else:
         inner = '<p class="empty">No poems yet. They appear when an agent turn closes.</p>'
+
+    # Sent by people, above everything the machines wrote. Not a mix: a poem
+    # somebody chose to send is a different kind of thing from a couplet that
+    # fell out of a build, and burying the first among two hundred of the
+    # second is how you stop receiving them.
+    sent = []
+    for rec in submitted():
+        verses = "".join(f"<p>{html.escape(l)}</p>" for l in rec["lines"])
+        title = (f'<p class="title">{html.escape(rec["title"])}</p>'
+                 if rec["title"] and rec["lines"][:1] != [rec["title"]] else "")
+        sent.append(
+            f'<article class="poem sent">{title}'
+            f'<blockquote>{verses}</blockquote>'
+            f'<p class="meta"><a href="{html.escape(rec["url"])}" rel="noopener">'
+            f'{html.escape(rec["author"])}</a> &middot; {html.escape(rec["ts"])}</p>'
+            f'</article>')
+    sent_html = (('<h2 class="band">sent in</h2>' + "\n".join(sent)
+                  + '<h2 class="band">from the fleet</h2>') if sent else "")
     return f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -239,6 +368,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
         No fork, no pull request. Human or machine.</p>
     </div>
   </header>
+  {sent_html}
   {inner}
 </div>
 </body></html>"""
