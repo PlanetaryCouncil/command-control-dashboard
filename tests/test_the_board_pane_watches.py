@@ -247,3 +247,21 @@ def test_the_boards_javascript_actually_parses():
     r = subprocess.run([node, "--check", "-"], input=m.group(1),
                        capture_output=True, text=True, timeout=30)
     assert r.returncode == 0, r.stderr[-1500:]
+
+
+def test_the_build_gate_is_hidden_but_not_deleted():
+    """Marsita, 2026-09-10: "I don't need it on the dashboard, I'm not using
+    it ---> please hide". Hidden, not cut out: /api/build-gate still works and
+    the JS that paints it still has its element. A control nobody touches is
+    clutter; a control nobody can find again is a feature deleted by accident.
+    """
+    src = (BIN / "oneview.py").read_text()
+    assert '<div class="buildgate" hidden>' in src
+    assert 'id="bgate"' in src, "the element is gone, not hidden"
+
+
+def test_hidden_actually_hides_it():
+    """`display:flex` beats the `hidden` attribute, so the attribute did
+    nothing at all until this rule. Anything with an explicit display needs
+    its own opt-out."""
+    assert ".buildgate[hidden]{display:none;}" in (BIN / "oneview.py").read_text()

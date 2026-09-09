@@ -301,6 +301,9 @@ tr.self td{color:var(--muted);}
    looks like one; handing the compiling to the other machine is an ordinary
    Tuesday, and a second red button would teach the eye to ignore red. */
 .buildgate{margin:6px 7px 0;display:flex;align-items:center;gap:8px;}
+/* `display:flex` beats the `hidden` attribute, so hidden did nothing at all
+   until this rule. Anything given an explicit display needs its own opt-out. */
+.buildgate[hidden]{display:none;}
 #bgate{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.09em;
   text-transform:uppercase;padding:5px 11px;border-radius:4px;cursor:pointer;
   border:1px solid var(--border);background:var(--raised);color:var(--ink-2);}
@@ -2311,7 +2314,13 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
     TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
-    CONTROLS_HTML = '<div class="buildgate">\n        <button id="bgate" data-on="1">build: on</button>\n        <span id="bgatenote"></span>\n      </div>\n      <div class="kill">\n        <button id="kill" data-armed="0">kill fleet work</button>\n        <span id="killnote"></span>\n      </div>'
+    # The build gate is hidden. Marsita, 2026-09-10: "I don't need it on the
+    # dashboard, I'm not using it ---> please hide". It stays in the markup
+    # rather than being cut out: /api/build-gate still works, the JS that
+    # paints it still has its element, and turning it back on is removing one
+    # attribute. A control nobody touches is clutter; a control nobody can
+    # find again is a feature you deleted by accident.
+    CONTROLS_HTML = '<div class="buildgate" hidden>\n        <button id="bgate" data-on="1">build: on</button>\n        <span id="bgatenote"></span>\n      </div>\n      <div class="kill">\n        <button id="kill" data-armed="0">kill fleet work</button>\n        <span id="killnote"></span>\n      </div>'
     import html as _html
     import nav
     board_name = nav.board_name()
