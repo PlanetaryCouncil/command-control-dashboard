@@ -82,3 +82,19 @@ def test_collapsing_does_not_unfold_the_signature_pad():
     """Collapsing a pane should never expand something inside it."""
     src = (BIN / "oneview.py").read_text()
     assert '#stream[data-open="0"] #say #sayMore{display:none;}' in src
+
+
+def test_the_stream_has_a_floor_the_terminal_pane_must_respect():
+    """A saved --hTerm of 537px in a shorter column crushed the stream to TWO
+    pixels. The box still laid out, at full height, entirely outside the
+    pane -- so it measured fine and could not be seen. Marsita: "Still no text
+    area... strange". Nothing was hidden; it was squeezed out."""
+    src = (BIN / "oneview.py").read_text()
+    assert "#termpane{flex:0 1 var(--hTerm,50%);min-height:80px;}" in src, \
+        "termpane cannot shrink, so nothing can give way"
+    assert "#stream{min-height:74px;}" in src, "no floor"
+
+
+def test_a_collapsed_stream_gives_its_floor_back():
+    """Shut on purpose is not the same as squeezed by accident."""
+    assert '#stream[data-open="0"]{min-height:0;}' in (BIN / "oneview.py").read_text()

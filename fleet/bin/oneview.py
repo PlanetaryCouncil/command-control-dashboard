@@ -502,7 +502,13 @@ canvas.mark:hover{opacity:1;}
    glance at. The operator asked to work in here, and a working pane is
    the same size as the thing it is working on. Dragging the grip pins it
    to pixels and that choice is remembered; until then it stays half. */
-#termpane{flex:0 0 var(--hTerm,50%);min-height:80px;}
+/* `0 1`, not `0 0`: the stream below has a floor and something has to give
+   way to it. With a pinned height and no shrink, a saved --hTerm of 537px in
+   a shorter column crushed the stream to TWO pixels -- the post box still
+   laid out, at its full height, entirely outside the pane, so it measured
+   fine and could not be seen. Marsita, 2026-09-09: "Still no text area...
+   strange". Strange is right: nothing was hidden, it was squeezed out. */
+#termpane{flex:0 1 var(--hTerm,50%);min-height:80px;}
 #termpane .body{padding:0;overflow:hidden;}
 #termpane[data-open="0"]{flex:0 0 auto;min-height:0;}
 #termpane[data-open="0"] .body{display:none;}
@@ -555,6 +561,10 @@ canvas.mark:hover{opacity:1;}
 #stream[data-open="0"]>h2{padding:0 7px;font-size:7px;line-height:9px;
   opacity:.4;border-bottom:none;}
 #stream[data-open="0"]>h2:hover{opacity:1;}
+/* The floor. Heading plus the box you write in, and never less than that --
+   the stream list can be squeezed to nothing, the way in cannot. */
+#stream{min-height:74px;}
+#stream[data-open="0"]{min-height:0;}
 #stream h2{display:flex;align-items:center;gap:10px;}
 #stream h2 .title{white-space:nowrap;}
 #stream h2 .filters{margin-left:auto;}
