@@ -35,10 +35,29 @@ kill "$TRIAL" 2>/dev/null
 [ -n "$ok" ] || { echo "REFUSED: new code never answered on $SCRATCH"; exit 1; }
 
 echo "3/3 restarting the live server…"
-launchctl kickstart -k "gui/$(id -u)/re.genesis.fleet-server"
+# Two machines, two init systems. This said `launchctl` only, which does not
+# exist on the NUC -- so every reload there printed "command not found",
+# then "live again" because the OLD server was still answering, and the new
+# code sat on disk unserved. The NUC ran a fortnight-old board that way
+# (2026-09-10). A restart that cannot restart must say so, not congratulate
+# itself on the process it failed to replace.
+PORT="${FLEET_PORT:-8787}"
+restarted=""
+if command -v launchctl >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$(id -u)/re.genesis.fleet-server" && restarted=1
+elif command -v systemctl >/dev/null 2>&1; then
+  systemctl --user restart fleet-server.service && restarted=1
+fi
+if [ -z "$restarted" ]; then
+  # No service manager reached it. Kill the listener and let whatever is
+  # supervising bring it back; a supervised process that dies comes back, and
+  # an unsupervised one was not going to be restarted by this script anyway.
+  pkill -f "fleet.py serve $PORT" 2>/dev/null && restarted=1
+fi
+[ -n "$restarted" ] || { echo "REFUSED: nothing here could restart the server"; exit 1; }
 for _ in $(seq 1 40); do
   sleep 1
-  if [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/)" = "200" ]; then
+  if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/")" = "200" ]; then
     echo "live again"; exit 0
   fi
 done
