@@ -527,9 +527,21 @@ canvas.mark:hover{opacity:1;}
    room. The heading stays clickable, because with the body gone it is the
    only way back. */
 .pane[data-open="0"]{flex:0 0 auto !important;min-height:0;}
-.pane[data-open="0"] .body,.pane[data-open="0"] form,
+.pane[data-open="0"] .body,
+.pane[data-open="0"] form:not(#say),
 .pane[data-open="0"] .load,
 .pane[data-open="0"] #controls{display:none !important;}
+/* #say is the exception, and it is the whole point of the exception: it is
+   where you WRITE, and a pane you collapsed to get the list out of the way
+   took the box with it. Marsita, 2026-09-09: "It used to be there (I saw in
+   tab you control) but not anymore after reload" -- her stream pane was
+   collapsed from a previous session and mine was not, so the box existed for
+   exactly one of us. Collapsed, the stream is now its heading and the box:
+   the reading goes away, the writing stays. */
+#stream[data-open="0"] #say{display:flex !important;}
+/* Signature pad and the rest stay folded until the box is focused, same as
+   when the pane is open -- collapsing should not expand anything. */
+#stream[data-open="0"] #say #sayMore{display:none;}
 .pane[data-open="0"] h2{cursor:pointer;}
 /* Collapsed, the pills filter a list nobody can see. The heading keeps only
    its name, which is what makes it a way back in. */

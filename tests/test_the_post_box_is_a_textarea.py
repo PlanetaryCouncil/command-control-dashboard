@@ -65,3 +65,20 @@ def test_the_retired_compose_box_stays_retired():
     """It typed into a pty. There is no pty."""
     page = oneview.page(*ARGS, remote=False)
     assert 'id="composeBox"' not in page
+
+
+def test_collapsing_the_stream_does_not_take_the_box_with_it():
+    """The pane you collapse to get the LIST out of the way was also hiding
+    the box you write in. Marsita, 2026-09-09: "It used to be there (I saw in
+    tab you control) but not anymore after reload" -- her stream was collapsed
+    from an earlier session and mine was not, so the box existed for exactly
+    one of us."""
+    src = (BIN / "oneview.py").read_text()
+    assert '.pane[data-open="0"] form:not(#say),' in src
+    assert '#stream[data-open="0"] #say{display:flex !important;}' in src
+
+
+def test_collapsing_does_not_unfold_the_signature_pad():
+    """Collapsing a pane should never expand something inside it."""
+    src = (BIN / "oneview.py").read_text()
+    assert '#stream[data-open="0"] #say #sayMore{display:none;}' in src
