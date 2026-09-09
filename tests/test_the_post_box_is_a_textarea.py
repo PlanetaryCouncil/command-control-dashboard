@@ -92,9 +92,23 @@ def test_the_stream_has_a_floor_the_terminal_pane_must_respect():
     src = (BIN / "oneview.py").read_text()
     assert "#termpane{flex:0 1 var(--hTerm,50%);min-height:80px;}" in src, \
         "termpane cannot shrink, so nothing can give way"
-    assert "#stream{min-height:74px;}" in src, "no floor"
+    assert "#stream{min-height:104px;}" in src, "no floor"
 
 
 def test_a_collapsed_stream_gives_its_floor_back():
     """Shut on purpose is not the same as squeezed by accident."""
     assert '#stream[data-open="0"]{min-height:0;}' in (BIN / "oneview.py").read_text()
+
+
+def test_it_looks_like_a_textarea_at_rest():
+    """It already WAS one and looked exactly like the input it replaced --
+    Marsita, looking straight at it: "where?". A box you cannot tell from a
+    field is a box nobody knows they have."""
+    src = (BIN / "oneview.py").read_text()
+    i = src.index("#sayBody{flex:1;")
+    assert "height:52px;min-height:52px" in src[i:i + 400]
+
+
+def test_it_never_shrinks_below_three_lines():
+    src = (BIN / "oneview.py").read_text()
+    assert "Math.max(FLOOR, Math.min(box.scrollHeight" in src

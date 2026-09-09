@@ -349,9 +349,9 @@ canvas.mark:hover{opacity:1;}
    area where I can type directly in the native field."
    It grows with what is typed and stops at a third of the window. */
 #sayBody{flex:1;min-width:0;font-family:var(--mono);font-size:10px;
-  padding:3px 6px;border-radius:3px;border:1px solid var(--border);
-  background:var(--surface);color:var(--ink);line-height:1.45;
-  resize:none;height:22px;max-height:33vh;overflow-y:auto;}
+  padding:5px 7px;border-radius:3px;border:1px solid var(--border);
+  background:var(--surface);color:var(--ink);line-height:1.5;
+  resize:none;height:52px;min-height:52px;max-height:33vh;overflow-y:auto;}
 #sayBody:focus{outline:none;border-color:var(--info);}
 #sayOk{display:flex;align-items:center;gap:3px;flex:none;cursor:pointer;
   font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;
@@ -563,7 +563,7 @@ canvas.mark:hover{opacity:1;}
 #stream[data-open="0"]>h2:hover{opacity:1;}
 /* The floor. Heading plus the box you write in, and never less than that --
    the stream list can be squeezed to nothing, the way in cannot. */
-#stream{min-height:74px;}
+#stream{min-height:104px;}
 #stream[data-open="0"]{min-height:0;}
 #stream h2{display:flex;align-items:center;gap:10px;}
 #stream h2 .title{white-space:nowrap;}
@@ -1225,9 +1225,15 @@ function renderProcs(s){
   /* Grow with what is typed, stop at a third of the window. A field that
      accepts 3900 characters and shows sixty of them is a field you write
      into blind. */
+  /* Three lines at rest, not one. It WAS a textarea already and looked
+     exactly like the input it replaced -- Marsita, 2026-09-09, looking
+     straight at it: "where?". A box you cannot tell from a field is a box
+     nobody knows they have. It grows past three lines, never below. */
+  const FLOOR = 52;
   const grow = () => {
     box.style.height = "auto";
-    box.style.height = Math.min(box.scrollHeight, innerHeight * 0.33) + "px";
+    box.style.height =
+      Math.max(FLOOR, Math.min(box.scrollHeight, innerHeight * 0.33)) + "px";
   };
   box.addEventListener("input", grow);
   window.__sayGrow = grow;              // so a successful post can reset it
