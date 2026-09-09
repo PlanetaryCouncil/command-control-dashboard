@@ -49,10 +49,17 @@ elif command -v systemctl >/dev/null 2>&1; then
   systemctl --user restart fleet-server.service && restarted=1
 fi
 if [ -z "$restarted" ]; then
-  # No service manager reached it. Kill the listener and let whatever is
-  # supervising bring it back; a supervised process that dies comes back, and
-  # an unsupervised one was not going to be restarted by this script anyway.
-  pkill -f "fleet.py serve $PORT" 2>/dev/null && restarted=1
+  # No service manager owns it -- which is the NUC's situation: there is no
+  # fleet-server unit there, the process is just running. So kill it AND start
+  # it again. Killing alone would have taken the board down and left it down,
+  # which is a worse outcome than the stale board this script exists to fix.
+  if pkill -f "fleet.py serve $PORT" 2>/dev/null; then
+    sleep 1
+    nohup "$PY" "$FLEET/bin/fleet.py" serve "$PORT" \
+      >>"$FLEET/logs/server.out.log" 2>>"$FLEET/logs/server.err.log" &
+    disown 2>/dev/null || true
+    restarted=1
+  fi
 fi
 [ -n "$restarted" ] || { echo "REFUSED: nothing here could restart the server"; exit 1; }
 for _ in $(seq 1 40); do
