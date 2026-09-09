@@ -67,39 +67,6 @@ def test_the_retired_compose_box_stays_retired():
     assert 'id="composeBox"' not in page
 
 
-def test_collapsing_the_stream_does_not_take_the_box_with_it():
-    """The pane you collapse to get the LIST out of the way was also hiding
-    the box you write in. Marsita, 2026-09-09: "It used to be there (I saw in
-    tab you control) but not anymore after reload" -- her stream was collapsed
-    from an earlier session and mine was not, so the box existed for exactly
-    one of us."""
-    src = (BIN / "oneview.py").read_text()
-    assert '.pane[data-open="0"] form:not(#say),' in src
-    assert '#stream[data-open="0"] #say{display:flex !important;}' in src
-
-
-def test_collapsing_does_not_unfold_the_signature_pad():
-    """Collapsing a pane should never expand something inside it."""
-    src = (BIN / "oneview.py").read_text()
-    assert '#stream[data-open="0"] #say #sayMore{display:none;}' in src
-
-
-def test_the_stream_has_a_floor_the_terminal_pane_must_respect():
-    """A saved --hTerm of 537px in a shorter column crushed the stream to TWO
-    pixels. The box still laid out, at full height, entirely outside the
-    pane -- so it measured fine and could not be seen. Marsita: "Still no text
-    area... strange". Nothing was hidden; it was squeezed out."""
-    src = (BIN / "oneview.py").read_text()
-    assert "#termpane{flex:0 1 var(--hTerm,50%);min-height:80px;}" in src, \
-        "termpane cannot shrink, so nothing can give way"
-    assert "#stream{min-height:104px;}" in src, "no floor"
-
-
-def test_a_collapsed_stream_gives_its_floor_back():
-    """Shut on purpose is not the same as squeezed by accident."""
-    assert '#stream[data-open="0"]{min-height:0;}' in (BIN / "oneview.py").read_text()
-
-
 def test_it_looks_like_a_textarea_at_rest():
     """It already WAS one and looked exactly like the input it replaced --
     Marsita, looking straight at it: "where?". A box you cannot tell from a
@@ -112,3 +79,14 @@ def test_it_looks_like_a_textarea_at_rest():
 def test_it_never_shrinks_below_three_lines():
     src = (BIN / "oneview.py").read_text()
     assert "Math.max(FLOOR, Math.min(box.scrollHeight" in src
+
+
+def test_the_stream_is_no_longer_propped_open_for_this_box():
+    """Both props -- keeping #say alive in a collapsed pane, and a min-height
+    floor so the terminal pane could not squeeze it -- existed because this
+    was mistaken for the box Marsita had lost. That box was Claude's, and it
+    has its own pane now (test_two_boxes_two_things.py). The props go, and
+    collapse means collapse."""
+    src = (BIN / "oneview.py").read_text()
+    assert "#stream{min-height:104px;}" not in src
+    assert '#stream[data-open="0"] #say{display:flex !important;}' not in src

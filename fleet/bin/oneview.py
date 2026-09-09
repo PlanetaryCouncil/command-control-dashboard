@@ -233,12 +233,18 @@ body{margin:0;background:var(--ground);color:var(--ink);
    Still flow and not grid: a grid selects cell by cell, so dragging across a
    line picks up column fragments in the wrong order, unusable for quoting
    into a chat. */
-.ev{padding:2px 7px 3px;border-left:2px solid var(--agent,transparent);
+/* One row, four columns: when, what kind, who, what they said. Marsita,
+   2026-09-09: "Timestamp \t who \t message". The message flexes and wraps
+   under itself; the three chrome columns are fixed so a run of rows reads as
+   a column even when the messages are ragged. */
+.ev{display:flex;gap:7px;align-items:baseline;
+  padding:2px 7px 3px;border-left:2px solid var(--agent,transparent);
   line-height:1.4;}
-.ev .t{display:inline-flex;vertical-align:baseline;}
-.ev .tagicon{display:inline-block;vertical-align:baseline;margin:0 1px 0 4px;}
-.ev .who{display:inline-block;vertical-align:baseline;max-width:100%;}
-.ev .m{display:block;}
+.ev .t{flex:none;white-space:nowrap;}
+.ev .tagicon{flex:none;width:14px;text-align:center;}
+.ev .who{flex:none;width:88px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;}
+.ev .m{flex:1;min-width:0;overflow-wrap:anywhere;}
 /* Timestamp and identity are chrome; excluding them means a drag across several
    lines yields the messages alone. */
 .ev .t, .ev .tagicon, .ev .who{user-select:none;}
@@ -555,21 +561,14 @@ canvas.mark:hover{opacity:1;}
    room. The heading stays clickable, because with the body gone it is the
    only way back. */
 .pane[data-open="0"]{flex:0 0 auto !important;min-height:0;}
-.pane[data-open="0"] .body,
-.pane[data-open="0"] form:not(#say),
+.pane[data-open="0"] .body,.pane[data-open="0"] form,
 .pane[data-open="0"] .load,
 .pane[data-open="0"] #controls{display:none !important;}
-/* #say is the exception, and it is the whole point of the exception: it is
-   where you WRITE, and a pane you collapsed to get the list out of the way
-   took the box with it. Marsita, 2026-09-09: "It used to be there (I saw in
-   tab you control) but not anymore after reload" -- her stream pane was
-   collapsed from a previous session and mine was not, so the box existed for
-   exactly one of us. Collapsed, the stream is now its heading and the box:
-   the reading goes away, the writing stays. */
-#stream[data-open="0"] #say{display:flex !important;}
-/* Signature pad and the rest stay folded until the box is focused, same as
-   when the pane is open -- collapsing should not expand anything. */
-#stream[data-open="0"] #say #sayMore{display:none;}
+/* The board's post box was briefly kept alive in a collapsed stream, on the
+   theory that the box was the reason the pane existed. That was solving the
+   wrong problem: the box she could not find was Claude's, which now lives in
+   its own pane. Collapsed means collapsed -- Marsita, 2026-09-09, looking at
+   the leftover row: "collapse, it looks ugly". */
 .pane[data-open="0"] h2{cursor:pointer;}
 /* Collapsed, the pills filter a list nobody can see. The heading keeps only
    its name, which is what makes it a way back in. */
@@ -585,8 +584,6 @@ canvas.mark:hover{opacity:1;}
 #stream[data-open="0"]>h2:hover{opacity:1;}
 /* The floor. Heading plus the box you write in, and never less than that --
    the stream list can be squeezed to nothing, the way in cannot. */
-#stream{min-height:104px;}
-#stream[data-open="0"]{min-height:0;}
 #stream h2{display:flex;align-items:center;gap:10px;}
 #stream h2 .title{white-space:nowrap;}
 #stream h2 .filters{margin-left:auto;}
@@ -647,9 +644,15 @@ let killToken = null, armTimer = null;
 
 const emoji = n => (AGENTS[n]||["⚙"])[0];
 const hue   = n => (AGENTS[n]||[null,"#7d838b"])[1];
-const hhmm  = iso => { try { const d=new Date(iso);
-  return [d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
-} catch(e){ return "--:--:--"; } };
+/* Full date, to the minute. Seconds were noise on a log where the interesting
+   gaps are hours, and a bare clock made you count back to work out which day
+   03:14 belonged to. Marsita, 2026-09-09: "include YYYY-MM-DD HH:MM (no SS)".
+   Every row carries it now, so the day divider that used to state it once is
+   gone with it. */
+const hhmm  = iso => { try { const d=new Date(iso); const p=x=>String(x).padStart(2,"0");
+  return d.getFullYear() + "-" + p(d.getMonth()+1) + "-" + p(d.getDate())
+       + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+} catch(e){ return "-------"; } };
 
 /* ---------------- meters --------------------------------------------------
    A value is read by length, not by digits. Non-zero never renders as nothing:
@@ -795,20 +798,17 @@ function dayHue(key){
   return DAY_HUES[h % DAY_HUES.length];
 }
 
-/* A date on every row is noise; a date on no row is a trap when you are working
-   past midnight and 23:58 sits directly above 00:03. So it appears exactly once
-   per day — on the line where the day turns over — as a full ISO date. */
+/* This used to say: a date on every row is noise, so show it once per day on
+   the line where the day turns over. Marsita disagreed on 2026-09-09 -- "include
+   YYYY-MM-DD HH:MM" -- and she is right: once-per-day only works while you are
+   reading top to bottom, and this log is scrolled, filtered and jumped into. */
 let lastDayRendered = null;
 
 function dayDivider(iso){
-  const key = dayKey(iso);
-  if (!key || key === lastDayRendered) return null;
-  lastDayRendered = key;
-  const el = document.createElement("div");
-  el.className = "daybar";
-  el.style.borderColor = dayHue(key);
-  el.textContent = key;
-  return el;
+  // Retired 2026-09-09: every row states its own date now, so a bar announcing
+  // the date was saying the same thing a second time, in a heavier voice.
+  // Kept as a no-op rather than unpicked from three call sites.
+  return null;
 }
 
 function dayPill(){ return document.createComment(""); }
@@ -984,14 +984,16 @@ function addEvent(e){
   prevTs = e.ts;
   t.append(clock, dayPill(e.ts));
   const w = document.createElement("span"); w.className="who";
-  w.textContent = emoji(e.agent) + " " + e.agent;
-  // The agent already carries an emoji. Showing the tag icon too duplicated it
-  // whenever they happened to match — agent-comms is 🔗 and so is the relay tag.
+  // The name alone. It used to carry the agent's emoji as well, which put two
+  // emoji on a row next to the tag icon and made the run of them impossible to
+  // read at a glance. One emoji per line, and it means the CATEGORY --
+  // Marsita, 2026-09-09: "Category of the message to be represented with
+  // emoji".
+  w.textContent = e.agent;
   const tag = tagOf(e);
   const icon = document.createElement("span");
   icon.className = "tagicon";
-  const agentIcon = emoji(e.agent);
-  icon.textContent = (TAG_ICON[tag] === agentIcon) ? "" : (TAG_ICON[tag] || "");
+  icon.textContent = TAG_ICON[tag] || emoji(e.agent) || "·";
   icon.title = tag;
   const m = document.createElement("span"); m.className="m";
   const said = clean(e.msg);
@@ -1006,7 +1008,7 @@ function addEvent(e){
   } else {
     m.textContent = said;
   }
-  row.append(t,icon,w,m);
+  row.append(t, icon, w, m);
   // Tag the row with whose mark it wants, then draw if we already have
   // it. If not, loadMarks() will backfill — and a message from a sender
   // we have never seen triggers a refresh immediately rather than
