@@ -336,14 +336,23 @@ canvas.mark{height:26px;width:110px;margin-left:10px;
   background:transparent;flex:none;opacity:.95;align-self:center;}
 canvas.mark:hover{opacity:1;}
 .m .sender{color:var(--ink);font-weight:700;}
-.sayrow{display:flex;gap:5px;align-items:center;}
+.sayrow{display:flex;gap:5px;align-items:flex-end;}
 #say{flex:none;display:flex;flex-direction:column;padding:4px 6px;
   border-top:1px solid var(--border);background:var(--raised);}
 #say input[type=text],#say input:not([type]){font-family:var(--mono);font-size:10px;
   padding:3px 6px;border-radius:3px;border:1px solid var(--border);
   background:var(--surface);color:var(--ink);}
-#sayWho{width:90px;flex:none;}
-#sayBody{flex:1;min-width:0;}
+#sayWho{width:90px;flex:none;align-self:center;}
+/* A textarea, not a one-line input. The field already accepted 3900
+   characters and showed you about sixty of them, so anything longer than a
+   sentence was written blind. Marsita, 2026-09-09: "I thought I had a text
+   area where I can type directly in the native field."
+   It grows with what is typed and stops at a third of the window. */
+#sayBody{flex:1;min-width:0;font-family:var(--mono);font-size:10px;
+  padding:3px 6px;border-radius:3px;border:1px solid var(--border);
+  background:var(--surface);color:var(--ink);line-height:1.45;
+  resize:none;height:22px;max-height:33vh;overflow-y:auto;}
+#sayBody:focus{outline:none;border-color:var(--info);}
 #sayOk{display:flex;align-items:center;gap:3px;flex:none;cursor:pointer;
   font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;
   text-transform:uppercase;color:var(--muted);}
@@ -1188,7 +1197,28 @@ function renderProcs(s){
   window.__sayStroke = () => stroke;
 
   const open = () => form.classList.add("open");
-  $("#sayBody").addEventListener("focus", open);
+  const box = $("#sayBody");
+  box.addEventListener("focus", open);
+
+  /* Grow with what is typed, stop at a third of the window. A field that
+     accepts 3900 characters and shows sixty of them is a field you write
+     into blind. */
+  const grow = () => {
+    box.style.height = "auto";
+    box.style.height = Math.min(box.scrollHeight, innerHeight * 0.33) + "px";
+  };
+  box.addEventListener("input", grow);
+  window.__sayGrow = grow;              // so a successful post can reset it
+
+  /* Enter posts, Shift+Enter is a newline. A textarea swallows Enter by
+     default, so without this the post button became the only way out and the
+     box would have been worse than the input it replaced. */
+  box.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey){
+      e.preventDefault();
+      form.requestSubmit();
+    }
+  });
   $("#sayWho").addEventListener("focus", open);
 
   const xy = e => {
@@ -1305,6 +1335,7 @@ $("#say").addEventListener("submit", async ev => {
     else {
       note.textContent = "posted " + (d.id || "");
       $("#sayBody").value = "";
+      window.__sayGrow?.();
       $("#sayLawful").checked = false;
       if (window.__sayReset) window.__sayReset();
     }
@@ -1678,6 +1709,7 @@ if (askBtn) askBtn.addEventListener("click", async () => {
     else {
       note.textContent = "council sits";
       $("#sayBody").value = "";
+      window.__sayGrow?.();
       // Same reset as a post. The pad kept the last signature after an ask,
       // so the next message went out wearing the previous one's hand
       // (2026-09-03).
@@ -2291,7 +2323,8 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
       <form id="say" autocomplete="off">
         <div class="sayrow">
           <input id="sayWho" maxlength="60" placeholder="you">
-          <input id="sayBody" maxlength="3900" placeholder="{'talk to the board' if not remote else 'leave a public signal'}">
+          <textarea id="sayBody" rows="1" maxlength="3900" spellcheck="false"
+                    placeholder="{'talk to the board' if not remote else 'leave a public signal'}"></textarea>
           {'' if remote else '<button type="button" id="askbtn" title="Post as the admin of this board: an instruction the council acts on, not a public signal. Local only.">as admin</button>'}
           <button type="submit">post</button>
           <span id="sayNote"></span>
