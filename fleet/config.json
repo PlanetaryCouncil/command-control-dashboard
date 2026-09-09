@@ -23,9 +23,11 @@
     "at_minute": 0
   },
   "pipeline": {
-    "_what": "Closes the rota's loop: unprocessed proposals are implemented by grok (or FLEET_BUILDER) on rota/* branches in worktrees, pytest runs, hermes (a different vendor) reviews each diff, and the board lists what awaits a human merge. Nothing merges itself. Autopilot triage (agy, cheap) drops errors and duplicates so telegram does not count 1800 restatements. Building still needs a pick in build.txt.",
+    "_what": "Closes the rota's loop: unprocessed proposals are implemented by the builder on rota/* branches in worktrees, pytest runs, a different vendor fact-checks each diff, and the board lists what awaits a human merge. Autopilot triage drops errors and duplicates so telegram does not count 1800 restatements.",
     "every_seconds": 3600,
-    "triage_agent": "hermes"
+    "triage_agent": "hermes",
+    "autoland": false,
+    "_autoland": "Whether a verified branch merges itself into main. FALSE since 2026-09-09: Marsita, 'STOP automerge to main -----> I need to review changes... It then takes too much time to undo.' Undoing a merge costs far more than reading a branch, and the cost lands on her, not on the fleet. Verified branches now wait, named, and she merges them. Set true only if she asks for it back."
   },
   "council": {
     "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied \u2014 a human reads and decides.",

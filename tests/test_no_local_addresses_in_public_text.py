@@ -220,5 +220,8 @@ def test_the_thing_that_actually_gates_a_merge_is_still_true():
     claim it was replaced with, so the fix cannot rot into vagueness."""
     src = (ROOT / "fleet" / "bin" / "pipeline.py").read_text()
     assert "def land(" in src
-    assert "No human in the loop" in src
     assert "merge commit" in src, "the suite must run on the merge commit itself"
+    # "No human in the loop" was true until 2026-09-09 and is not any more:
+    # Marsita, "STOP automerge to main -----> I need to review changes". The
+    # gate is now a switch, off by default -- see test_nothing_merges_itself.
+    assert "def autoland_on(" in src

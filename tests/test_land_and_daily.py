@@ -45,6 +45,11 @@ def repo(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "STATE", tmp_path / "pipeline.jsonl")
     monkeypatch.setattr(pipeline, "WORKTREES", tmp_path / "wt")
     monkeypatch.setattr(pipeline.ev, "emit", lambda *a, **k: None)
+    # These exercise the MERGE MACHINERY, which is still exactly right and
+    # still has to work. What changed on 2026-09-09 is whether it is allowed
+    # to run on its own -- see test_nothing_merges_itself.py. Force the switch
+    # on here so the machinery stays covered.
+    monkeypatch.setattr(pipeline, "autoland_on", lambda: True)
     return r
 
 

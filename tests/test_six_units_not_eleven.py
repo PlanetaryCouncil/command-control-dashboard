@@ -101,12 +101,17 @@ def test_report_carries_the_local_voice():
     assert "publish-report.sh" in src
 
 
-def test_the_fleet_merges_without_a_human():
-    """Already true before the collapse, and named here so it cannot quietly
-    revert: land() runs unconditionally on an approved branch."""
+def test_the_fleet_carries_an_approved_branch_all_the_way_to_the_gate():
+    """It used to merge without a human, and that was the point of the
+    collapse. On 2026-09-09 Marsita stopped it -- "STOP automerge to main
+    -----> I need to review changes... It then takes too much time to undo."
+
+    What must not rot is the rest of the chain: an approved branch still gets
+    handed to land() every cycle. Whether land() merges or files a wait is
+    one switch, tested in test_nothing_merges_itself.py."""
     src = (FLEET / "bin" / "pipeline.py").read_text()
     assert re.search(r'^\s+land\(r\)\s*$', src, re.M), "land() not called"
-    assert "No human in the loop" in src
+    assert "def autoland_on(" in src
 
 
 # --- the ledger is a queue, not an archive -----------------------------

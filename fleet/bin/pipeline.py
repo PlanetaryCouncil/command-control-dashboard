@@ -219,7 +219,11 @@ def by_proposal() -> dict:
     return out
 
 
-CLOSED_STAGES = frozenset({"drop", "land", "build", "verify", "revise"})
+# `await` is closed as far as the QUEUE is concerned -- the work is done and
+# nothing should build it again -- but it is not finished: it is sitting on a
+# branch waiting for Marsita to read it and merge.
+CLOSED_STAGES = frozenset({"drop", "land", "build", "verify", "revise",
+                           "await"})
 
 
 def is_waiting(prop: dict, seen: dict | None = None) -> bool:
@@ -545,13 +549,35 @@ def verify(built: dict) -> dict:
                   tests=tests_line, review=" ".join(str(review).split())[:300])
 
 
-def land(verified: dict) -> dict:
-    """Merge an approved branch into main and push it. No human in the loop.
+def autoland_on() -> bool:
+    """Whether a verified branch may merge itself.
 
-    Marsita, 2026-08-07: "fleet can merge... I'm not able to understand
-    subtle code nuance... I don't want to worry about infra / pr / code /
-    issues." A queue of approved branches waiting on someone who does not
-    read diffs is not review, it is a stall dressed as caution.
+    OFF since 2026-09-09. Marsita: "STOP automerge to main -----> I need to
+    review changes... It then takes too much time to undo."
+
+    Which reverses her own instruction of 2026-08-07 -- "fleet can merge...
+    I don't want to worry about infra / pr / code / issues" -- and the reason
+    is worth keeping, because it is not that she changed her mind about
+    reading diffs. It is the asymmetry: a branch that waits costs the fleet
+    some latency, and a merge that was wrong costs HER an evening of undoing
+    it. The cheap failure and the expensive one are not on the same side.
+
+    Read on every call rather than at import: turning this back on should be
+    an edit to config.json, not a restart.
+    """
+    try:
+        import json as _json
+        cfg = _json.loads((REPO / "fleet" / "config.json").read_text())
+        return bool(cfg.get("pipeline", {}).get("autoland", False))
+    except (OSError, ValueError):
+        return False                    # unreadable config never merges
+
+
+def land(verified: dict) -> dict:
+    """Merge an approved branch into main and push it, if that is allowed.
+
+    See `autoland_on`. When it is off the branch is left exactly where it is,
+    named and verified, and the board lists it as waiting for her.
 
     Three things stand between a branch and main, and all three are machine
     checks rather than opinions:
@@ -570,6 +596,18 @@ def land(verified: dict) -> dict:
     """
     branch = verified["branch"]
     ts = verified["proposal_ts"]
+    if not autoland_on():
+        # Record it once, not once per cycle: this runs hourly and a queue of
+        # four branches would otherwise file ninety-six identical rows a day
+        # into the ledger the board reads.
+        already = any(r.get("proposal_ts") == ts and r.get("stage") == "await"
+                      for r in state())
+        if already:
+            return {}
+        ev.emit("pipeline", "needs_you",
+                f"[pipeline] {branch}: verified and waiting for you to merge")
+        return record(stage="await", proposal_ts=ts, branch=branch, ok=True,
+                      review="autoland is off; merge it when you have read it")
     # Never touch the shared checkout. It belongs to whoever is working in it
     # — on 2026-08-07 the Nuc's tree was sitting on another agent's branch
     # mid-task, and `git checkout main` here would have yanked it away
