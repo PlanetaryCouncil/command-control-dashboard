@@ -748,6 +748,9 @@ CONTROL_PATHS = frozenset({
     "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
     "/api/kill", "/api/kill-token", "/api/paste-image", "/api/convene",
     "/api/build-gate", "/api/ask",
+    # Puts a line into the session running on this machine. 404 from the
+    # internet, like everything else that steers rather than reports.
+    "/api/tell",
 })
 
 
@@ -1839,6 +1842,32 @@ def serve(port):
                     self.send_error(400)
                     return
                 self._send(json.dumps(out).encode(), "application/json")
+                return
+
+            if path == "/api/tell":
+                # Talk to Claude. Deliberately NOT /api/signals, which is the
+                # public board -- Marsita, 2026-09-09: "Talking to the board
+                # is a different thing than talking to Claude. Talking to
+                # Claude is the dedicated function." Two boxes, two routes,
+                # and neither one quietly doing the other's job.
+                if self._remote():
+                    self.send_error(404)
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 40_000:
+                        self.send_error(413)
+                        return
+                    text = str(json.loads(self.rfile.read(n).decode())
+                               .get("text") or "")
+                except Exception:
+                    self.send_error(400)
+                    return
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import terminal as _term
+                why = _term.send("board", text, cwd=str(FLEET.parent))
+                self._send(json.dumps({"ok": not why, "why": why}).encode(),
+                           "application/json")
                 return
 
             if path == "/api/selfies":

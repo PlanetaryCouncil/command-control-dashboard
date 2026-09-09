@@ -437,6 +437,28 @@ canvas.mark:hover{opacity:1;}
 #issues .age.old{color:var(--warning);}
 #issues .age.rotten{color:var(--critical);}
 
+/* Talking to CLAUDE. A different thing from talking to the board, and a
+   different box for it -- Marsita, 2026-09-09: "Talking to the board is a
+   different thing than talking to Claude. Talking to Claude is the dedicated
+   function. I talk to Claude directly, and I post to the text area."
+   Send-only: the pane above shows the transcript one way, this puts a line
+   in. No xterm, no socket, so nothing that made the old box unusable comes
+   back with it. */
+#tell{flex:none;display:flex;gap:6px;align-items:flex-end;padding:5px 7px;
+  border-top:1px solid var(--border);background:var(--raised);}
+#tellBox{flex:1;min-width:0;font-family:var(--mono);font-size:11px;
+  line-height:1.5;padding:5px 7px;border-radius:3px;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink);
+  resize:none;height:56px;min-height:56px;max-height:40vh;overflow-y:auto;}
+#tellBox:focus{outline:none;border-color:var(--good);}
+#tellBox[data-busy="1"]{opacity:.5;}
+#tell button{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
+  text-transform:uppercase;padding:5px 11px;border-radius:3px;cursor:pointer;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--border);
+  align-self:stretch;}
+#tell button:hover{color:var(--good);border-color:var(--good);}
+#termpane[data-open="0"] #tell{display:none;}
+
 /* ---------- the north star ---------- */
 #northstar{display:flex;align-items:baseline;gap:10px;padding:5px 12px;
   background:var(--raised);border-bottom:1px solid var(--border);
@@ -1434,6 +1456,52 @@ if ($("#bgate")) $("#bgate").addEventListener("click", async () => {
 });
 loadGate();
 
+/* ---------------- talk to Claude ------------------------------------------- */
+/* The send half of the terminal, kept, after the display half was thrown
+   away. `tmux send-keys` does the typing on the server, so the browser never
+   holds a pty and none of the latency that made the old box unusable is on
+   this path. Separate from #say below, which posts to the public board --
+   two boxes, two endpoints, neither doing the other's job. */
+(() => {
+  const form = $("#tell");
+  if (!form) return;
+  const box = $("#tellBox"), FLOOR = 56;
+  const grow = () => {
+    box.style.height = "auto";
+    box.style.height =
+      Math.max(FLOOR, Math.min(box.scrollHeight, innerHeight * 0.4)) + "px";
+  };
+  box.addEventListener("input", grow);
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const text = box.value.trim();
+    if (!text || box.dataset.busy) return;
+    // Dim and lock rather than clear-and-hope: if the send fails, the words
+    // are still in the box. Losing a paragraph to a dropped request is the
+    // one thing a send-only box must never do.
+    box.dataset.busy = "1";
+    try {
+      const r = await fetch("api/tell", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({text}),
+      });
+      const d = await r.json();
+      if (d.ok){ box.value = ""; grow(); }
+      else box.placeholder = d.why || "could not send";
+    } catch (err) {
+      box.placeholder = "could not send";
+    } finally {
+      delete box.dataset.busy;
+      box.focus();
+    }
+  });
+
+  box.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
+  });
+})();
+
 /* ---------------- the stream: one way, no terminal -------------------------- */
 /* Marsita, 2026-09-05: "terminal in the browser is unworkable... Just stream
    me stuff 1 way only... No extra noise... Only the stuff I need to see."
@@ -2229,7 +2297,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
-    TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
+    TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
     CONTROLS_HTML = '<div class="buildgate">\n        <button id="bgate" data-on="1">build: on</button>\n        <span id="bgatenote"></span>\n      </div>\n      <div class="kill">\n        <button id="kill" data-armed="0">kill fleet work</button>\n        <span id="killnote"></span>\n      </div>'
     import html as _html
     import nav

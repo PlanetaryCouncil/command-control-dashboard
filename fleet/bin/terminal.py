@@ -875,3 +875,50 @@ def watch(name: str) -> _Watch:
         if w is None:
             w = _WATCH[name] = _Watch(name)
         return w
+
+
+def send(name: str, text: str, cwd: str = ".", claude_bin: str = "claude") -> str:
+    """Type `text` into the session and press Enter. "" on success, else why.
+
+    Marsita, 2026-09-09: "Talking to the board is a different thing than
+    talking to Claude. Talking to Claude is the dedicated function."
+
+    This is the send half of the terminal, kept, after the display half was
+    thrown away. The pane shows the transcript one way and this puts a line
+    in -- no xterm, no websocket, no pty in the browser, so none of what made
+    the old box unusable comes back with it. `tmux send-keys` does the typing.
+
+    `-l` is literal: without it tmux reads the text as key NAMES, so a message
+    containing the word "Enter" or "C-c" would be pressed rather than typed.
+    Enter goes separately, after, for the same reason.
+    """
+    text = str(text or "").strip()
+    if not text:
+        return "nothing to send"
+    tmux = tmux_bin()
+    if not tmux:
+        return "no tmux on this machine"
+    if not tmux_has(name):
+        # Start one rather than refuse. A box that says "no session" is a box
+        # that asks the operator to go and do sysadmin before they can talk.
+        attach(name, cwd, claude_bin=claude_bin)
+        for _ in range(60):
+            if tmux_has(name):
+                break
+            time.sleep(0.05)
+        else:
+            return "could not start a session"
+    try:
+        r = subprocess.run([tmux, "send-keys", "-t", name, "-l", text],
+                           capture_output=True, timeout=10)
+        if r.returncode != 0:
+            return (r.stderr or b"").decode()[:200] or "send-keys refused"
+        # A beat between the text and the Enter: Claude Code's input is a full
+        # editor, and a paste immediately followed by a newline can land while
+        # it is still redrawing.
+        time.sleep(0.05)
+        subprocess.run([tmux, "send-keys", "-t", name, "Enter"],
+                       capture_output=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as e:
+        return str(e)[:200]
+    return ""

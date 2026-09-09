@@ -32,13 +32,25 @@ def row(**kw):
     return json.dumps(kw)
 
 
-# ------------------------------------------------- 1. no way in, at all
-def test_the_pane_has_no_input_of_any_kind():
+# ------------------------------------------- 1. one way out, one way in
+def test_the_display_half_takes_no_keys():
+    """The DISPLAY is one way. What made the old pane unusable was a
+    keystroke-per-character round trip to a pty; nothing here has one."""
     src = (BIN / "oneview.py").read_text()
     i = src.index("TERMPANE_HTML")
     pane = src[i:src.index("\n", i)]
-    for gone in ("<textarea", "<form", "<button", 'id="term"'):
-        assert gone not in pane, gone
+    assert 'id="term"' not in pane, "the xterm mount is back"
+
+
+def test_there_is_a_send_only_box_and_it_is_not_a_terminal():
+    """Marsita, 2026-09-09: "Talking to Claude is the dedicated function."
+    A deliberate send is not the thing she rejected -- see
+    test_two_boxes_two_things.py."""
+    src = (BIN / "oneview.py").read_text()
+    i = src.index("TERMPANE_HTML")
+    pane = src[i:src.index("\n", i)]
+    assert 'id="tellBox"' in pane
+    assert "onkeypress" not in pane
 
 
 def test_there_is_no_terminal_left_to_talk_to():
