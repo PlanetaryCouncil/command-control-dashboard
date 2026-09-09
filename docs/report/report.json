@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-08T18:00:05+00:00",
+  "generated_at": "2026-09-09T18:00:05+00:00",
   "window_hours": 24,
-  "since": "2026-09-07T18:00:04+00:00",
+  "since": "2026-09-08T18:00:05+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,21 +24,24 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 0,
-    "list": []
+    "count": 1,
+    "list": [
+      {
+        "sha": "8f953717",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-08T19:00:05+01:00",
+        "subject": "report: 2026-09-08 fleet summary"
+      }
+    ]
   },
   "pipeline": {
     "records": 0,
     "stages": {}
   },
   "events": {
-    "count": 1,
-    "by_level": {
-      "info": 1
-    },
-    "by_agent": {
-      "visitors": 1
-    }
+    "count": 0,
+    "by_level": {},
+    "by_agent": {}
   },
   "needs_you": [],
   "workers": [
@@ -75,20 +78,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-09-08T17:57:55Z",
-      "summary": "disk 90% 22.2G free"
+      "last_run": "2026-09-09T17:59:26Z",
+      "summary": "load 4.7 over 4 on 4 cores; disk 90% 22.3G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-09-08T17:57:55Z",
+      "last_run": "2026-09-09T17:59:26Z",
       "summary": "spending hermes unknown \u00b7 claude unknown \u00b7 holding grok, openclaw, agy"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-08T17:37:06+00:00",
-      "summary": "24h: 93 public \u00b7 3 homies \u00b7 Mozilla/5.0 (compatible; SERankingBackli 37 \u00b7 browser 27 \u00b7 Applebot 15 \u00b7 Mozilla/5.0 (compatible; IbouBot/1.0; +b 9 \u00b7 SemrushBot 2 \u00b7"
+      "last_run": "2026-09-09T16:30:06+00:00",
+      "summary": "24h: 99 public \u00b7 1 homies \u00b7 browser 66 \u00b7 Applebot 22 \u00b7 SemrushBot 6 \u00b7 OAI-SearchBot 2 \u00b7 curl 1 \u00b7 GPTBot 1 \u00b7 no-agent 1"
     }
   ],
   "proposals_total": 261
