@@ -1195,6 +1195,16 @@ def serve(port):
                            "application/json")
                 return
 
+            if path == "/api/portfolio":
+                # Public: this is the list of things she is building, and it
+                # already sits behind /projects.yaml. Named portfolio because
+                # /api/projects is forwarded to the cockpit.
+                sys.path.insert(0, str(Path(__file__).resolve().parent))
+                import portfolio as _pf
+                self._send(json.dumps(_pf.snapshot()).encode(),
+                           "application/json")
+                return
+
             if path == "/api/issues":
                 # Local only. An open issue is a to-do list, and the board
                 # publishes what the fleet DID, never what it has not got

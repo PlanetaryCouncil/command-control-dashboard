@@ -435,6 +435,29 @@ canvas.mark:hover{opacity:1;}
 .goal.late .d{color:var(--critical);font-weight:600;}
 .goal.soon .d{color:var(--warning);}
 
+/* ---------- projects: the reason any of this runs ----------
+   Sixteen of them were written down in fleet/data/projects.yaml and the board
+   had a pane for the repo it happens to be running in and none for the work
+   that repo exists to serve. Marsita, 2026-09-10: "I care about usability of
+   me as the end user... I see my projects, I see my issues." */
+#projects{flex:0 0 auto;max-height:30vh;}
+#projects .body{padding:2px 0;}
+#projects .prow{display:flex;gap:7px;align-items:baseline;padding:2px 7px;
+  font-size:10.5px;line-height:1.35;}
+#projects .prow:hover{background:var(--raised);}
+#projects .prow a{color:var(--ink);text-decoration:none;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#projects .prow a:hover{color:var(--accent);text-decoration:underline;}
+/* A dot, not a word. "awaiting-deployment" is nineteen characters of status
+   on a row whose subject is four. */
+#projects .dot{flex:none;width:6px;height:6px;border-radius:50%;
+  background:var(--muted);}
+#projects .dot.active{background:var(--good);}
+#projects .dot.awaiting-deployment{background:var(--warning);}
+#projects .dot.for-sale{background:var(--info);}
+#projects .where{font-family:var(--mono);font-size:8px;color:var(--muted);
+  flex:none;text-transform:uppercase;letter-spacing:.08em;}
+
 /* ---------- issues: eighteen things in eight places ----------
    Every open issue across every repo, one list, oldest age loudest. Marsita
    had eighteen of them spread over eight repositories and no screen that
@@ -1594,6 +1617,30 @@ function paneFailed(pane, err){
   console.error("[" + pane.id + "]", err);
 }
 
+/* ---------------- projects -------------------------------------------------- */
+/* Straight from fleet/data/projects.yaml. The file is the source of truth and
+   is edited by hand; this pane is not allowed an opinion the file does not
+   already hold. */
+async function loadProjects(){
+  const pane = $("#projects");
+  if (!pane) return;
+  try {
+    const d = await (await fetch("api/portfolio",{cache:"no-store"})).json();
+    const rows = (d.projects || []).map(p =>
+      `<div class="prow"><span class="dot ${esc(p.status)}" ` +
+      `title="${esc(p.status)}"></span>` +
+      `<a href="${esc(p.url)}"${p.live ? ' target="_blank" rel="noopener"' : ""} ` +
+      `title="${esc(p.tagline || p.name)}">${esc(p.name)}</a>` +
+      // Where it lives, in two letters: out on the web, or a page here.
+      `<span class="where">${p.live ? "www" : "board"}</span></div>`);
+    pane.querySelector(".body").innerHTML =
+      rows.join("") || '<div class="empty">no projects listed</div>';
+    pane.querySelector("h2 .n").textContent =
+      (d.active || 0) + " active";
+    pane.dataset.state = "ok";
+  } catch (err) { pane.dataset.state = "error"; }
+}
+
 /* ---------------- issues --------------------------------------------------- */
 /* One list for every repo. The point is not tracking -- GitHub does that --
    it is SEEING them without eight tabs, because a backlog you cannot see in
@@ -2191,6 +2238,9 @@ loadWork();
 // 20s. Commits land in bursts and a stale "unsaved" count is the one number
 // here that would actively mislead — but git is not free, so not every poll.
 setInterval(loadWork, 20000);
+loadProjects();
+// A hand-edited file. Five minutes is already more often than it changes.
+setInterval(loadProjects, 300000);
 loadIssues();
 // Five minutes, matching the server-side cache. GitHub rate-limits, and an
 // issue list that refreshed every six seconds would be spending a quota to
@@ -2385,6 +2435,12 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
 
 <div id="grid">
   <div class="col">
+    <section class="pane" id="projects" data-state="loading">
+      <h2>projects &mdash; mine <span class="n"></span></h2>
+      <div class="body"></div>
+      <div class="load"><i></i><span class="msg"></span></div>
+    </section>
+
     <section class="pane" id="work" data-state="loading">
       <h2>work &mdash; this repo <span class="n"></span></h2>
       <div class="body"></div>
