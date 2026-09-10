@@ -1,14 +1,13 @@
 # The fleet — last 24 hours
 
-*2026-09-10T18:00:00+00:00*
+*2026-09-10T18:00:06+00:00*
 
-**17 commits merged in the last 24 hours.**
+**15 commits merged in the last 24 hours, and 1 thing asked for a person.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `c66da22d` | board: show the projects, not just the machine that builds them Marsita, 2026-09 |
 | `3b640698` | reload: if nothing supervises the server, start it back up |
 | `ddb02611` | reload: restart the server on the machine you are actually on |
 | `a0e87771` | board: hide the build gate |
@@ -24,28 +23,28 @@
 | `43f10022` | board: collapsing the stream no longer hides the box you write in |
 | `ca562ab3` | board: the post box is a textarea you can see into |
 | `e7f662b7` | board: the north star, back at the top |
-| `bca69cc4` | report: 2026-09-09 fleet summary |
 
 ## Pipeline
 
-No decisions recorded.
+| stage | ok | failed |
+|---|---:|---:|
+| drop | 12 | 0 |
 
 ## Asked for a person
 
-Nothing.
+- `2026-09-10T04:30:57` **e2e-victim** — [relay] suspended after 3 identical failures — reset with: python3 fleet/bin/breaker.py --reset e2e-victim
 
 ## Workers
 
 | worker | status | summary |
 |---|---|---|
-| agent-comms | busy | deferred — load 9.0 over 4 on 4 cores; a timeout now would measure the machine, not the ag |
-| command-control-dashboard | pass | 446 passed, 1 warning in 310.58s (0:05:10) (StarletteDeprecationWarning:) |
-| localvoice | pass | llama3.2:1b answered in 72.8s — the offline fallback is alive |
-| nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
-| pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | compressor 1.5G |
-| quotas | pass | spending hermes unknown · claude unknown · holding grok, openclaw, agy |
-| visitors | pass | 24h: 2357 public · 3 homies · browser 1481 · Python-urllib/3.11 759 · WordPress/6.4.3 44 · |
+| agent-comms | pass | 2/2 hops · grok 9s · agy 4s |
+| ccd | pass | 987 passed, 9 warnings in 13.18s (DeprecationWarning:,SyntaxWarning:) |
+| localvoice | alert | llama3.2:1b did not answer (0.0s) |
+| pipeline | pass | 30 landed, 8 rejected, 5121 proposals processed |
+| pressure | pass | ok · disk 2% 1693G free |
+| quotas | alert | scheduled logged out: hermes |
+| visitors | pass | 24h: 3 public · 0 homies · Python-urllib/3.14 3 |
 
 ## The partnership
 
