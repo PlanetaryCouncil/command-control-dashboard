@@ -2,6 +2,10 @@
 # Human- and AI-readable. Edit this file to update; the dashboard serves it live
 # at /projects.yaml. Keep it honest and current.
 # (Fields with TODO are ones Claude wasn't sure of — correct them.)
+#
+# repos: every GitHub repo that IS this project, full owner/name. A project
+# can have several; a project with none simply has none yet, and that is
+# left empty rather than guessed at. The board groups open issues by this.
 
 owner:
   name: Mars Robertson
@@ -39,6 +43,9 @@ projects:
     url: https://planetarycouncil.org
     tagline: Changing the world through art and culture — an upgrade to global governance
     status: active
+    repos:
+      - PlanetaryCouncil/planetarycouncil.org
+      - PlanetaryCouncil/hub
     socials: { telegram: "@PlanetaryCouncil" }
     tags: [governance, art, memes]
 
@@ -47,6 +54,12 @@ projects:
     url: /basex
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
     status: awaiting-deployment   # awaiting initial deployment
+    repos:
+      - basexhq/basex-demo
+      - basexhq/front-end
+      - basexhq/back-end
+      - basexhq/smart-contract
+      - basexhq/go.basex.com
     tags: [economics, value, climate]
 
   - name: Money from the Future
@@ -54,6 +67,8 @@ projects:
     url: https://moneyfromthefuture.com
     tagline: The best way to make money is to make money
     status: active
+    repos:
+      - PlanetaryCouncil/moneyfromthefuture.com
     tags: [economics]
 
   - name: Network State Genesis
@@ -88,9 +103,11 @@ projects:
 
   - name: Live Agent Fleet (Command & Control Dashboard)
     scope: mars
-    url: TODO   # a clean public domain, NOT the tailnet funnel host
+    url: /   # a clean public domain, NOT the tailnet funnel host
     tagline: A transparent, public AI-agent operations dashboard
     status: active
+    repos:
+      - PlanetaryCouncil/command-control-dashboard
     tags: [ai, infrastructure, transparency]
 
   - name: Haiku Command-Line Poems
@@ -98,6 +115,8 @@ projects:
     url: https://poems.planetarycouncil.org
     tagline: Two-line closing poems from the terminal
     status: active
+    repos:
+      - PlanetaryCouncil/poems
     tags: [art, poetry]
 
   - name: AI Brain Farts
@@ -105,6 +124,8 @@ projects:
     url: https://brainfarts.planetarycouncil.org
     tagline: Logged cases of confidently-wrong AI output, scored on a four-axis scale
     status: active
+    repos:
+      - PlanetaryCouncil/brainfarts
     tags: [ai, honesty]
 
   - name: Personal Wiki
@@ -132,6 +153,8 @@ projects:
     url: /solarpunk-estates
     tagline: Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun
     status: awaiting-deployment   # intake is live on the board; domain not pointed
+    repos:
+      - PlanetaryCouncil/solarpunkestates.org
     tags: [solarpunk, real-estate, climate, coliving]
 
   - name: Independent Tribunal
@@ -139,6 +162,11 @@ projects:
     url: /independent-tribunal
     tagline: A body neither party appoints, for disputes existing authorities cannot fairly hear
     status: active
+    repos:
+      - independenttribunal/independenttribunal-www
+      - independenttribunal/independenttribunal-app
+      - independenttribunal/default-defaults
+      - PlanetaryCouncil/independenttribunal.com
     socials: { twitter: "@IndependentTrib", telegram: "@IndependentTribunal" }
     tags: [governance, justice, disputes]
 
@@ -147,6 +175,8 @@ projects:
     url: https://datingrelating.com
     tagline: Dating and relating — a fresh take on connection
     status: active
+    repos:
+      - PlanetaryCouncil/DatingRelating.com
     tags: [relationships, community]
 
   - name: Legal Screenshot
@@ -168,5 +198,7 @@ projects:
     url: /ministry-of-memes
     tagline: The good guys need better propaganda than the bad guys — memes to end the war through awareness and education
     status: active
+    repos:
+      - PlanetaryCouncil/ministry-of-memes-and-better-propaganda
     part_of: Planetary Council
     tags: [memes, art, propaganda]

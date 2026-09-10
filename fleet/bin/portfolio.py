@@ -54,8 +54,13 @@ def projects(*, path: Path | None = None) -> list[dict]:
     for i, raw in enumerate(doc.get("projects") or []):
         status = str(raw.get("status") or "").strip() or "unknown"
         url = str(raw.get("url") or "").strip()
+        repos = [str(r).strip() for r in (raw.get("repos") or []) if str(r).strip()]
         rows.append({
             "name": str(raw.get("name") or "").strip(),
+            # Every GitHub repo that IS this project. Several is normal --
+            # BaseX is five. None means none yet, not "unknown": guessing a
+            # repo would file its issues under the wrong project.
+            "repos": repos,
             # A relative url in that file means a page on this board, and the
             # board is where it is being read, so it works as written.
             "url": url,
@@ -65,17 +70,40 @@ def projects(*, path: Path | None = None) -> list[dict]:
             # honest in the file and noise on a dashboard.
             "live": url.startswith("http"),
         })
-    rows = [r for r in rows if r["name"] and r["url"].upper() != "TODO"]
+    # A project with a repo and no url is still a project -- send it to the
+    # repo. Only a row with nowhere at all to point gets dropped.
+    for r in rows:
+        if r["url"].upper() == "TODO" or not r["url"]:
+            r["url"] = f'https://github.com/{r["repos"][0]}' if r["repos"] else ""
+            r["live"] = bool(r["url"])
+    rows = [r for r in rows if r["name"] and r["url"]]
     rows.sort(key=lambda r: (ORDER.get(r["status"], 2), r["name"].lower()))
     if path is None:
         _CACHE.update(mtime=mtime, rows=rows)
     return rows
 
 
+def repo_owner() -> dict[str, str]:
+    """repo (lowercased) -> project name. For grouping issues by project.
+
+    Lowercased because GitHub is case-insensitive about repo names and the
+    file is written the way a human types them: DatingRelating.com in one
+    place, datingrelating.com in another, the same repo both times.
+    """
+    out = {}
+    for row in projects():
+        for repo in row["repos"]:
+            out[repo.lower()] = row["name"]
+            # An issue only ever knows its own short name, not the owner.
+            out[repo.split("/")[-1].lower()] = row["name"]
+    return out
+
+
 def snapshot() -> dict:
     rows = projects()
     return {"projects": rows, "count": len(rows),
-            "active": sum(1 for r in rows if r["status"] == "active")}
+            "active": sum(1 for r in rows if r["status"] == "active"),
+            "repos": repo_owner()}
 
 
 if __name__ == "__main__":

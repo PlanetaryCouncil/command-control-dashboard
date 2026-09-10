@@ -1632,7 +1632,9 @@ async function loadProjects(){
       `<a href="${esc(p.url)}"${p.live ? ' target="_blank" rel="noopener"' : ""} ` +
       `title="${esc(p.tagline || p.name)}">${esc(p.name)}</a>` +
       // Where it lives, in two letters: out on the web, or a page here.
-      `<span class="where">${p.live ? "www" : "board"}</span></div>`);
+      `<span class="where">${p.repos && p.repos.length
+          ? p.repos.length + (p.repos.length === 1 ? " repo" : " repos")
+          : (p.live ? "www" : "board")}</span></div>`);
     pane.querySelector(".body").innerHTML =
       rows.join("") || '<div class="empty">no projects listed</div>';
     pane.querySelector("h2 .n").textContent =
@@ -1655,14 +1657,24 @@ async function loadIssues(){
       pane.dataset.state = "ok";
       return;
     }
+    // Which project each repo belongs to, from projects.yaml. An issue knows
+    // its repo; only that file knows whose project the repo is.
+    let owner = {};
+    try {
+      owner = (await (await fetch("api/portfolio",{cache:"no-store"})).json()).repos || {};
+    } catch (e) {}
     const rows = (d.issues || []).map(i => {
       const age = i.age_days;
+      const project = owner[String(i.repo || "").toLowerCase()] || "";
       // Three bands, because "how long" is the only judgement this pane makes:
       // this week is fine, a fortnight is a nag, a month is a decision you
       // have not made.
       const cls = age >= 30 ? "rotten" : age >= 14 ? "old" : "";
-      return `<div class="irow"><span class="repo" title="${esc(i.repo)}">` +
-        `${esc(i.repo)}</span>` +
+      // The PROJECT is what she thinks in; the repo is an implementation
+      // detail of it, and stays in the hover for when it matters.
+      return `<div class="irow"><span class="repo" title="${esc(project
+                ? project + " — " + i.repo : i.repo)}">` +
+        `${esc(project || i.repo)}</span>` +
         `<a href="${esc(i.url)}" target="_blank" rel="noopener" ` +
         `title="${esc(i.repo)}#${i.number} — ${esc(i.title)}">${esc(i.title)}</a>` +
         `<span class="age ${cls}">${age === null ? "" : age + "d"}</span></div>`;
