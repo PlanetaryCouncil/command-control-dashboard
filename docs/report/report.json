@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-12T18:00:28+00:00",
+  "generated_at": "2026-09-13T18:00:45+00:00",
   "window_hours": 24,
-  "since": "2026-09-11T18:00:28+00:00",
+  "since": "2026-09-12T18:00:45+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,49 +24,42 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 1,
-    "list": [
-      {
-        "sha": "65952026",
-        "author": "marsita",
-        "at": "2026-09-11T19:00:57+01:00",
-        "subject": "report: 2026-09-11 fleet summary"
-      }
-    ]
+    "count": 0,
+    "list": []
   },
   "pipeline": {
-    "records": 7,
+    "records": 11,
     "stages": {
       "drop": {
-        "ok": 7,
+        "ok": 11,
         "failed": 0
       }
     }
   },
   "events": {
-    "count": 818,
+    "count": 801,
     "by_level": {
-      "warn": 14,
-      "ok": 530,
-      "info": 273,
+      "ok": 519,
+      "info": 268,
+      "warn": 13,
       "needs_you": 1
     },
     "by_agent": {
-      "pipeline": 474,
-      "autotriage": 237,
-      "fleet": 45,
+      "pipeline": 462,
+      "autotriage": 231,
+      "fleet": 46,
       "grok": 28,
       "claude": 17,
-      "agy": 11,
-      "localvoice": 2,
+      "agy": 12,
       "visitors": 2,
       "self-improve": 1,
-      "e2e-victim": 1
+      "e2e-victim": 1,
+      "localvoice": 1
     }
   },
   "needs_you": [
     {
-      "at": "2026-09-12T04:30:16+00:00",
+      "at": "2026-09-13T04:30:47+00:00",
       "agent": "e2e-victim",
       "msg": "[relay] suspended after 3 identical failures \u2014 reset with: python3 fleet/bin/breaker.py --reset e2e-victim"
     }
@@ -87,33 +80,33 @@
     {
       "worker": "localvoice",
       "status": "alert",
-      "last_run": "2026-09-12T18:00:28+00:00",
+      "last_run": "2026-09-13T18:00:45+00:00",
       "summary": "llama3.2:1b did not answer (0.0s)"
     },
     {
       "worker": "pipeline",
       "status": "pass",
-      "last_run": "2026-09-12T17:54:41+00:00",
-      "summary": "30 landed, 8 rejected, 5141 proposals processed"
+      "last_run": "2026-09-13T17:55:41+00:00",
+      "summary": "30 landed, 8 rejected, 5152 proposals processed"
     },
     {
       "worker": "pressure",
       "status": "pass",
-      "last_run": "2026-09-12T17:58:44Z",
-      "summary": "ok \u00b7 disk 2% 1692G free"
+      "last_run": "2026-09-13T17:57:29Z",
+      "summary": "ok \u00b7 disk 2% 1694G free"
     },
     {
       "worker": "quotas",
       "status": "alert",
-      "last_run": "2026-09-12T17:58:44Z",
+      "last_run": "2026-09-13T17:57:29Z",
       "summary": "scheduled logged out: hermes"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-12T04:30:16+00:00",
-      "summary": "24h: 3 public \u00b7 0 homies \u00b7 Python-urllib/3.14 3"
+      "last_run": "2026-09-13T04:30:46+00:00",
+      "summary": "24h: 1 public \u00b7 0 homies \u00b7 Python-urllib/3.14 1"
     }
   ],
-  "proposals_total": 4999
+  "proposals_total": 5012
 }
