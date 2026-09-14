@@ -1,6 +1,6 @@
 # The fleet — last 24 hours
 
-*2026-09-13T18:00:45+00:00*
+*2026-09-14T18:01:28+00:00*
 
 **Nothing was merged in the last 24 hours.**
 
@@ -12,11 +12,11 @@ Nothing.
 
 | stage | ok | failed |
 |---|---:|---:|
-| drop | 11 | 0 |
+| drop | 12 | 0 |
 
 ## Asked for a person
 
-- `2026-09-13T04:30:47` **e2e-victim** — [relay] suspended after 3 identical failures — reset with: python3 fleet/bin/breaker.py --reset e2e-victim
+- `2026-09-14T04:31:31` **e2e-victim** — [relay] suspended after 3 identical failures — reset with: python3 fleet/bin/breaker.py --reset e2e-victim
 
 ## Workers
 
@@ -25,10 +25,10 @@ Nothing.
 | agent-comms | pass | 2/2 hops · grok 9s · agy 4s |
 | ccd | pass | 987 passed, 9 warnings in 13.18s (DeprecationWarning:,SyntaxWarning:) |
 | localvoice | alert | llama3.2:1b did not answer (0.0s) |
-| pipeline | pass | 30 landed, 8 rejected, 5152 proposals processed |
-| pressure | pass | ok · disk 2% 1694G free |
+| pipeline | pass | 30 landed, 8 rejected, 5164 proposals processed |
+| pressure | pass | ok · disk 2% 1693G free |
 | quotas | alert | scheduled logged out: hermes |
-| visitors | pass | 24h: 1 public · 0 homies · Python-urllib/3.14 1 |
+| visitors | pass | 24h: 80 public · 1 homies · browser 79 · Python-urllib/3.14 1 |
 
 ## The partnership
 
