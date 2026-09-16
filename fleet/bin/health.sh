@@ -23,7 +23,11 @@ due() {
   local name="$1" every="$2"; shift 2
   local stamp="$STAMPS/$name"
   if [[ -f "$stamp" ]]; then
-    local age=$(( $(date +%s) - $(stat -f %m "$stamp" 2>/dev/null || stat -c %Y "$stamp") ))
+    # GNU stat first. Its -f means "filesystem", not a format, so on Linux
+    # `stat -f %m` EXITS 0 and prints `File: "..."` -- the || never fired and
+    # the word File landed in $(( )) under set -u, killing every run on the
+    # NUC. BSD stat rejects -c outright, so this order falls through properly.
+    local age=$(( $(date +%s) - $(stat -c %Y "$stamp" 2>/dev/null || stat -f %m "$stamp") ))
     (( age < every )) && return 0
   fi
   # Stamp BEFORE running, not after. A job that hangs must not become a job
