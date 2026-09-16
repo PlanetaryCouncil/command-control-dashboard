@@ -495,6 +495,9 @@ canvas.mark:hover{opacity:1;}
   border:1px solid var(--border);background:var(--surface);color:var(--ink);
   resize:none;height:56px;min-height:56px;max-height:40vh;overflow-y:auto;}
 #tellBox:focus{outline:none;border-color:var(--good);}
+/* The placeholder has said its piece by the time you are typing into the box.
+   Leaving it under the cursor is a hint competing with the thing it hinted at. */
+#tellBox:focus::placeholder{color:transparent;}
 #tellBox[data-busy="1"]{opacity:.5;}
 #tell button{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
   text-transform:uppercase;padding:5px 11px;border-radius:3px;cursor:pointer;
@@ -672,6 +675,23 @@ canvas.mark:hover{opacity:1;}
    a frozen page; motion is the whole message. */
 .dots{display:inline-block;width:3.2em;text-align:left;
   font-family:var(--mono);color:var(--accent);}
+/* The elapsed seconds beside the dots. The dots say "alive"; this says "how
+   long", which is the question you actually have after the first few. */
+.sline.pending .at{color:var(--muted);font-variant-numeric:tabular-nums;}
+/* A menu option you can click instead of retyping its digit. The reply draws
+   these as boxes; the stream turns each one back into a button. */
+.pick{display:inline-flex;align-items:center;gap:7px;margin:2px 0;padding:3px 8px;
+  border:1px solid var(--border);border-radius:4px;background:var(--raised);
+  font-family:var(--mono);font-size:10.5px;color:var(--ink-2);cursor:pointer;
+  text-align:left;width:100%;}
+.pick:hover{border-color:var(--good);color:var(--ink);}
+.pick .num{flex:none;width:14px;text-align:center;color:var(--accent);
+  font-weight:600;}
+.pick:disabled{opacity:.4;cursor:default;}
+/* Time to first byte, last hundred. Small, in the pane header, because it is
+   a thing you glance at rather than read. */
+#termpane h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
+  letter-spacing:.06em;}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
   background:#0d0d0d;transition:height .18s ease;}
@@ -1565,7 +1585,80 @@ function showPending(text){
    being anything but `claude` means the turn has not finished. `you` is
    waiting to start, `tool` is working. Either way there is something to say.
    `claude` last means the turn is over and the dots must stop. */
-const WAIT = {el: null, timer: 0};
+const WAIT = {el: null, timer: 0, since: 0, clock: null};
+
+/* ---- markdown, out of a log that is not rendering it --------------------- */
+/* The replies are written for a terminal, so they carry `##`, `**`, backtick
+   fences and box-drawing furniture. None of it renders here -- it just sits in
+   the text as punctuation you have to read past. Marsita, 2026-09-16: "skip
+   the markdown in the output log."
+   Strip the marks, keep the words. Never drop a whole line: a line that is
+   only syntax is dropped, but anything with content in it survives. */
+function plain(t){
+  return String(t == null ? "" : t)
+    .replace(/```[a-z]*\n?/gi, "")              // fence openers and closers
+    .replace(/^#{1,6}\s+/gm, "")                // headings, keep the words
+    .replace(/\*\*(.+?)\*\*/g, "$1")           // bold
+    .replace(/(^|[\s(])\*(?!\s)(.+?)\*(?=[\s.,;:)!?]|$)/g, "$1$2")  // italics
+    .replace(/`([^`]+)`/g, "$1")                // inline code
+    .replace(/^\s*[-*]\s+/gm, "· ")            // bullets, kept as bullets
+    .replace(/^\s*>\s?/gm, "")                 // quotes
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")   // links, keep the label
+    .replace(/[\u2588\u2580\u2584]{3,}/g, "")  // the 80-block bar
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/* ---- the menu, as buttons ------------------------------------------------ */
+/* The reply draws options as three-line boxes with a digit in them. Retyping
+   the digit is a keystroke for something already on the screen and already
+   unambiguous. Marsita, 2026-09-16: "make 1 and 2 and 3 (both) boxes
+   clickable". Pull the number and its text back out of the drawing. */
+const PICK_RE = /^\s*\u2502\s*(\d+)\s*\u2502\s+(.+?)\s*$/;
+
+function picksIn(text){
+  const out = [];
+  for (const line of String(text || "").split("\n")){
+    const m = PICK_RE.exec(line);
+    if (m) out.push({n: m[1], label: m[2]});
+  }
+  return out;
+}
+
+/* ---- time to first byte -------------------------------------------------- */
+/* How long from pressing send to the first sign of life. One number is an
+   anecdote; a hundred is a shape you can tell a bad day from. Kept in this
+   browser only -- it is a feel, not a metric anyone else needs. */
+const TTFB_KEY = "ttfb.v1", TTFB_KEEP = 100;
+const TTFB = {since: 0, mark: 0};
+
+function ttfbRead(){
+  try { return JSON.parse(localStorage.getItem(TTFB_KEY) || "[]") || []; }
+  catch (e) { return []; }                     // private window, cleared data
+}
+
+function ttfbAdd(ms){
+  if (!(ms > 0) || ms > 600000) return;        // a tab left open overnight
+  try {
+    const a = ttfbRead(); a.push(Math.round(ms));
+    localStorage.setItem(TTFB_KEY, JSON.stringify(a.slice(-TTFB_KEEP)));
+  } catch (e) {}
+  ttfbPaint();
+}
+
+function ttfbPaint(){
+  const el = document.querySelector("#termpane h2 .ttfb");
+  if (!el) return;
+  const a = ttfbRead();
+  if (!a.length){ el.textContent = ""; return; }
+  // Median, not mean: one 4-minute turn should not move the number you read
+  // every day.
+  const sorted = [...a].sort((x, y) => x - y);
+  const mid = sorted[Math.floor(sorted.length / 2)];
+  el.textContent = `ttfb ${(mid / 1000).toFixed(1)}s median of ${a.length}` +
+                   ` · last ${(a[a.length - 1] / 1000).toFixed(1)}s`;
+}
+
 
 function showWaiting(body, who){
   if (WAIT.el) return;                       // already running; leave it be
@@ -1578,15 +1671,26 @@ function showWaiting(body, who){
   const dots = document.createElement("span");
   dots.className = "dots";
   tx.appendChild(dots);
-  row.append(w, tx, document.createElement("span"));
+  const at = document.createElement("span");
+  at.className = "at";
+  row.append(w, tx, at);
   body.appendChild(row);
   WAIT.el = row;
+  WAIT.since = Date.now();
   WAIT.timer = startDots(dots);
+  // Seconds, counting. The dots say "alive"; this says "how long", which is
+  // the question you actually have once the first few have gone by.
+  const tickClock = () => {
+    at.textContent = ((Date.now() - WAIT.since) / 1000).toFixed(0) + "s";
+  };
+  tickClock();
+  WAIT.clock = setInterval(tickClock, 1000);
 }
 
 function clearWaiting(){
   if (WAIT.timer) clearInterval(WAIT.timer);
-  WAIT.timer = 0;
+  if (WAIT.clock) clearInterval(WAIT.clock);
+  WAIT.timer = 0; WAIT.clock = null;
   if (WAIT.el && WAIT.el.parentNode) WAIT.el.remove();
   WAIT.el = null;
 }
@@ -1638,6 +1742,8 @@ function pendingSettled(lines){
     // Up before the request, not after it. The round trip is the part that
     // feels slow, so the echo has to beat it.
     showPending(text);
+    TTFB.since = Date.now();
+    TTFB.mark = document.querySelectorAll("#termpane .body .sline").length || 0;
     try {
       const r = await fetch("api/tell", {
         method: "POST", headers: {"Content-Type": "application/json"},
@@ -1660,6 +1766,20 @@ function pendingSettled(lines){
       delete box.dataset.busy;
       box.focus();
     }
+  });
+
+  // A menu option is a message like any other; clicking one types the digit
+  // and sends it. Delegated from the pane, because the stream is rebuilt every
+  // second and a listener bound to a button would not survive the next poll.
+  const tpane = $("#termpane");
+  if (tpane) tpane.addEventListener("click", e => {
+    const hit = e.target.closest(".pick");
+    if (!hit || hit.disabled) return;
+    // Disable the whole set, not only the one clicked: the menu has been
+    // answered, and a second answer to the same question is noise.
+    tpane.querySelectorAll(".pick").forEach(x => { x.disabled = true; });
+    box.value = hit.dataset.pick;
+    form.requestSubmit();
   });
 
   box.addEventListener("keydown", e => {
@@ -1690,6 +1810,12 @@ async function loadStream(){
     // throws away the scroll position, and this is a thing you read.
     const sig = lines.length + "|" + (lines[lines.length - 1]?.at || "");
     if (pendingSettled(lines)) clearPending();
+    // First sign of life after a send. Measured from the keypress, so it is
+    // the number you actually felt, not the one the server would report.
+    if (TTFB.since && lines.length > TTFB.mark){
+      ttfbAdd(Date.now() - TTFB.since);
+      TTFB.since = 0;
+    }
     // Before the early return, not after it. A turn that is thinking produces
     // no new lines for minutes at a time, so the "nothing changed" path is
     // EXACTLY when the page most needs to say it is still waiting. Putting
@@ -1704,11 +1830,30 @@ async function loadStream(){
     // up to read something and being yanked back is the exact behaviour that
     // made the old pane unusable.
     const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 40;
-    body.innerHTML = lines.map(l =>
-      `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
-      `<span class="tx">${esc(l.text)}</span>` +
-      `<span class="at">${esc(l.at)}</span></div>`).join("")
-      || '<div class="empty">nothing yet</div>';
+    // Only the NEWEST menu is live. An old one is a decision already taken,
+    // and a page full of clickable history is a page that will send the wrong
+    // answer to the wrong question.
+    let livePicks = null;
+    for (let i = lines.length - 1; i >= 0; i--){
+      if (lines[i].who === "claude"){
+        const p = picksIn(lines[i].text);
+        if (p.length) livePicks = {i, picks: p};
+        break;
+      }
+    }
+    body.innerHTML = lines.map((l, i) => {
+      const text = l.who === "claude" ? plain(l.text) : l.text;
+      let extra = "";
+      if (livePicks && livePicks.i === i){
+        extra = '<div class="picks">' + livePicks.picks.map(p =>
+          `<button class="pick" data-pick="${esc(p.n)}">` +
+          `<span class="num">${esc(p.n)}</span>` +
+          `<span>${esc(p.label)}</span></button>`).join("") + "</div>";
+      }
+      return `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
+             `<span class="tx">${esc(text)}${extra}</span>` +
+             `<span class="at">${esc(l.at)}</span></div>`;
+    }).join("") || '<div class="empty">nothing yet</div>';
     // Rendering replaced the body, taking the echo with it. If the real line
     // still has not arrived, put it back — a message that vanishes from the
     // page one poll after you sent it is the original complaint, twice.
@@ -1720,6 +1865,12 @@ async function loadStream(){
     if (atEnd || !streamSeen) body.scrollTop = body.scrollHeight;
     streamSeen = sig;
     pane.querySelector("h2 .n").textContent = d.session || "";
+    if (!pane.querySelector("h2 .ttfb")){
+      const t = document.createElement("span");
+      t.className = "ttfb";
+      pane.querySelector("h2").appendChild(t);
+    }
+    ttfbPaint();
     pane.dataset.state = "ok";
   } catch (err) { pane.dataset.state = "error"; }
 }

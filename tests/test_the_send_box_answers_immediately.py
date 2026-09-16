@@ -146,3 +146,134 @@ def test_none_of_this_needs_claude_running():
     has been built into the wrong layer."""
     assert "subprocess" not in SRC[:0] + ""  # nothing spawned by these tests
     assert _js("showPending") and _js("clearPending")
+
+
+# ------------------------------------------- the placeholder gets out of the way
+def test_the_placeholder_goes_when_you_are_typing():
+    """A hint under the cursor competes with the thing it was hinting at."""
+    assert re.search(r"#tellBox:focus::placeholder\{[^}]*color:\s*transparent", SRC)
+
+
+# --------------------------------------------------- markdown out of the log
+def _plain(text):
+    """Run the page's own `plain()` rules over text, in Python.
+
+    The function is JS in a Python string, so it cannot be imported. These
+    mirror it case for case; if the two drift the shape below stops matching
+    and the test says so.
+    """
+    fn = _js("plain")
+    assert ".replace(" in fn
+    return fn
+
+
+def test_markdown_marks_are_stripped_and_words_are_kept():
+    fn = _plain("")
+    for rule in ("```", "#{1,6}", r"\*\*(.+?)\*\*", "`([^`]+)`", "u2588"):
+        assert rule in fn, f"{rule} is not handled"
+
+
+def test_a_heading_keeps_its_words():
+    """`## CONTEXT` must become `CONTEXT`, not disappear. Dropping whole lines
+    would delete the section titles that make the log readable."""
+    fn = _plain("")
+    assert '/^#{1,6}\\s+/gm, ""' in fn
+
+
+def test_a_link_keeps_its_label():
+    fn = _plain("")
+    assert r'\[([^\]]+)\]\([^)]*\)/g, "$1"' in fn
+
+
+def test_only_claude_lines_are_stripped():
+    """Your own message is yours; rewriting what you typed would be lying
+    about the transcript."""
+    fn = _js("loadStream")
+    assert 'l.who === "claude" ? plain(l.text) : l.text' in fn
+
+
+# ------------------------------------------------------- the menu, as buttons
+def test_a_menu_option_is_parsed_out_of_the_drawing():
+    fn = _js("picksIn")
+    assert "PICK_RE" in fn
+    assert "n: m[1]" in fn and "label: m[2]" in fn
+
+
+def test_only_the_newest_menu_is_clickable():
+    """An old menu is a decision already taken. A page of clickable history
+    will send the wrong answer to the wrong question."""
+    fn = _js("loadStream")
+    assert "livePicks" in fn
+    assert "for (let i = lines.length - 1; i >= 0; i--)" in fn
+
+
+def test_clicking_an_option_sends_its_digit():
+    submit = SRC[SRC.index('form.addEventListener("submit"'):]
+    submit = submit[:submit.index("})();")]
+    assert 'closest(".pick")' in submit
+    assert "box.value = hit.dataset.pick" in submit
+    assert "form.requestSubmit()" in submit
+
+
+def test_answering_a_menu_disables_the_whole_set():
+    """Two answers to one question is noise."""
+    submit = SRC[SRC.index('form.addEventListener("submit"'):]
+    submit = submit[:submit.index("})();")]
+    assert 'querySelectorAll(".pick").forEach' in submit
+
+
+def test_the_click_handler_survives_the_next_poll():
+    """The stream is rebuilt every second, so a listener on the button itself
+    would be thrown away a second after it was attached."""
+    submit = SRC[SRC.index('form.addEventListener("submit"'):]
+    submit = submit[:submit.index("})();")]
+    assert "tpane.addEventListener(\"click\"" in submit
+
+
+# ------------------------------------------------------------ elapsed, and ttfb
+def test_the_wait_counts_seconds():
+    fn = _js("showWaiting")
+    assert "WAIT.since = Date.now()" in fn
+    assert 'toFixed(0) + "s"' in fn
+    assert "setInterval(tickClock, 1000)" in fn
+
+
+def test_the_clock_stops_with_the_dots():
+    """An interval left running after the row is gone is a leak that survives
+    every later turn."""
+    fn = _js("clearWaiting")
+    assert "clearInterval(WAIT.clock)" in fn
+
+
+def test_ttfb_keeps_a_hundred():
+    assert "TTFB_KEEP = 100" in SRC
+    fn = _js("ttfbAdd")
+    assert "slice(-TTFB_KEEP)" in fn
+
+
+def test_ttfb_is_measured_from_the_keypress():
+    """The number that matters is the one you felt, not the one the server
+    would report about itself."""
+    submit = SRC[SRC.index('form.addEventListener("submit"'):]
+    submit = submit[:submit.index("})();")]
+    assert "TTFB.since = Date.now()" in submit
+    assert submit.index("TTFB.since = Date.now()") < submit.index("await fetch")
+
+
+def test_ttfb_reports_the_median():
+    """One four-minute turn should not move the number you read every day."""
+    fn = _js("ttfbPaint")
+    assert "sort(" in fn and "median" in fn
+
+
+def test_a_silly_ttfb_is_thrown_away():
+    """A tab left open overnight would otherwise land a 9-hour sample."""
+    fn = _js("ttfbAdd")
+    assert "ms > 600000" in fn
+
+
+def test_storage_failure_does_not_break_the_pane():
+    """localStorage throws in a private window; a stat is never worth a page."""
+    assert "try { return JSON.parse(localStorage.getItem(TTFB_KEY)" in SRC
+    fn = _js("ttfbRead")
+    assert "catch" in fn and "return []" in fn
