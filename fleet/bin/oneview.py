@@ -23,7 +23,8 @@ CSS = """
   --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
   --info:#3987e5;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sans:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",
+    "Cascadia Code","IBM Plex Mono",Menlo,Consolas,monospace;
   --gap:4px;
 }
 :root[data-theme="light"]{
@@ -659,6 +660,18 @@ canvas.mark:hover{opacity:1;}
 .sline.claude .tx{color:var(--ink-2);}
 /* A tool line is a signpost, not content. It should be skimmable past. */
 .sline.tool .tx{font-family:var(--mono);font-size:10px;color:var(--muted);}
+/* A sent message, shown before the transcript has caught up. Marsita,
+   2026-09-16: "As I press enter here to send, update the text long above for
+   more interactive experience so I know something is happening". Pressing
+   send used to do nothing visible for up to three seconds -- one poll -- and
+   a box that empties with no other sign is indistinguishable from a box that
+   ate your message. */
+.sline.pending{opacity:.55;}
+.sline.pending .w{color:var(--accent);}
+/* The wait, as a thing that moves. A static "sending..." cannot be told from
+   a frozen page; motion is the whole message. */
+.dots{display:inline-block;width:3.2em;text-align:left;
+  font-family:var(--mono);color:var(--accent);}
 /* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
 #drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
   background:#0d0d0d;transition:height .18s ease;}
@@ -1496,6 +1509,108 @@ if ($("#bgate")) $("#bgate").addEventListener("click", async () => {
 loadGate();
 
 /* ---------------- talk to Claude ------------------------------------------- */
+/* ---------------- the echo, and the dots ---------------------------------- */
+/* What you just sent, shown immediately, and a wait you can see moving.
+
+   The transcript is polled every 3s, so pressing send did nothing visible for
+   up to three seconds. An empty box and a still page is exactly what a box
+   that ATE your message looks like. Marsita, 2026-09-16: "As I press enter
+   here to send, update the text long above ... so I know something is
+   happening". */
+const PENDING = {text: "", el: null, timer: 0, since: 0};
+
+/* One dot to five, then back. The count is the only moving thing on the
+   page while a turn is thinking, so it is doing the whole job of saying
+   "still here" -- fixed width, or the line jitters as it grows. */
+function startDots(el){
+  let n = 0;
+  const tick = () => { n = (n % 5) + 1; el.textContent = ".".repeat(n); };
+  tick();
+  return setInterval(tick, 320);
+}
+
+function showPending(text){
+  const pane = $("#termpane");
+  if (!pane) return;
+  clearPending();
+  const body = pane.querySelector(".body");
+  const row = document.createElement("div");
+  row.className = "sline you pending";
+  const w = document.createElement("span");
+  w.className = "w"; w.textContent = "you";
+  const tx = document.createElement("span");
+  tx.className = "tx"; tx.textContent = text;
+  const at = document.createElement("span");
+  at.className = "at";
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  at.appendChild(dots);
+  row.append(w, tx, at);
+  body.appendChild(row);
+  body.scrollTop = body.scrollHeight;
+  PENDING.text = text;
+  PENDING.el = row;
+  PENDING.since = Date.now();
+  PENDING.timer = startDots(dots);
+}
+
+/* A turn in flight, whoever started it.
+
+   The echo above only fires for the box on this page. Marsita types in the
+   Claude app as often as here, and from there the board sees nothing until
+   the transcript catches up -- message lands, no dots, no sign anything is
+   happening. Same complaint, different door (2026-09-16).
+
+   So read it off the transcript instead of off the send: the newest line
+   being anything but `claude` means the turn has not finished. `you` is
+   waiting to start, `tool` is working. Either way there is something to say.
+   `claude` last means the turn is over and the dots must stop. */
+const WAIT = {el: null, timer: 0};
+
+function showWaiting(body, who){
+  if (WAIT.el) return;                       // already running; leave it be
+  const row = document.createElement("div");
+  row.className = "sline pending";
+  const w = document.createElement("span");
+  w.className = "w"; w.textContent = who === "tool" ? "working" : "sent";
+  const tx = document.createElement("span");
+  tx.className = "tx";
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  tx.appendChild(dots);
+  row.append(w, tx, document.createElement("span"));
+  body.appendChild(row);
+  WAIT.el = row;
+  WAIT.timer = startDots(dots);
+}
+
+function clearWaiting(){
+  if (WAIT.timer) clearInterval(WAIT.timer);
+  WAIT.timer = 0;
+  if (WAIT.el && WAIT.el.parentNode) WAIT.el.remove();
+  WAIT.el = null;
+}
+
+function clearPending(){
+  if (PENDING.timer) clearInterval(PENDING.timer);
+  PENDING.timer = 0;
+  if (PENDING.el && PENDING.el.parentNode) PENDING.el.remove();
+  PENDING.el = null;
+  PENDING.text = "";
+}
+
+/* The echo is a stand-in for a line that has not arrived, so it goes the
+   moment the real one does -- otherwise you read your own message twice.
+   Matching on a prefix because the transcript may wrap or trim what it
+   stores; two minutes is the giving-up point, after which a still-pending
+   echo is more likely a lost message than a slow one. */
+function pendingSettled(lines){
+  if (!PENDING.text) return false;
+  if (Date.now() - PENDING.since > 120000) return true;
+  const head = PENDING.text.slice(0, 40);
+  return lines.some(l => l.who === "you" && (l.text || "").includes(head));
+}
+
 /* The send half of the terminal, kept, after the display half was thrown
    away. `tmux send-keys` does the typing on the server, so the browser never
    holds a pty and none of the latency that made the old box unusable is on
@@ -1520,15 +1635,26 @@ loadGate();
     // are still in the box. Losing a paragraph to a dropped request is the
     // one thing a send-only box must never do.
     box.dataset.busy = "1";
+    // Up before the request, not after it. The round trip is the part that
+    // feels slow, so the echo has to beat it.
+    showPending(text);
     try {
       const r = await fetch("api/tell", {
         method: "POST", headers: {"Content-Type": "application/json"},
         body: JSON.stringify({text}),
       });
       const d = await r.json();
-      if (d.ok){ box.value = ""; grow(); }
-      else box.placeholder = d.why || "could not send";
+      if (d.ok){
+        box.value = ""; grow();
+        // Do not wait out the 3s tick for the first look. The turn has
+        // started on the machine already; the page should go and see.
+        setTimeout(loadStream, 400);
+      }
+      else { clearPending(); box.placeholder = d.why || "could not send"; }
     } catch (err) {
+      // The send failed, so there is nothing pending to wait for. Leaving the
+      // dots spinning would be the page lying about work it never started.
+      clearPending();
       box.placeholder = "could not send";
     } finally {
       delete box.dataset.busy;
@@ -1563,6 +1689,16 @@ async function loadStream(){
     // Cheap identity for "has anything changed": rerendering on every poll
     // throws away the scroll position, and this is a thing you read.
     const sig = lines.length + "|" + (lines[lines.length - 1]?.at || "");
+    if (pendingSettled(lines)) clearPending();
+    // Before the early return, not after it. A turn that is thinking produces
+    // no new lines for minutes at a time, so the "nothing changed" path is
+    // EXACTLY when the page most needs to say it is still waiting. Putting
+    // this below meant the dots only appeared on the polls that had news --
+    // which is to say, never when it mattered (2026-09-16: "nothing
+    // shows.... you need to be more responsive").
+    const last = lines[lines.length - 1];
+    if (!PENDING.el && last && last.who !== "claude") showWaiting(body, last.who);
+    else if (!PENDING.el) clearWaiting();
     if (sig === streamSeen) return;
     // Only stick to the bottom if that is where you already were. Scrolling
     // up to read something and being yanked back is the exact behaviour that
@@ -1573,6 +1709,14 @@ async function loadStream(){
       `<span class="tx">${esc(l.text)}</span>` +
       `<span class="at">${esc(l.at)}</span></div>`).join("")
       || '<div class="empty">nothing yet</div>';
+    // Rendering replaced the body, taking the echo with it. If the real line
+    // still has not arrived, put it back — a message that vanishes from the
+    // page one poll after you sent it is the original complaint, twice.
+    // Rendering replaced the body, so anything appended to it is gone. Put
+    // the echo and the waiting row back; the local echo wins when both could
+    // apply, being the more specific thing to say.
+    if (PENDING.el) body.appendChild(PENDING.el);
+    else if (WAIT.el) body.appendChild(WAIT.el);
     if (atEnd || !streamSeen) body.scrollTop = body.scrollHeight;
     streamSeen = sig;
     pane.querySelector("h2 .n").textContent = d.session || "";
@@ -2182,7 +2326,9 @@ if ($("#termpane")){
   if (wanted !== 0) setPaneOpen($("#termpane"), true);
   loadStream();
   // Three seconds. It is a thing you glance at, not a frame buffer.
-  setInterval(loadStream, 3000);
+  // 1s. Three seconds is long enough to read as a frozen page, and this
+  // pane is the one you watch while waiting.
+  setInterval(loadStream, 1000);
 }
 try {
   const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
@@ -2281,8 +2427,13 @@ async function loadTools(){
       `<a href="${x.url}" target="_blank" rel="noopener" title="${x.what}"
          style="color:${x.up ? "var(--good)" : "var(--muted)"}">${x.name}${
          x.up ? "" : " (down)"}</a>`).join("");
-    slot.innerHTML = t || "none registered";
-  } catch (e) { slot.textContent = "unreachable"; }
+    const sec = slot.closest("section");
+    if (sec) sec.style.display = t ? "" : "none";
+    slot.innerHTML = t;
+  } catch (e) {
+    const sec = slot.closest("section");
+    if (sec) sec.style.display = "none";
+  }
 }
 loadTools();
 setInterval(loadTools, 60000);
@@ -2598,9 +2749,9 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     <a href="/api/approvals" title="Standing permissions granted to agents. Granting one needs a human at this machine.">approvals</a>
     <a href="/health" title="Is the cockpit alive, and which data file is it reading. One line.">health</a>
   </section>
-  <section>
+  <section style="display:none">
     <h3>tools</h3>
-    <span id="toolslot" style="color:var(--muted)">checking…</span>
+    <span id="toolslot" style="color:var(--muted)"></span>
   </section>
   <section>
     <h3>public</h3>
