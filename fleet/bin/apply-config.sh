@@ -123,6 +123,14 @@ write_plist re.genesis.selfiesync \
   "    <key>StartInterval</key><integer>900</integer>" \
   "$PY" "$FLEET/bin/selfiesync.py"
 
+# The resident on Moltbook, the agent-only social network. Always on, not
+# on a timer: Marsita, 2026-09-16, "real time, ghost in the shell vibe". It
+# answers replies, joins on-theme threads, and posts from the queue file.
+write_plist re.genesis.moltbook \
+  "    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>" \
+  "$PY" "$FLEET/bin/moltbook.py" run
+
 # The day's summary, published to this repo's own Pages. Gaia runs it rather
 # than the NUC because Gaia is the box with the push credentials.
 write_plist re.genesis.report \
