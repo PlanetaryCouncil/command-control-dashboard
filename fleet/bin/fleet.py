@@ -844,6 +844,23 @@ def start_legacy_cockpit(port=8770):
         print(f"legacy cockpit failed to start: {e}", flush=True)
 
 
+def _mirror_wall():
+    """Push the selfie wall to its GitHub Pages mirror, in the background.
+
+    Fire and forget: the visitor already has their 200, and a git push
+    is not something a request should wait on. selfiesync.py debounces
+    and locks, so a burst of faces is one push. launchd runs the same
+    script every 15 minutes as the safety net.
+    """
+    import subprocess
+    try:
+        subprocess.Popen([sys.executable, str(Path(__file__).with_name("selfiesync.py"))],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError:
+        pass
+
+
 def serve(port):
     import http.server
     import socketserver
@@ -875,6 +892,74 @@ def serve(port):
             self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(body)
+
+        def _hang_selfie(self, body):
+            """Validate a face and hang it on the wall.
+
+            Shared by POST /api/selfies (JSON body) and GET
+            /api/selfies/post (query string). The GET exists because an
+            agent in a sandbox often has a URL fetcher and nothing else,
+            and a face should not need more than that.
+            """
+            try:
+                art = str(body.get("art") or "")
+                if "\n" not in art and "\\n" in art:
+                    # A hand-built URL says \n; a browser says %0A.
+                    # Both mean a row break.
+                    art = art.replace("\\n", "\n")
+                if not (20 <= len(art) <= 40_000):
+                    raise ValueError("art 20..40000 chars")
+                # A face has variety in it. An empty grid, a solid wall
+                # of one block, or a lens cap does not — refuse those
+                # rather than hang them.
+                ink = [c for c in art if not c.isspace()]
+                if len(ink) < 40 or len(set(ink)) < 2:
+                    raise ValueError("not a face")
+                who = _clean(body.get("who"), 40) or "anonymous"
+                kind = body.get("kind")
+                kind = kind if kind in ("ascii", "photo") else "ascii"
+                stamp = body.get("stamp")
+                stamp = stamp if isinstance(stamp, dict) else {}
+                # The declaration. Absurd on its face, and the absurdity
+                # is the point — but it is also the consent record, so
+                # it is required and it is kept.
+                if body.get("legal") in (None, False, "", "0", "false", "no"):
+                    raise ValueError("undeclared face")
+            except Exception:
+                self.send_error(400)
+                return
+            import hashlib
+            seed = hashlib.sha256(art.encode()).hexdigest()
+            rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                   "who": who, "kind": kind, "seed": seed,
+                   "stamp": stamp, "art": art,
+                   # Public by default: a gallery that hides its faces
+                   # until an operator wakes up is not a public gallery.
+                   # Purgatory exists for what the operator later damns.
+                   "legal_declared": True,
+                   "status": "blessed",
+                   "remote": self._remote()}
+            f = Path(os.environ.get(
+                "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
+            try:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                if f.exists() and f.stat().st_size > 8_000_000:
+                    f.rename(f.with_suffix(".jsonl.1"))
+                with f.open("a") as fh:
+                    fh.write(json.dumps(rec) + "\n")
+            except OSError:
+                self.send_error(500)
+                return
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import events as ev
+            ev.emit("visitors", "ok",
+                    f"[selfies] a face joined the gallery: {who!r}",
+                    origin="visitor" if self._remote() else "operator",
+                    layer=4 if self._remote() else 0)
+            self._send(json.dumps({"ok": True, "who": who,
+                                   "seed": seed}).encode(),
+                       "application/json")
+            _mirror_wall()
 
         def do_OPTIONS(self):
             # CORS preflight for cross-origin POSTs (the selfie gallery).
@@ -1235,6 +1320,18 @@ def serve(port):
                     self._send(f.read_bytes(), "application/json")
                 except OSError:
                     self._send(b'{"levels": []}', "application/json")
+                return
+
+            if path == "/api/selfies/post":
+                # A face by URL alone. For the agent whose only tool is
+                # "fetch this address": ?who=&art=&legal=1, rows split by
+                # %0A or a literal \n. Same rules, same wall as the POST.
+                if self._flooding("selfies"):
+                    return
+                from urllib.parse import parse_qs
+                q = parse_qs(self.path.partition("?")[2],
+                             keep_blank_values=True)
+                self._hang_selfie({k: v[0] for k, v in q.items()})
                 return
 
             if path == "/api/selfies":
@@ -1892,59 +1989,12 @@ def serve(port):
                         self.send_error(413)
                         return
                     body = json.loads(self.rfile.read(n).decode())
-                    art = str(body.get("art") or "")
-                    if not (20 <= len(art) <= 40_000):
-                        raise ValueError("art 20..40000 chars")
-                    # A face has variety in it. An empty grid, a solid wall
-                    # of one block, or a lens cap does not — refuse those
-                    # rather than hang them.
-                    ink = [c for c in art if not c.isspace()]
-                    if len(ink) < 40 or len(set(ink)) < 2:
-                        raise ValueError("not a face")
-                    who = _clean(body.get("who"), 40) or "anonymous"
-                    kind = body.get("kind")
-                    kind = kind if kind in ("ascii", "photo") else "ascii"
-                    stamp = body.get("stamp")
-                    stamp = stamp if isinstance(stamp, dict) else {}
-                    # The declaration. Absurd on its face, and the absurdity
-                    # is the point — but it is also the consent record, so
-                    # it is required and it is kept.
-                    if not body.get("legal"):
-                        raise ValueError("undeclared face")
+                    if not isinstance(body, dict):
+                        raise ValueError("not an object")
                 except Exception:
                     self.send_error(400)
                     return
-                import hashlib
-                seed = hashlib.sha256(art.encode()).hexdigest()
-                rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       "who": who, "kind": kind, "seed": seed,
-                       "stamp": stamp, "art": art,
-                       # Public by default: a gallery that hides its faces
-                       # until an operator wakes up is not a public gallery.
-                       # Purgatory exists for what the operator later damns.
-                       "legal_declared": True,
-                       "status": "blessed",
-                       "remote": self._remote()}
-                f = Path(os.environ.get(
-                    "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
-                try:
-                    f.parent.mkdir(parents=True, exist_ok=True)
-                    if f.exists() and f.stat().st_size > 8_000_000:
-                        f.rename(f.with_suffix(".jsonl.1"))
-                    with f.open("a") as fh:
-                        fh.write(json.dumps(rec) + "\n")
-                except OSError:
-                    self.send_error(500)
-                    return
-                sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import events as ev
-                ev.emit("visitors", "ok",
-                        f"[selfies] a face joined the gallery: {who!r}",
-                        origin="visitor" if self._remote() else "operator",
-                        layer=4 if self._remote() else 0)
-                self._send(json.dumps({"ok": True, "who": who,
-                                       "seed": seed}).encode(),
-                           "application/json")
+                self._hang_selfie(body)
                 return
 
             if path == "/api/selfies/judge":
@@ -1983,9 +2033,15 @@ def serve(port):
                     out.append(json.dumps(d))
                 try:
                     f.write_text("\n".join(out) + ("\n" if out else ""))
+                    if verdict == "damn":
+                        # The public mirror on GitHub Pages must forget it
+                        # too; selfiesync.py reads this list of seeds.
+                        with f.with_name("selfies.damned").open("a") as dh:
+                            dh.write(seed + "\n")
                 except OSError:
                     self.send_error(500)
                     return
+                _mirror_wall()
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev
                 if hit:
