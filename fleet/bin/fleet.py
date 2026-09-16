@@ -844,6 +844,23 @@ def start_legacy_cockpit(port=8770):
         print(f"legacy cockpit failed to start: {e}", flush=True)
 
 
+def _mirror_wall():
+    """Push the selfie wall to its GitHub Pages mirror, in the background.
+
+    Fire and forget: the visitor already has their 200, and a git push
+    is not something a request should wait on. selfiesync.py debounces
+    and locks, so a burst of faces is one push. launchd runs the same
+    script every 15 minutes as the safety net.
+    """
+    import subprocess
+    try:
+        subprocess.Popen([sys.executable, str(Path(__file__).with_name("selfiesync.py"))],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL, start_new_session=True)
+    except OSError:
+        pass
+
+
 def serve(port):
     import http.server
     import socketserver
@@ -942,6 +959,7 @@ def serve(port):
             self._send(json.dumps({"ok": True, "who": who,
                                    "seed": seed}).encode(),
                        "application/json")
+            _mirror_wall()
 
         def do_OPTIONS(self):
             # CORS preflight for cross-origin POSTs (the selfie gallery).
@@ -2015,9 +2033,15 @@ def serve(port):
                     out.append(json.dumps(d))
                 try:
                     f.write_text("\n".join(out) + ("\n" if out else ""))
+                    if verdict == "damn":
+                        # The public mirror on GitHub Pages must forget it
+                        # too; selfiesync.py reads this list of seeds.
+                        with f.with_name("selfies.damned").open("a") as dh:
+                            dh.write(seed + "\n")
                 except OSError:
                     self.send_error(500)
                     return
+                _mirror_wall()
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import events as ev
                 if hit:

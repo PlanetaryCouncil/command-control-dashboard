@@ -116,6 +116,13 @@ write_plist re.genesis.local-voice \
     <dict><key>Hour</key><integer>$LV_H</integer><key>Minute</key><integer>$LV_M</integer></dict>" \
   "$PY" "$FLEET/bin/localvoice.py"
 
+# The selfie wall's echo on GitHub Pages. The board pushes it the moment a
+# face lands; this is the safety net for a missed event, a sleeping laptop
+# or a push that failed. Exits at once when there is nothing to do.
+write_plist re.genesis.selfiesync \
+  "    <key>StartInterval</key><integer>900</integer>" \
+  "$PY" "$FLEET/bin/selfiesync.py"
+
 # The day's summary, published to this repo's own Pages. Gaia runs it rather
 # than the NUC because Gaia is the box with the push credentials.
 write_plist re.genesis.report \
