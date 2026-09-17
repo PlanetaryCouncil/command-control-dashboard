@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-16T18:00:28+00:00",
+  "generated_at": "2026-09-17T18:00:57+00:00",
   "window_hours": 24,
-  "since": "2026-09-15T18:00:28+00:00",
+  "since": "2026-09-16T18:00:57+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,105 +24,44 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 10,
-    "list": [
-      {
-        "sha": "5bd4de88",
-        "author": "marsita",
-        "at": "2026-09-15T19:00:45+01:00",
-        "subject": "report: 2026-09-15 fleet summary"
-      },
-      {
-        "sha": "55d71a7e",
-        "author": "marsita",
-        "at": "2026-09-14T19:01:28+01:00",
-        "subject": "report: 2026-09-14 fleet summary"
-      },
-      {
-        "sha": "28ee946e",
-        "author": "marsita",
-        "at": "2026-09-13T19:00:45+01:00",
-        "subject": "report: 2026-09-13 fleet summary"
-      },
-      {
-        "sha": "1ea5b1da",
-        "author": "marsita",
-        "at": "2026-09-12T19:00:28+01:00",
-        "subject": "report: 2026-09-12 fleet summary"
-      },
-      {
-        "sha": "9c7276f1",
-        "author": "marsita",
-        "at": "2026-09-11T19:00:57+01:00",
-        "subject": "report: 2026-09-11 fleet summary"
-      },
-      {
-        "sha": "7eede023",
-        "author": "marsita",
-        "at": "2026-09-10T19:00:06+01:00",
-        "subject": "report: 2026-09-10 fleet summary"
-      },
-      {
-        "sha": "a3564965",
-        "author": "Claude",
-        "at": "2026-09-16T17:03:09+01:00",
-        "subject": "health: stop the healer dying on Linux every five minutes"
-      },
-      {
-        "sha": "27f888cb",
-        "author": "Mars Robertson",
-        "at": "2026-09-16T06:52:40+01:00",
-        "subject": "Merge pull request #57 from PlanetaryCouncil/selfie-by-url"
-      },
-      {
-        "sha": "3b527f13",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-16T06:40:56+01:00",
-        "subject": "selfies: keep the Pages mirror honest \u2014 selfiesync.py, pushed on arrival + every 15 min"
-      },
-      {
-        "sha": "42e6a12c",
-        "author": "Marsita the Ultra",
-        "at": "2026-09-16T05:01:14+01:00",
-        "subject": "selfies: a face by URL alone \u2014 GET /api/selfies/post for sandboxed agents"
-      }
-    ]
+    "count": 0,
+    "list": []
   },
   "pipeline": {
-    "records": 12,
+    "records": 11,
     "stages": {
       "drop": {
-        "ok": 12,
+        "ok": 11,
         "failed": 0
       }
     }
   },
   "events": {
-    "count": 823,
+    "count": 960,
     "by_level": {
-      "warn": 13,
-      "ok": 532,
-      "info": 277,
+      "ok": 577,
+      "info": 347,
+      "warn": 35,
       "needs_you": 1
     },
     "by_agent": {
-      "pipeline": 464,
-      "autotriage": 232,
-      "fleet": 53,
+      "pipeline": 462,
+      "autotriage": 231,
+      "fleet": 114,
+      "visitors": 46,
+      "ccd": 44,
       "grok": 29,
       "claude": 17,
       "agy": 13,
-      "visitors": 6,
-      "ccd": 4,
-      "localvoice": 2,
       "self-improve": 1,
       "e2e-victim": 1,
-      "agent-comms": 1
+      "agent-comms": 1,
+      "localvoice": 1
     }
   },
   "needs_you": [
     {
-      "at": "2026-09-16T04:30:30+00:00",
+      "at": "2026-09-17T04:30:29+00:00",
       "agent": "e2e-victim",
       "msg": "[relay] suspended after 3 identical failures \u2014 reset with: python3 fleet/bin/breaker.py --reset e2e-victim"
     }
@@ -131,45 +70,45 @@
     {
       "worker": "agent-comms",
       "status": "pass",
-      "last_run": "2026-09-16T16:05:42Z",
-      "summary": "2/2 hops \u00b7 grok 11s \u00b7 agy 12s"
+      "last_run": "2026-09-17T16:09:44Z",
+      "summary": "2/2 hops \u00b7 grok 8s \u00b7 agy 7s"
     },
     {
       "worker": "ccd",
       "status": "pass",
-      "last_run": "2026-09-16T17:10:44Z",
-      "summary": "1150 passed, 9 warnings in 13.86s (DeprecationWarning:,SyntaxWarning:)"
+      "last_run": "2026-09-17T17:24:14Z",
+      "summary": "1150 passed, 9 warnings in 14.00s (DeprecationWarning:,SyntaxWarning:)"
     },
     {
       "worker": "localvoice",
       "status": "alert",
-      "last_run": "2026-09-16T18:00:28+00:00",
+      "last_run": "2026-09-17T18:00:57+00:00",
       "summary": "llama3.2:1b did not answer (0.0s)"
     },
     {
       "worker": "pipeline",
       "status": "pass",
-      "last_run": "2026-09-16T17:54:40+00:00",
-      "summary": "30 landed, 8 rejected, 5186 proposals processed"
+      "last_run": "2026-09-17T17:56:45+00:00",
+      "summary": "30 landed, 8 rejected, 5197 proposals processed"
     },
     {
       "worker": "pressure",
       "status": "pass",
-      "last_run": "2026-09-16T17:58:29Z",
+      "last_run": "2026-09-17T17:59:29Z",
       "summary": "ok \u00b7 disk 2% 1692G free"
     },
     {
       "worker": "quotas",
       "status": "alert",
-      "last_run": "2026-09-16T17:58:29Z",
+      "last_run": "2026-09-17T17:59:29Z",
       "summary": "scheduled logged out: hermes"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-16T17:10:38+00:00",
-      "summary": "24h: 77 public \u00b7 0 homies \u00b7 Python-urllib/3.14 77"
+      "last_run": "2026-09-17T17:24:08+00:00",
+      "summary": "24h: 897 public \u00b7 0 homies \u00b7 Python-urllib/3.14 897"
     }
   ],
-  "proposals_total": 77
+  "proposals_total": 78
 }
