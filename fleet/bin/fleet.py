@@ -1341,6 +1341,12 @@ def serve(port):
                 out = _stream.tail(str(ws) if ws else str(FLEET.parent))
                 out["workspace"] = ws.name if ws else ""
                 out["workspaces"] = workspaces()
+                # Pane one is always this repo, so pane two must not default
+                # to it: both panes would read the same transcript folder and
+                # show the SAME conversation, which is one pane drawn twice
+                # (2026-09-17: "One tab needs to be different for full
+                # multitasking").
+                out["this_repo"] = FLEET.parent.name
                 self._send(json.dumps(out).encode(), "application/json")
                 return
 

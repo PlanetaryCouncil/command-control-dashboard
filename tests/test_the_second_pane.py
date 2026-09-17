@@ -258,3 +258,30 @@ def test_the_second_pane_opens_with_the_first():
     two panes in order to look at one."""
     assert 'setPaneOpen($("#termpane2"), true)' in SRC
     assert "termpane2Open" in SRC, "no way to shut it on purpose"
+
+
+# ------------------------------------------- the two panes must differ
+def test_the_server_says_which_repo_is_pane_one():
+    assert 'out["this_repo"] = FLEET.parent.name' in SERVER
+
+
+def test_pane_two_never_defaults_to_pane_ones_repo():
+    """Both panes would read the same transcript folder and print the same
+    conversation -- two panes showing one thing, which is worse than one
+    pane because it looks like it works. Marsita, 2026-09-17: "One tab needs
+    to be different for full multitasking"."""
+    i = SRC.index("function fillPicker(")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert "names.find(n => n !== thisRepo)" in fn
+    assert "setWs2(names[0])" not in fn, "still defaults to the newest, which is this repo"
+
+
+def test_choosing_pane_ones_repo_says_so_instead_of_mirroring():
+    """Silently showing the same conversation twice is the failure that is
+    hard to notice."""
+    i = SRC.index("async function loadStream2()")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert "w === d.this_repo" in fn
+    assert "left pane" in fn
+    # and it returns rather than rendering the mirrored lines
+    assert fn.index("w === d.this_repo") < fn.index("body.innerHTML = lines.map")

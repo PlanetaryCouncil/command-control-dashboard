@@ -695,6 +695,16 @@ canvas.mark:hover{opacity:1;}
    one conversation keeps the board honest, the other does the work. */
 #termpane2 h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   letter-spacing:.06em;}
+/* The two conversations, side by side. A vertical divider, because two things
+   you watch at once must both be visible -- stacked, the second is whichever
+   one is scrolled off the screen. */
+#panes{flex:0 0 var(--hTerm,300px);min-height:0;display:grid;
+  grid-template-columns:var(--wP,1fr) 6px 1fr;gap:0;}
+#panes > .pane{min-width:0;min-height:0;}
+#panes[data-p="0"]{grid-template-columns:1fr 6px 0;}
+#panes[data-p="0"] #termpane2{display:none;}
+/* The picker sits in the heading, so it must not push the session id off. */
+#termpane2 h2{gap:5px;}
 #termpane2 select{font-family:var(--mono);font-size:9px;background:var(--raised);
   color:var(--ink-2);border:1px solid var(--border);border-radius:3px;
   padding:1px 3px;max-width:150px;}
@@ -2037,7 +2047,7 @@ let stream2Seen = "";
    the server would refuse, and ordered by what you touched most recently --
    the project you worked on today is the one you want, not whichever sorts
    first alphabetically. */
-function fillPicker(names){
+function fillPicker(names, thisRepo){
   const sel = $("#ws2");
   if (!sel || !names || sel.dataset.filled === names.join(",")) return;
   const want = ws2();
@@ -2045,7 +2055,13 @@ function fillPicker(names){
     `<option value="${esc(n)}"${n === want ? " selected" : ""}>${esc(n)}</option>`
   ).join("");
   sel.dataset.filled = names.join(",");
-  if (!want && names.length) setWs2(names[0]);
+  // Never default to pane one's own repo. Both panes would read the same
+  // transcript folder and print the same conversation -- two panes showing
+  // one thing, which is worse than one pane, because it looks like it works.
+  if (!want && names.length){
+    const other = names.find(n => n !== thisRepo);
+    if (other) setWs2(other);
+  }
 }
 
 /* ---------------- the stream: one way, no terminal -------------------------- */
@@ -2168,7 +2184,16 @@ async function loadStream2(){
   try {
     const d = await (await fetch("api/stream?w=" + encodeURIComponent(w),
                                  {cache:"no-store"})).json();
-    fillPicker(d.workspaces);
+    fillPicker(d.workspaces, d.this_repo);
+    // A pane pointed at pane one's repo is pane one, drawn again. Say so
+    // rather than mirroring it silently.
+    if (w && d.this_repo && w === d.this_repo){
+      body.innerHTML = '<div class="empty">that is the left pane\'s project'
+        + ' &mdash; pick another to multitask</div>';
+      pane.dataset.state = "ok";
+      stream2Seen = "";
+      return;
+    }
     if (d.local_only){ body.innerHTML = '<div class="empty">local only</div>'; return; }
     const lines = d.lines || [];
     const sig = w + "|" + lines.length + "|" + (lines[lines.length - 1]?.at || "");
@@ -3079,7 +3104,11 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
-    TERMPANE_HTML = '<!-- Two conversations side by side, not stacked.\n           Marsita, 2026-09-17: "vertical split... And 2 different panes for\n           multitasking". Stacked, the second pane pushed the first off the\n           screen and you could only ever watch one. Side by side you can\n           read both while one of them works.\n\n           A one-way stream, not a terminal: nothing here puts a keystroke\n           into the machine except the compose box under each pane. -->\n      <div class="split" id="split">\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n      <div class="grip" id="gripSplit"></div>\n\n      <!-- Pinned to a DIRECTORY, not just a session name: Claude Code files\n           transcripts per working directory, so two conversations in one\n           directory would be indistinguishable. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; <select id="ws2" title="which project this pane is working in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n      </div>\n\n    <div class="griph" id="gripT"></div>'
+    # Side by side, not stacked. Marsita, 2026-09-17: "please vertical
+    # split, not horizontal... One tab needs to be different for full
+    # multitasking" -- two conversations you watch at once have to be
+    # beside each other; stacked, the second is always the one scrolled off.
+    TERMPANE_HTML = '<div id="panes">\n      <!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine. Type in the box; `tmux attach -t board`\n           is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="grip" id="gripP"></div>\n\n      <!-- The second pane: a DIFFERENT session, in a different project.\n           Its picker never offers this repo, because pane one is already\n           that conversation and two sessions in one directory share a\n           transcript folder. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; <select id="ws2" title="which project this pane works in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n    </div>\n\n    <div class="griph" id="gripT"></div>'
     # The build gate is hidden. Marsita, 2026-09-10: "I don't need it on the
     # dashboard, I'm not using it ---> please hide". It stays in the markup
     # rather than being cut out: /api/build-gate still works, the JS that
