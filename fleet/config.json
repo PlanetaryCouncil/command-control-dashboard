@@ -30,8 +30,8 @@
     "_autoland": "Whether a verified branch merges itself into main. FALSE since 2026-09-09: Marsita, 'STOP automerge to main -----> I need to review changes... It then takes too much time to undo.' Undoing a merge costs far more than reading a branch, and the cost lands on her, not on the fleet. Verified branches now wait, named, and she merges them. Set true only if she asks for it back."
   },
   "council": {
-    "_what": "Agents take turns proposing workflow improvements. They read the board, decide for themselves, and write to a shared transcript. Nothing is applied \u2014 a human reads and decides.",
-    "every_seconds": 10800,
+    "_what": "Agents take turns proposing workflow improvements. SUSPENDED 2026-09-17: 40 consecutive turns, 40 NOTHING TO ADD, 0 substantive. Four agents x 2 rounds every 3 hours for nothing. Set every_seconds back to 10800 to resume; do not resume without changing what it is asked, because the cadence was never the problem.",
+    "every_seconds": 0,
     "agents": [
       "claude",
       "hermes",
@@ -50,8 +50,8 @@
     "_cost_note": "Two agent turns per run. Daily is enough to catch drift; hourly would spend turns to learn nothing new. The --quick variant runs on every merge via githooks/post-merge and costs nothing."
   },
   "rota": {
-    "_what": "One agent at a time, in rotation, reads the board and proposes one concrete project action. Proposes only \u2014 never applies. Hourly on the NUC: enough to keep ideas flowing without flooding triage or draining one provider's quota.",
-    "every_seconds": 3600,
+    "_what": "One agent at a time, in rotation, reads the board and proposes one action. Proposes only. The only proposer left after council was suspended; 3h rather than 1h because two proposals in fourteen days did not need twenty-four looks a day.",
+    "every_seconds": 10800,
     "agents": [
       "hermes",
       "grok",

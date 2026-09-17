@@ -34,7 +34,7 @@ the specific mistake that starts this conversation.
 | **ROTA** — the conductor | `fleet-rota` | one agent at a time, in turn, forever. Reads the board, proposes one action. Proposes only. | |
 | **BUILD** — the builder | `fleet-build` → `backlog.sh` | one 15-minute slot. Picks the next builder, triages the backlog, implements in a worktree. | `pipeline`, `builders` |
 | **HEALTH** — the guardian | `fleet-health` → `health.sh` | is everything up? Board every 5 min, project suites hourly, comms relay daily. Fixes what it finds. | `watchdogs`, `board_medic`, `comms-heartbeat`, `trim`, `quotas` |
-| **COUNCIL** — the deliberators | `fleet-council` → `council-cycle.sh` | all agents together. Mines transcripts, proposes changes to its own code. | `self_improve` (once per calendar day) |
+| ~~**COUNCIL**~~ | *suspended* | 40 consecutive turns, 40 NOTHING TO ADD, 0 substantive. `every_seconds: 0`. `self_improve` moved to REPORT's day, or run it by hand. | `self_improve` |
 | **REPORT** — the storyteller | `fleet-report` → `report-cycle.sh` | one page a day, published to GitHub Pages. Pulse check, model check. | `local_voice` |
 | **E2E** — the verifier | `fleet-e2e` | daily, against live infrastructure. The only one that can say the whole fleet works. | |
 | **DAILY** | `fleet-daily` | the one message the operator actually reads. | |
@@ -47,6 +47,13 @@ The consolidations are recorded in the code, in Marsita's own words:
 `quotas` is one level deeper again: `health.sh` runs `board-medic.sh`, and
 `board-medic.sh:36` runs `quotas.py`. Nesting like that is exactly why you
 cannot tell what runs by reading names.
+
+## Turning a job off
+
+Set `every_seconds: 0` in `fleet/config.json` and re-run the generator. The
+units are removed and the timer disabled, so there is one answer to "is this
+on" rather than one per machine. Record WHY in `_what`, and the number to put
+back — a suspension with no way back is a deletion nobody admitted to.
 
 ## Changing a schedule
 

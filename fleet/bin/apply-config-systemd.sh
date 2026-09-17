@@ -47,6 +47,19 @@ mkdir -p "$UNITS" "$FLEET/logs"
 # run while the first is going, which is the default for oneshot services.
 unit() {  # name, description, schedule-line, command...
   local name="$1" desc="$2" sched="$3"; shift 3
+  # A cadence of 0 means "suspended": remove the units rather than write a
+  # timer systemd cannot honour. This is how a job is turned off in ONE place
+  # -- config.json -- instead of by hand on whichever box it happened to run
+  # on. Council was suspended this way on 2026-09-17 after 40 consecutive
+  # turns of NOTHING TO ADD.
+  if [[ "$sched" == *"OnUnitActiveSec=0s"* || "$sched" == *"OnActiveSec=0s"* ]]; then
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl --user disable --now "fleet-$name.timer" >/dev/null 2>&1 || true
+    fi
+    rm -f "$UNITS/fleet-$name.timer" "$UNITS/fleet-$name.service"
+    echo "  suspended fleet-$name (every_seconds 0)"
+    return 0
+  fi
   # systemd parses ExecStart itself and does NOT run it through a shell, so
   # shell quoting is wrong here: printf %q escaped the commas in
   # "claude,hermes,openclaw" and the fleet went looking for an agent called
