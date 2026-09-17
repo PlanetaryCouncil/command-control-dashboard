@@ -432,7 +432,8 @@ CSS = """
   --crit:#A83A26; --crit-soft:#F6DED8;
   --track:#E4E8EC;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sans:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",
+    "Cascadia Code","IBM Plex Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){
   :root{
@@ -753,6 +754,62 @@ CONTROL_PATHS = frozenset({
     "/api/tell",
 })
 
+
+
+# ------------------------------------------------ the second pane's workspace
+# One board, two conversations: this one keeps the board honest and the other
+# does the work. Marsita, 2026-09-17: "Meanwhile 2nd panel here for
+# multitasking ---> love it", against twelve projects that are all real work.
+#
+# A pane is pinned to a DIRECTORY, not just a session name, and that is load
+# bearing: Claude Code files its transcript per working directory, so two
+# sessions in one directory write to the same folder and `stream.newest()`
+# would flip between them by mtime. Different project, different folder,
+# nothing to disambiguate.
+#
+# The browser names a directory, so the server decides what that may mean: a
+# real directory, one level under PROJECTS, no symlink out, no traversal. The
+# endpoints are local-only anyway, but "local" is not "unvalidated" -- a page
+# is not the only thing that can reach a loopback port.
+PROJECTS = Path.home() / "projects"
+
+
+def workspace(raw: str | None) -> Path | None:
+    """A project directory the panes are allowed to use, or None.
+
+    None means "the board's own repo", which is what the first pane always
+    wants and what an absent or bad parameter falls back to.
+    """
+    name = (raw or "").strip()
+    if not name or name in (".", ".."):
+        return None
+    # A bare name only. Anything with a separator in it is either traversal or
+    # a caller that has misunderstood, and both get the same answer.
+    if "/" in name or "\\" in name or name.startswith("."):
+        return None
+    try:
+        d = (PROJECTS / name).resolve(strict=True)
+    except (OSError, RuntimeError):
+        return None
+    # resolve() has followed any symlink, so this is the real location.
+    if d.parent != PROJECTS.resolve() or not d.is_dir():
+        return None
+    return d
+
+
+def workspaces() -> list[str]:
+    """Every project the panes may be pointed at, newest activity first.
+
+    Ordered by mtime because the one you touched today is the one you want in
+    the picker, not whichever sorts first alphabetically.
+    """
+    try:
+        dirs = [d for d in PROJECTS.iterdir()
+                if d.is_dir() and not d.name.startswith(".")]
+    except OSError:
+        return []
+    dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
+    return [d.name for d in dirs]
 
 
 # Paths the cockpit owns and the world already knows. Fleet is the front door
@@ -1276,8 +1333,15 @@ def serve(port):
                     return
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import stream as _stream
-                self._send(json.dumps(_stream.tail(str(FLEET.parent))).encode(),
-                           "application/json")
+                # ?w=<project> reads a second pane's conversation. Unknown or
+                # absent falls back to this repo, which is pane one.
+                from urllib.parse import parse_qs, urlparse
+                w = parse_qs(urlparse(self.path).query).get("w", [""])[0]
+                ws = workspace(w)
+                out = _stream.tail(str(ws) if ws else str(FLEET.parent))
+                out["workspace"] = ws.name if ws else ""
+                out["workspaces"] = workspaces()
+                self._send(json.dumps(out).encode(), "application/json")
                 return
 
             if path == "/api/portfolio":
@@ -1965,14 +2029,20 @@ def serve(port):
                     if n > 40_000:
                         self.send_error(413)
                         return
-                    text = str(json.loads(self.rfile.read(n).decode())
-                               .get("text") or "")
+                    body = json.loads(self.rfile.read(n).decode())
+                    text = str(body.get("text") or "")
                 except Exception:
                     self.send_error(400)
                     return
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import terminal as _term
-                why = _term.send("board", text, cwd=str(FLEET.parent))
+                # A second pane talks to its own tmux session, in its own
+                # project directory. The session is named after the project so
+                # `tmux attach -t <project>` from a real terminal joins the
+                # same conversation -- the same promise the board pane makes.
+                ws = workspace(body.get("w"))
+                why = _term.send(ws.name if ws else "board", text,
+                                 cwd=str(ws) if ws else str(FLEET.parent))
                 self._send(json.dumps({"ok": not why, "why": why}).encode(),
                            "application/json")
                 return

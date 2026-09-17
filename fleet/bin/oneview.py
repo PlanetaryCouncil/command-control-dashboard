@@ -691,6 +691,28 @@ canvas.mark:hover{opacity:1;}
    a thing you glance at rather than read. */
 #termpane h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   letter-spacing:.06em;}
+/* The second pane. Same machinery as the first, pointed at another project --
+   one conversation keeps the board honest, the other does the work. */
+#termpane2 h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
+  letter-spacing:.06em;}
+#termpane2 select{font-family:var(--mono);font-size:9px;background:var(--raised);
+  color:var(--ink-2);border:1px solid var(--border);border-radius:3px;
+  padding:1px 3px;max-width:150px;}
+#termpane2 select:focus{outline:none;border-color:var(--good);}
+#tell2{flex:none;display:flex;gap:6px;align-items:flex-end;padding:5px 7px;
+  border-top:1px solid var(--border);}
+#tellBox2{flex:1;min-width:0;font-family:var(--mono);font-size:11px;
+  line-height:1.4;padding:6px 8px;border:1px solid var(--border);
+  border-radius:6px;background:var(--raised);color:var(--ink);
+  height:56px;max-height:40vh;overflow-y:auto;resize:none;}
+#tellBox2:focus{outline:none;border-color:var(--good);}
+#tellBox2:focus::placeholder{color:transparent;}
+#tellBox2[data-busy="1"]{opacity:.5;}
+#tell2 button{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
+  text-transform:uppercase;background:none;border:1px solid var(--border);
+  border-radius:4px;color:var(--ink-2);padding:5px 9px;cursor:pointer;}
+#tell2 button:hover{color:var(--good);border-color:var(--good);}
+#termpane2[data-open="0"] #tell2{display:none;}
 .empty{color:var(--muted);font-style:italic;padding:9px;font-size:10.5px;}
 """
 
@@ -1871,6 +1893,100 @@ function pendingSettled(lines){
   });
 })();
 
+/* The second pane's send box. Its own tmux session, named after the project,
+   so a message from here and `tmux attach -t <project>` reach the same
+   conversation. */
+(() => {
+  const form = $("#tell2");
+  if (!form) return;
+  const box = $("#tellBox2"), FLOOR = 56;
+  const grow = () => {
+    box.style.height = "auto";
+    box.style.height =
+      Math.max(FLOOR, Math.min(box.scrollHeight, innerHeight * 0.4)) + "px";
+  };
+  box.addEventListener("input", grow);
+
+  form.addEventListener("submit", async e => {
+    e.preventDefault();
+    const text = box.value.trim();
+    if (!text || box.dataset.busy) return;
+    box.dataset.busy = "1";
+    try {
+      const r = await fetch("api/tell", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        // The project goes with the message. Without it the server falls back
+        // to the board session and this pane would quietly type into the
+        // other conversation.
+        body: JSON.stringify({text, w: ws2()}),
+      });
+      const d = await r.json();
+      // Dim and lock rather than clear-and-hope: if the send fails the words
+      // are still in the box.
+      if (d.ok){ box.value = ""; grow(); setTimeout(loadStream2, 400); }
+      else box.placeholder = d.why || "could not send";
+    } catch (err) {
+      box.placeholder = "could not send";
+    } finally {
+      delete box.dataset.busy;
+      box.focus();
+    }
+  });
+
+  box.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
+  });
+
+  const sel = $("#ws2");
+  if (sel) sel.addEventListener("change", () => setWs2(sel.value));
+})();
+
+/* ---------------- the second pane ----------------------------------------- */
+/* The same pane again, pointed at another project: one conversation keeps the
+   board honest, the other does the work. Marsita, 2026-09-17: "Meanwhile 2nd
+   panel here for multitasking ---> love it", with twelve projects on the board
+   that are all real work.
+
+   A pane is pinned to a DIRECTORY, not just a session name. Claude Code files
+   its transcript per working directory, so two conversations in one directory
+   land in the same folder and the newest-by-mtime rule flips between them.
+   Different project, different folder, nothing to disambiguate. It also means
+   `tmux attach -t <project>` from a real terminal joins the same session, the
+   way the board pane has always worked. */
+const WS_KEY = "pane2.workspace";
+
+function ws2(){
+  try { return localStorage.getItem(WS_KEY) || ""; } catch (e) { return ""; }
+}
+
+function setWs2(name){
+  try { localStorage.setItem(WS_KEY, name); } catch (e) {}
+  // A different project is a different conversation: drop what is on screen
+  // rather than leaving one project's words under another's heading.
+  stream2Seen = "";
+  const pane = $("#termpane2");
+  if (pane) pane.querySelector(".body").innerHTML =
+    '<div class="empty">loading...</div>';
+  loadStream2();
+}
+
+let stream2Seen = "";
+
+/* The project picker. Filled from the server so it cannot offer a directory
+   the server would refuse, and ordered by what you touched most recently --
+   the project you worked on today is the one you want, not whichever sorts
+   first alphabetically. */
+function fillPicker(names){
+  const sel = $("#ws2");
+  if (!sel || !names || sel.dataset.filled === names.join(",")) return;
+  const want = ws2();
+  sel.innerHTML = names.map(n =>
+    `<option value="${esc(n)}"${n === want ? " selected" : ""}>${esc(n)}</option>`
+  ).join("");
+  sel.dataset.filled = names.join(",");
+  if (!want && names.length) setWs2(names[0]);
+}
+
 /* ---------------- the stream: one way, no terminal -------------------------- */
 /* Marsita, 2026-09-05: "terminal in the browser is unworkable... Just stream
    me stuff 1 way only... No extra noise... Only the stuff I need to see."
@@ -1975,6 +2091,39 @@ async function loadStream(){
     ttfbPaint();
     pane.dataset.state = "ok";
   } catch (err) { pane.dataset.state = "error"; }
+}
+
+/* The second pane's reader. Deliberately a smaller thing than loadStream:
+   no waiting dots, no menu buttons, no ttfb. Those exist because pane one is
+   the conversation you sit and watch; pane two is the one you glance at while
+   it works. Copying the lot would have doubled the machinery to double the
+   surface. */
+async function loadStream2(){
+  const pane = $("#termpane2");
+  if (!pane) return;
+  const body = pane.querySelector(".body");
+  const w = ws2();
+  try {
+    const d = await (await fetch("api/stream?w=" + encodeURIComponent(w),
+                                 {cache:"no-store"})).json();
+    fillPicker(d.workspaces);
+    if (d.local_only){ body.innerHTML = '<div class="empty">local only</div>'; return; }
+    const lines = d.lines || [];
+    const sig = w + "|" + lines.length + "|" + (lines[lines.length - 1]?.at || "");
+    if (sig === stream2Seen) return;
+    const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 40;
+    body.innerHTML = lines.map(l => {
+      const text = l.who === "claude" ? splitPicks(plain(l.text)).text : l.text;
+      return `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
+             `<span class="tx">${esc(text)}</span>` +
+             `<span class="at">${esc(l.at)}</span></div>`;
+    }).join("") ||
+      `<div class="empty">nothing yet in ${esc(w || "this project")} &mdash; say something</div>`;
+    if (atEnd || !stream2Seen) body.scrollTop = body.scrollHeight;
+    stream2Seen = sig;
+    pane.querySelector("h2 .n").textContent = d.session || "";
+    pane.dataset.state = "ok";
+  } catch (err) { paneFailed(pane, err); }
 }
 
 /* Text from JSON goes into innerHTML in the two panes below, so it has to be
@@ -2645,6 +2794,10 @@ async function loadArt(){
 // Slower cadence on purpose: a horizon is a quarter's intent and a council
 // turn takes minutes. Polling these at 6s would be pure heat on a box that
 // spent today swapping.
+loadStream2();
+// Same 1s as pane one. Two panes polling a local file is nothing; a pane you
+// glance at and cannot trust is worse than no pane.
+setInterval(loadStream2, 1000);
 loadWork();
 // 20s. Commits land in bursts and a stale "unsaved" count is the one number
 // here that would actively mislead — but git is not free, so not every poll.
@@ -2779,7 +2932,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
-    TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>'
+    TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>\n\n      <!-- The second pane. Same machinery, pointed at another project.\n           Marsita, 2026-09-17: "Meanwhile 2nd panel here for\n           multitasking". A pane is pinned to a DIRECTORY, not just a\n           name: Claude Code files transcripts per working directory, so\n           two conversations in one directory would be indistinguishable. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; second pane <select id="ws2" title="which project this pane is working in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT2"></div>'
     # The build gate is hidden. Marsita, 2026-09-10: "I don't need it on the
     # dashboard, I'm not using it ---> please hide". It stays in the markup
     # rather than being cut out: /api/build-gate still works, the JS that

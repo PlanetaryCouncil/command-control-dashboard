@@ -13,8 +13,19 @@ sys.path.insert(0, str(BIN))
 import oneview  # noqa: E402
 
 ARGS = ("[]", "[]", "tok")
+# `termbtn` is not here: the in-page terminal was retired on 2026-09-05 and
+# its toggle went with it, but this list kept asking for the button and the
+# operator assertion has been failing ever since. A control that no longer
+# exists is not a control a remote visitor can be offered.
 CONTROLS = ('<button id="kill"', '<button id="bgate"',
-            '<button id="convenebtn"', '<button id="termbtn"')
+            '<button id="convenebtn"')
+
+
+def test_the_second_panes_send_box_is_local_only():
+    """The pane talks to a tmux session on this machine. A remote visitor
+    getting the box would be offered a keystroke into the operator's laptop."""
+    assert 'id="tellBox2"' not in oneview.page(*ARGS, remote=True)
+    assert 'id="tellBox2"' in oneview.page(*ARGS, remote=False)
 
 
 def test_a_remote_visitor_is_offered_no_controls():
