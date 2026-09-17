@@ -1616,13 +1616,36 @@ function plain(t){
    clickable". Pull the number and its text back out of the drawing. */
 const PICK_RE = /^\s*\u2502\s*(\d+)\s*\u2502\s+(.+?)\s*$/;
 
-function picksIn(text){
-  const out = [];
-  for (const line of String(text || "").split("\n")){
+/* A top or bottom edge of one of those boxes. The poem at the end of a reply
+   is drawn with the same characters, so an edge only counts as a menu edge
+   when it is touching a numbered line -- see `splitPicks`. */
+const EDGE_RE = /^\s*[\u256d\u2570][\u2500]+[\u256e\u256f]\s*$/;
+
+/* The menu, taken OUT of the text and handed back as buttons.
+
+   Rendering both left the drawing and the buttons on screen at once, saying
+   the same thing twice. Marsita, 2026-09-16: "I want the boxes to be
+   integrated." She offered a marker in the output as an alternative; parsing
+   here is the smaller change -- nothing to remember to emit, and old replies
+   already in the log get it too.
+
+   Returns the text with the drawing removed, plus the options it held. */
+function splitPicks(text){
+  const lines = String(text || "").split("\n");
+  const picks = [], drop = new Set();
+  lines.forEach((line, i) => {
     const m = PICK_RE.exec(line);
-    if (m) out.push({n: m[1], label: m[2]});
-  }
-  return out;
+    if (!m) return;
+    picks.push({n: m[1], label: m[2]});
+    drop.add(i);
+    // Only the edges hugging this line. A poem box is the same characters
+    // and must survive untouched.
+    if (i > 0 && EDGE_RE.test(lines[i - 1])) drop.add(i - 1);
+    if (EDGE_RE.test(lines[i + 1] || "")) drop.add(i + 1);
+  });
+  if (!picks.length) return {text: text, picks: []};
+  const kept = lines.filter((_, i) => !drop.has(i));
+  return {text: kept.join("\n").replace(/\n{3,}/g, "\n\n").trim(), picks};
 }
 
 /* ---- time to first byte -------------------------------------------------- */
@@ -1833,25 +1856,32 @@ async function loadStream(){
     // Only the NEWEST menu is live. An old one is a decision already taken,
     // and a page full of clickable history is a page that will send the wrong
     // answer to the wrong question.
-    let livePicks = null;
+    // Which reply still owns a live menu: the newest `claude` line that has
+    // one. Older menus are decisions already taken -- their drawing still goes,
+    // so the log reads the same all the way up, but they render as plain text
+    // rather than as buttons that would answer a question nobody is asking.
+    let liveAt = -1;
     for (let i = lines.length - 1; i >= 0; i--){
-      if (lines[i].who === "claude"){
-        const p = picksIn(lines[i].text);
-        if (p.length) livePicks = {i, picks: p};
-        break;
-      }
+      if (lines[i].who !== "claude") continue;
+      if (PICK_RE.test(lines[i].text || "")) liveAt = i;
+      break;
     }
     body.innerHTML = lines.map((l, i) => {
-      const text = l.who === "claude" ? plain(l.text) : l.text;
+      if (l.who !== "claude")
+        return `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
+               `<span class="tx">${esc(l.text)}</span>` +
+               `<span class="at">${esc(l.at)}</span></div>`;
+      const cut = splitPicks(plain(l.text));
       let extra = "";
-      if (livePicks && livePicks.i === i){
-        extra = '<div class="picks">' + livePicks.picks.map(p =>
-          `<button class="pick" data-pick="${esc(p.n)}">` +
+      if (cut.picks.length){
+        const live = i === liveAt;
+        extra = '<div class="picks">' + cut.picks.map(p =>
+          `<button class="pick" data-pick="${esc(p.n)}"${live ? "" : " disabled"}>` +
           `<span class="num">${esc(p.n)}</span>` +
           `<span>${esc(p.label)}</span></button>`).join("") + "</div>";
       }
       return `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
-             `<span class="tx">${esc(text)}${extra}</span>` +
+             `<span class="tx">${esc(cut.text)}${extra}</span>` +
              `<span class="at">${esc(l.at)}</span></div>`;
     }).join("") || '<div class="empty">nothing yet</div>';
     // Rendering replaced the body, taking the echo with it. If the real line

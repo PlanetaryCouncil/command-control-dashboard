@@ -189,12 +189,15 @@ def test_only_claude_lines_are_stripped():
     """Your own message is yours; rewriting what you typed would be lying
     about the transcript."""
     fn = _js("loadStream")
-    assert 'l.who === "claude" ? plain(l.text) : l.text' in fn
+    # Non-claude lines return early, untouched; only the claude branch calls
+    # plain() and splitPicks().
+    assert 'if (l.who !== "claude")' in fn
+    assert "splitPicks(plain(l.text))" in fn
 
 
 # ------------------------------------------------------- the menu, as buttons
 def test_a_menu_option_is_parsed_out_of_the_drawing():
-    fn = _js("picksIn")
+    fn = _js("splitPicks")
     assert "PICK_RE" in fn
     assert "n: m[1]" in fn and "label: m[2]" in fn
 
@@ -203,7 +206,7 @@ def test_only_the_newest_menu_is_clickable():
     """An old menu is a decision already taken. A page of clickable history
     will send the wrong answer to the wrong question."""
     fn = _js("loadStream")
-    assert "livePicks" in fn
+    assert "liveAt" in fn
     assert "for (let i = lines.length - 1; i >= 0; i--)" in fn
 
 
@@ -277,3 +280,74 @@ def test_storage_failure_does_not_break_the_pane():
     assert "try { return JSON.parse(localStorage.getItem(TTFB_KEY)" in SRC
     fn = _js("ttfbRead")
     assert "catch" in fn and "return []" in fn
+
+
+# ------------------------------------------- the drawing gives way to the buttons
+BOX = "╭────────╮"
+END = "╰────────╯"
+
+
+def _split(text):
+    """Mirror of the page's `splitPicks`, run in Python over real reply text.
+
+    The function is JS inside a Python string, so it cannot be imported. This
+    reimplements the same two regexes; the assertions below then check the JS
+    still carries them, so the pair cannot drift silently.
+    """
+    pick = re.compile(r"^\s*│\s*(\d+)\s*│\s+(.+?)\s*$")
+    edge = re.compile(r"^\s*[╭╰][─]+[╮╯]\s*$")
+    lines, picks, drop = text.split("\n"), [], set()
+    for i, line in enumerate(lines):
+        m = pick.match(line)
+        if not m:
+            continue
+        picks.append((m.group(1), m.group(2)))
+        drop.add(i)
+        if i and edge.match(lines[i - 1]):
+            drop.add(i - 1)
+        if i + 1 < len(lines) and edge.match(lines[i + 1]):
+            drop.add(i + 1)
+    kept = "\n".join(l for i, l in enumerate(lines) if i not in drop)
+    return re.sub(r"\n{3,}", "\n\n", kept).strip(), picks
+
+
+def test_the_menu_drawing_is_removed_and_returned_as_options():
+    """Rendering both said the same thing twice. Marsita, 2026-09-16: "I want
+    the boxes to be integrated"."""
+    text = f"words\n\n{BOX}\n│   1    │    do the thing\n{END}"
+    out, picks = _split(text)
+    assert picks == [("1", "do the thing")]
+    assert "│   1" not in out and BOX not in out
+    assert "words" in out
+
+
+def test_the_poem_box_survives():
+    """The closing poem is drawn with the same characters. Eating it would
+    take the end-of-turn marker off the page."""
+    text = (f"{BOX}\n│   1    │    an option\n{END}\n\n"
+            "╭────╮\n│  a line  │\n╰────╯")
+    out, picks = _split(text)
+    assert len(picks) == 1
+    assert "a line" in out and "╰" in out
+
+
+def test_an_edge_is_only_eaten_when_it_touches_a_number():
+    fn = _js("splitPicks")
+    assert "EDGE_RE.test(lines[i - 1])" in fn
+    assert "EDGE_RE.test(lines[i + 1]" in fn
+
+
+def test_a_reply_with_no_menu_is_left_exactly_as_it_was():
+    out, picks = _split("just prose, nothing to pick")
+    assert picks == [] and out == "just prose, nothing to pick"
+    fn = _js("splitPicks")
+    assert "if (!picks.length) return {text: text, picks: []};" in fn
+
+
+def test_an_old_menu_loses_its_drawing_but_not_its_place():
+    """Every menu is unwrapped so the log reads the same all the way up; only
+    the newest one stays clickable."""
+    fn = _js("loadStream")
+    assert "liveAt" in fn
+    assert 'const live = i === liveAt;' in fn
+    assert '" disabled"' in fn
