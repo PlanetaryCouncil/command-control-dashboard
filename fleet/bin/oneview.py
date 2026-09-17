@@ -704,26 +704,40 @@ canvas.mark:hover{opacity:1;}
 /* The reload control. Always there, so the gesture is discoverable rather
    than remembered; it starts quiet and turns loud only when this tab is
    actually behind the server. */
-#rebtn{display:inline-flex;align-items:center;gap:4px;background:none;
-  border:1px solid var(--border);border-radius:4px;color:var(--muted);
-  font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
-  text-transform:uppercase;padding:3px 7px;cursor:pointer;}
-#rebtn svg{width:11px;height:11px;fill:none;stroke:currentColor;
+/* A pill, not a hairline outline. Marsita, 2026-09-17: "RELOAD needs to be a
+   like a button / pill... And me clicking there actually reloadable" -- the
+   first version read as decoration in the bar and did not invite a click. */
+#bar #rebtn{display:inline-flex;align-items:center;gap:5px;
+  background:var(--raised);border:1px solid var(--border);
+  border-radius:999px;color:var(--ink-2);
+  font-family:var(--mono);font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;padding:4px 11px;cursor:pointer;
+  line-height:1;transition:background .12s,color .12s,border-color .12s;
+  -webkit-appearance:none;appearance:none;}
+#bar #rebtn svg{width:11px;height:11px;fill:none;stroke:currentColor;
   stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
   transition:transform .5s cubic-bezier(.3,1.6,.4,1);}
-#rebtn:hover{color:var(--good);border-color:var(--good);}
-#rebtn:hover svg{transform:rotate(180deg);}
+#bar #rebtn:hover{color:#0d0d0d;background:var(--good);border-color:var(--good);}
+#bar #rebtn:hover svg{transform:rotate(180deg);}
+/* Pressed state, so the click is felt as well as seen. */
+#bar #rebtn:active{transform:translateY(1px);}
+#bar #rebtn:focus-visible{outline:2px solid var(--good);outline-offset:2px;}
+/* The label and the glyph are decoration INSIDE the button; a click landing on
+   either must still be a click on the button. */
+#bar #rebtn > *{pointer-events:none;}
+/* Never let the bar squeeze it away: it is the control you reach for most. */
+#bar #rebtn{flex:none;}
 /* Behind the server. The ring spins and the whole control glows, because the
    one thing it has to beat is being skimmed past. */
-#rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);
+#bar #rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);
   box-shadow:0 0 0 1px var(--warning), 0 0 9px -2px var(--warning);}
-#rebtn[data-stale="1"] svg{animation:respin 1.6s linear infinite;}
-#rebtn[data-stale="1"] .lbl::after{content:" ready";}
+#bar #rebtn[data-stale="1"] svg{animation:respin 1.6s linear infinite;}
+#bar #rebtn[data-stale="1"] .lbl::after{content:" ready";}
 @keyframes respin{to{transform:rotate(360deg);}}
 /* prefers-reduced-motion: the glow still says it, without the spin. */
 @media (prefers-reduced-motion:reduce){
-  #rebtn[data-stale="1"] svg{animation:none;}
-  #rebtn svg{transition:none;}
+  #bar #rebtn[data-stale="1"] svg{animation:none;}
+  #bar #rebtn svg{transition:none;}
 }
 #panes[data-p="0"]{grid-template-columns:1fr 6px 0;}
 #panes[data-p="0"] #termpane2{display:none;}
@@ -3281,17 +3295,26 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
 <div id="bar">
   <span id="pulse"></span>
   <h1>{board_h1}</h1>
+  <!-- The reload control, on the LEFT on purpose. Marsita asked for a
+       futuristic icon so she would know how to reload, then for it to be a
+       pill that actually reloads when clicked (2026-09-17).
+
+       It was in the right-hand group, which is nowrap and already holds the
+       convene button, the nav, a clock, a goal and an alarm. At 1704px the
+       pill rendered at x=1740: past the edge of the window, unclickable by
+       anyone. The handler was fine; the button was off the screen. Here it
+       sits beside the title and nothing can push it out.
+
+       Note for the next editor: Marsita writes arrows as four dashes and a
+       bracket, and that sequence contains the HTML comment terminator. Quoting
+       her verbatim in a comment ends the comment early and prints the rest of
+       it on the page, which is exactly what happened here. -->
+  <button id="rebtn" title="Reload the board (Ctrl+R, or press r)">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+    <span class="lbl">reload</span></button>
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
-    <!-- The reload control. Marsita, 2026-09-17: "CTRL +R should be some
-         funky futuristic icon ----> so I know how to reload." It is a button
-         because a keystroke you have to be reminded of is not a control, and
-         it lights up on its own when this tab is behind the server -- the
-         other half of deliberately having no live reload. -->
-    <button id="rebtn" title="Reload the board (Ctrl+R)">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-      <span class="lbl">reload</span></button>
     {'' if remote else '<button id="convenebtn" title="Summon the council now instead of waiting for the schedule">&#128483; convene</button>'}
     {nav.html("/", remote=remote)}
     <span id="clock"></span>

@@ -112,3 +112,56 @@ def test_the_glow_survives_reduced_motion():
     m = re.search(r"@media \(prefers-reduced-motion:reduce\)\{([^@]*)\}", SRC)
     assert m and "animation:none" in m.group(1)
     assert 'box-shadow' in SRC[SRC.index('#rebtn[data-stale="1"]'):][:300]
+
+
+def test_the_pill_is_reachable_on_a_laptop_screen():
+    """It was in the right-hand group -- nowrap, already holding convene, the
+    nav, a clock, a goal and an alarm -- and rendered at x=1740 in a 1704px
+    window. Off the edge, unclickable by anyone. The handler was fine; the
+    button was not on the screen.
+
+    Now it sits beside the title, before the crowded group.
+    """
+    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
+    assert page.index('id="rebtn"') < page.index('class="sp"')
+    assert "#bar #rebtn{flex:none;}" in SRC, "the bar could squeeze it away"
+
+
+def test_the_pill_wins_the_cascade():
+    """`#bar button` is (1,0,1) and beat a plain `#rebtn` (1,0,0), so the pill
+    rendered with the bar's 5px radius instead of its own."""
+    assert "#bar #rebtn{display:inline-flex" in SRC
+    assert "border-radius:999px" in SRC
+    # no un-prefixed rule left to lose the fight again
+    import re
+    loose = [m.start() for m in re.finditer(r"(?<!#bar )#rebtn[{\[:]", SRC)]
+    assert not loose, "an unprefixed #rebtn rule will lose to #bar button"
+
+
+def test_a_click_anywhere_on_the_pill_counts():
+    """The glyph and the label are decoration inside the button; a click
+    landing on either must still be a click on the button."""
+    assert "#bar #rebtn > *{pointer-events:none;}" in SRC
+
+
+def test_no_comment_carries_the_html_terminator():
+    """Marsita writes arrows as four dashes and a bracket, which contains the
+    comment terminator. Quoting her verbatim inside an HTML comment ended the
+    comment early and printed the rest of it in the top bar.
+
+    Three or more dashes is the tell, not two: prose uses `--` as an em dash
+    all over this file and is harmless, while `---->` contains the terminator
+    and truncates the comment at the arrow.
+    """
+    import re
+    for m in re.finditer(r"<!--((?:(?!-->).)*)-->", SRC, re.S):
+        body = m.group(1)
+        assert "---" not in body, (
+            "an arrow inside an HTML comment: " + body.strip()[:70])
+
+    # And the direct check: nothing after a comment opener may reach the page
+    # before its terminator does. A stray `>` alone is fine; a `-->` is not.
+    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
+    for m in re.finditer(r"<!--", page):
+        rest = page[m.end():]
+        assert "-->" in rest, "an HTML comment that never closes"
