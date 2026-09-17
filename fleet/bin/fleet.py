@@ -794,18 +794,58 @@ def workspace(raw: str | None) -> Path | None:
     # resolve() has followed any symlink, so this is the real location.
     if d.parent != PROJECTS.resolve() or not d.is_dir():
         return None
+    # Pane one owns this repo's conversation. Handing it to pane two as well
+    # would give two panes one transcript folder and neither a stable identity.
+    if d.name == BOARD_PROJECT:
+        return None
     return d
 
 
-def workspaces() -> list[str]:
-    """Every project the panes may be pointed at, newest activity first.
+def build_stamp() -> str:
+    """A short id for the page code this server would serve right now.
 
-    Ordered by mtime because the one you touched today is the one you want in
-    the picker, not whichever sorts first alphabetically.
+    The board is restarted every time it is improved, and an already-open tab
+    keeps showing the old page -- Marsita has more than once judged new work
+    by a stale screen. There is deliberately no live reload ("live reload is
+    like asking for trouble", 2026-09-16); this is the other half of that
+    bargain, so the page can SAY it is behind and she can decide.
+
+    Built from the mtimes of the files that actually render the board. A hash
+    of the output would be truer but costs a full render per poll.
+    """
+    import hashlib
+    h = hashlib.sha256()
+    for name in ("oneview.py", "nav.py", "fleet.py"):
+        f = FLEET / "bin" / name
+        try:
+            h.update(f"{name}:{f.stat().st_mtime_ns}".encode())
+        except OSError:
+            h.update(f"{name}:absent".encode())
+    return h.hexdigest()[:12]
+
+
+# The board's own repo, which pane one is already the conversation for.
+BOARD_PROJECT = FLEET.parent.name
+
+
+def workspaces() -> list[str]:
+    """Every project the SECOND pane may be pointed at, newest first.
+
+    This repo is excluded, and that is the point rather than tidiness: two
+    Claude sessions in one working directory write to the same transcript
+    folder, and `stream.newest()` picks between them by mtime -- so pointing
+    pane two at the board repo would make both panes show whichever session
+    typed last, at random. Marsita, 2026-09-17: "Should be 2x different
+    sessions... Otherwise override." Excluding it is how the difference is
+    guaranteed instead of hoped for.
+
+    Ordered by mtime: the project you touched today is the one you want in the
+    picker, not whichever sorts first alphabetically.
     """
     try:
         dirs = [d for d in PROJECTS.iterdir()
-                if d.is_dir() and not d.name.startswith(".")]
+                if d.is_dir() and not d.name.startswith(".")
+                and d.name != BOARD_PROJECT]
     except OSError:
         return []
     dirs.sort(key=lambda d: d.stat().st_mtime, reverse=True)
@@ -1233,7 +1273,8 @@ def serve(port):
                 # use if the page hands the token out on the way in.
                 token = "" if self._remote() else KILL_TOKEN
                 self._send(oneview.page(seed, agents, token,
-                                        remote=self._remote()).encode())
+                                        remote=self._remote(),
+                                        build=build_stamp()).encode())
                 return
 
             if path == "/board":
@@ -1372,6 +1413,13 @@ def serve(port):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import issues as _issues
                 self._send(json.dumps(_issues.snapshot()).encode(),
+                           "application/json")
+                return
+
+            if path == "/api/build":
+                # Cheap on purpose: three stat() calls, polled by every open
+                # tab. No body, no render, no git.
+                self._send(json.dumps({"build": build_stamp()}).encode(),
                            "application/json")
                 return
 

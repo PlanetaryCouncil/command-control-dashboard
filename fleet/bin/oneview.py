@@ -701,6 +701,30 @@ canvas.mark:hover{opacity:1;}
 #panes{flex:0 0 var(--hTerm,300px);min-height:0;display:grid;
   grid-template-columns:var(--wP,1fr) 6px 1fr;gap:0;}
 #panes > .pane{min-width:0;min-height:0;}
+/* The reload control. Always there, so the gesture is discoverable rather
+   than remembered; it starts quiet and turns loud only when this tab is
+   actually behind the server. */
+#rebtn{display:inline-flex;align-items:center;gap:4px;background:none;
+  border:1px solid var(--border);border-radius:4px;color:var(--muted);
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
+  text-transform:uppercase;padding:3px 7px;cursor:pointer;}
+#rebtn svg{width:11px;height:11px;fill:none;stroke:currentColor;
+  stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
+  transition:transform .5s cubic-bezier(.3,1.6,.4,1);}
+#rebtn:hover{color:var(--good);border-color:var(--good);}
+#rebtn:hover svg{transform:rotate(180deg);}
+/* Behind the server. The ring spins and the whole control glows, because the
+   one thing it has to beat is being skimmed past. */
+#rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);
+  box-shadow:0 0 0 1px var(--warning), 0 0 9px -2px var(--warning);}
+#rebtn[data-stale="1"] svg{animation:respin 1.6s linear infinite;}
+#rebtn[data-stale="1"] .lbl::after{content:" ready";}
+@keyframes respin{to{transform:rotate(360deg);}}
+/* prefers-reduced-motion: the glow still says it, without the spin. */
+@media (prefers-reduced-motion:reduce){
+  #rebtn[data-stale="1"] svg{animation:none;}
+  #rebtn svg{transition:none;}
+}
 #panes[data-p="0"]{grid-template-columns:1fr 6px 0;}
 #panes[data-p="0"] #termpane2{display:none;}
 /* The picker sits in the heading, so it must not push the session id off. */
@@ -743,6 +767,9 @@ canvas.mark:hover{opacity:1;}
 JS = r"""
 const AGENTS = __AGENTS__;
 const TOKEN  = __TOKEN__;
+// The page code this tab was built from. Compared against /api/build to know
+// when the tab is behind the server.
+const BUILD  = __BUILD__;
 const $ = s => document.querySelector(s);
 
 /* ---------------- shared state -------------------------------------------
@@ -1978,6 +2005,42 @@ function pendingSettled(lines){
   if (sel) sel.addEventListener("change", () => setWs2(sel.value));
 })();
 
+/* ---------------- the reload control ---------------------------------------- */
+/* There is deliberately no live reload here -- "live reload is like asking for
+   trouble, easier to simply reload" (2026-09-16). This is the other half of
+   that bargain: the page never reloads itself, but it stops pretending to be
+   current. The button is always visible so the gesture is discoverable
+   ("CTRL +R should be some funky futuristic icon ----> so I know how to
+   reload", 2026-09-17) and lights up only when this tab is behind. */
+function wireReload(){
+  const b = $("#rebtn");
+  if (!b) return;
+  b.addEventListener("click", () => location.reload());
+  // r reloads too, since the other single keys already do things. Not while
+  // typing -- the same rule the 1-6 keys follow.
+  addEventListener("keydown", e => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+    if (typingNow() || e.key !== "r") return;
+    e.preventDefault();
+    location.reload();
+  });
+  if (!BUILD) return;                  // nothing to compare against
+  const check = async () => {
+    try {
+      const d = await (await fetch("api/build", {cache:"no-store"})).json();
+      // Only ever set it, never clear it. Once the server has moved on, this
+      // tab cannot become current again by any means except reloading, and a
+      // badge that flickers off would be saying otherwise.
+      if (d.build && d.build !== BUILD) b.dataset.stale = "1";
+    } catch (e) {}                     // a board mid-restart is not news
+  };
+  check();
+  // 5s. Three stat() calls on the server, and the answer only matters in the
+  // seconds after a restart.
+  setInterval(check, 5000);
+}
+wireReload();
+
 /* ---------------- one keyboard, both panes -------------------------------- */
 /* Press the number, get the option. Marsita, 2026-09-17: "hotkey listener for
    the website allowing me to click a button ... Outside of the text area,
@@ -3155,7 +3218,8 @@ def _first_contact() -> str:
         return ""
 
 
-def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> str:
+def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
+         build: str = "") -> str:
     # Built here rather than inline in the return below: Gaia runs Python
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
@@ -3178,7 +3242,8 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     board_h1 = _html.escape(board_name)
     js = (JS.replace("__AGENTS__", _for_script(agents_json))
             .replace("__SEED__", _for_script(seed_json))
-            .replace("__TOKEN__", _for_script(repr(token).replace("'", '"'))))
+            .replace("__TOKEN__", _for_script(repr(token).replace("'", '"')))
+            .replace("__BUILD__", _for_script('"' + build + '"')))
     return f"""<!doctype html>
 <!--
 
@@ -3219,6 +3284,14 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
+    <!-- The reload control. Marsita, 2026-09-17: "CTRL +R should be some
+         funky futuristic icon ----> so I know how to reload." It is a button
+         because a keystroke you have to be reminded of is not a control, and
+         it lights up on its own when this tab is behind the server -- the
+         other half of deliberately having no live reload. -->
+    <button id="rebtn" title="Reload the board (Ctrl+R)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
+      <span class="lbl">reload</span></button>
     {'' if remote else '<button id="convenebtn" title="Summon the council now instead of waiting for the schedule">&#128483; convene</button>'}
     {nav.html("/", remote=remote)}
     <span id="clock"></span>
