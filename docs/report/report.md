@@ -1,34 +1,39 @@
 # The fleet — last 24 hours
 
-*2026-09-17T18:00:57+00:00*
+*2026-09-17T18:00:00+00:00*
 
-**Nothing was merged in the last 24 hours.**
+**5 commits merged in the last 24 hours.**
 
 ## Merged
 
-Nothing.
+| commit | subject |
+|---|---|
+| `e87db167` | fleet: one short command to load the launch agents |
+| `4a8e200b` | board: the menu is actually clickable |
+| `73c6f3ad` | board: the menu drawing becomes the buttons, not a copy of them |
+| `2c5fe110` | board: a log you can read, and a menu you can click |
+| `25abfe73` | board: say something is happening, whatever door you typed through |
 
 ## Pipeline
 
-| stage | ok | failed |
-|---|---:|---:|
-| drop | 11 | 0 |
+No decisions recorded.
 
 ## Asked for a person
 
-- `2026-09-17T04:30:29` **e2e-victim** — [relay] suspended after 3 identical failures — reset with: python3 fleet/bin/breaker.py --reset e2e-victim
+Nothing.
 
 ## Workers
 
 | worker | status | summary |
 |---|---|---|
-| agent-comms | pass | 2/2 hops · grok 8s · agy 7s |
-| ccd | pass | 1150 passed, 9 warnings in 14.00s (DeprecationWarning:,SyntaxWarning:) |
-| localvoice | alert | llama3.2:1b did not answer (0.0s) |
-| pipeline | pass | 30 landed, 8 rejected, 5197 proposals processed |
-| pressure | pass | ok · disk 2% 1692G free |
-| quotas | alert | scheduled logged out: hermes |
-| visitors | pass | 24h: 897 public · 0 homies · Python-urllib/3.14 897 |
+| agent-comms | busy | deferred — load 9.0 over 4 on 4 cores; a timeout now would measure the machine, not the ag |
+| command-control-dashboard | pass | 446 passed, 1 warning in 310.58s (0:05:10) (StarletteDeprecationWarning:) |
+| localvoice | pass | llama3.2:1b answered in 72.8s — the offline fallback is alive |
+| nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
+| pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
+| pressure | warn | load 5.7 over 4 on 4 cores; disk 90% 22.9G free |
+| quotas | pass | spending hermes unknown · claude unknown · holding grok, openclaw, agy |
+| visitors | pass | 24h: 260 public · 4 homies · browser 175 · ClaudeBot 38 · Mozilla/5.0 (Windows NT 10.0; Wi |
 
 ## The partnership
 

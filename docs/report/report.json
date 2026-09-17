@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-17T18:00:57+00:00",
+  "generated_at": "2026-09-17T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-09-16T18:00:57+00:00",
+  "since": "2026-09-16T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,91 +24,99 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 0,
-    "list": []
+    "count": 5,
+    "list": [
+      {
+        "sha": "e87db167",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T18:14:39+01:00",
+        "subject": "fleet: one short command to load the launch agents"
+      },
+      {
+        "sha": "4a8e200b",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T15:48:43+01:00",
+        "subject": "board: the menu is actually clickable"
+      },
+      {
+        "sha": "73c6f3ad",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T15:27:56+01:00",
+        "subject": "board: the menu drawing becomes the buttons, not a copy of them"
+      },
+      {
+        "sha": "2c5fe110",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-16T22:43:50+01:00",
+        "subject": "board: a log you can read, and a menu you can click"
+      },
+      {
+        "sha": "25abfe73",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-16T22:41:05+01:00",
+        "subject": "board: say something is happening, whatever door you typed through"
+      }
+    ]
   },
   "pipeline": {
-    "records": 11,
-    "stages": {
-      "drop": {
-        "ok": 11,
-        "failed": 0
-      }
-    }
+    "records": 0,
+    "stages": {}
   },
   "events": {
-    "count": 960,
-    "by_level": {
-      "ok": 577,
-      "info": 347,
-      "warn": 35,
-      "needs_you": 1
-    },
-    "by_agent": {
-      "pipeline": 462,
-      "autotriage": 231,
-      "fleet": 114,
-      "visitors": 46,
-      "ccd": 44,
-      "grok": 29,
-      "claude": 17,
-      "agy": 13,
-      "self-improve": 1,
-      "e2e-victim": 1,
-      "agent-comms": 1,
-      "localvoice": 1
-    }
+    "count": 0,
+    "by_level": {},
+    "by_agent": {}
   },
-  "needs_you": [
-    {
-      "at": "2026-09-17T04:30:29+00:00",
-      "agent": "e2e-victim",
-      "msg": "[relay] suspended after 3 identical failures \u2014 reset with: python3 fleet/bin/breaker.py --reset e2e-victim"
-    }
-  ],
+  "needs_you": [],
   "workers": [
     {
       "worker": "agent-comms",
-      "status": "pass",
-      "last_run": "2026-09-17T16:09:44Z",
-      "summary": "2/2 hops \u00b7 grok 8s \u00b7 agy 7s"
+      "status": "busy",
+      "last_run": "2026-08-18T21:25:03Z",
+      "summary": "deferred \u2014 load 9.0 over 4 on 4 cores; a timeout now would measure the machine, not the agents"
     },
     {
-      "worker": "ccd",
+      "worker": "command-control-dashboard",
       "status": "pass",
-      "last_run": "2026-09-17T17:24:14Z",
-      "summary": "1150 passed, 9 warnings in 14.00s (DeprecationWarning:,SyntaxWarning:)"
+      "last_run": "2026-08-18T23:41:20Z",
+      "summary": "446 passed, 1 warning in 310.58s (0:05:10) (StarletteDeprecationWarning:)"
     },
     {
       "worker": "localvoice",
-      "status": "alert",
-      "last_run": "2026-09-17T18:00:57+00:00",
-      "summary": "llama3.2:1b did not answer (0.0s)"
+      "status": "pass",
+      "last_run": "2026-08-19T05:16:13+00:00",
+      "summary": "llama3.2:1b answered in 72.8s \u2014 the offline fallback is alive"
+    },
+    {
+      "worker": "nuc",
+      "status": "pass",
+      "last_run": "2026-08-20T01:04:35Z",
+      "summary": "human browser (desktop+mobile) \u00b7 desktop 200 8.53s \u00b7 mobile 200 9.8s"
     },
     {
       "worker": "pipeline",
       "status": "pass",
-      "last_run": "2026-09-17T17:56:45+00:00",
-      "summary": "30 landed, 8 rejected, 5197 proposals processed"
+      "last_run": "2026-08-19T21:34:53+00:00",
+      "summary": "0 landed, 0 rejected, 0 proposals processed"
     },
     {
       "worker": "pressure",
-      "status": "pass",
-      "last_run": "2026-09-17T17:59:29Z",
-      "summary": "ok \u00b7 disk 2% 1692G free"
+      "status": "warn",
+      "last_run": "2026-09-17T17:58:00Z",
+      "summary": "load 5.7 over 4 on 4 cores; disk 90% 22.9G free"
     },
     {
       "worker": "quotas",
-      "status": "alert",
-      "last_run": "2026-09-17T17:59:29Z",
-      "summary": "scheduled logged out: hermes"
+      "status": "pass",
+      "last_run": "2026-09-17T17:58:00Z",
+      "summary": "spending hermes unknown \u00b7 claude unknown \u00b7 holding grok, openclaw, agy"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-17T17:24:08+00:00",
-      "summary": "24h: 897 public \u00b7 0 homies \u00b7 Python-urllib/3.14 897"
+      "last_run": "2026-09-17T15:45:03+00:00",
+      "summary": "24h: 260 public \u00b7 4 homies \u00b7 browser 175 \u00b7 ClaudeBot 38 \u00b7 Mozilla/5.0 (Windows NT 10.0; Win64; x64 15 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 9 \u00b7 Mozilla/5.0"
     }
   ],
-  "proposals_total": 78
+  "proposals_total": 261
 }
