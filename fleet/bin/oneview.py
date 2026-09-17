@@ -644,7 +644,6 @@ canvas.mark:hover{opacity:1;}
 #grid[data-l="0"] #gripL:hover::after,#grid[data-l="0"] #gripL[data-drag="1"]::after,
 #grid[data-r="0"] #gripR:hover::after,#grid[data-r="0"] #gripR[data-drag="1"]::after{
   background:var(--info);}
-#term{height:100%;padding:5px 7px;}
 /* The stream. Three kinds of line and nothing else: what was asked, what was
    answered, and one grey signpost per tool so the gaps are explained.
    Marsita, 2026-09-05: "No extra noise... Only the stuff I need to see." */
@@ -692,12 +691,6 @@ canvas.mark:hover{opacity:1;}
    a thing you glance at rather than read. */
 #termpane h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   letter-spacing:.06em;}
-/* ---------- terminal drawer (legacy, kept for /terminal) ---------- */
-#drawer{flex:none;height:0;overflow:hidden;border-top:1px solid var(--border);
-  background:#0d0d0d;transition:height .18s ease;}
-#drawer.open{height:42vh;}
-@media (prefers-reduced-motion:reduce){#drawer{transition:none;}}
-#term{height:100%;padding:5px 7px;}
 .empty{color:var(--muted);font-style:italic;padding:9px;font-size:10.5px;}
 """
 
@@ -1760,6 +1753,68 @@ function pendingSettled(lines){
   };
   box.addEventListener("input", grow);
 
+  /* Paste or drop an image and get its path typed into the line.
+
+     Marsita, 2026-09-17: "I would like to paste images here in the console...
+     Last time I posted to twitter and shared link here." A screenshot should
+     not need a detour through a social network to reach the machine it is a
+     screenshot OF.
+
+     /api/paste-image already existed -- only the handler was lost when the
+     browser terminal was retired. The path goes INTO the box rather than being
+     sent, because it is usually part of a sentence you are still writing. */
+  const pnote = m => { box.placeholder = m; };
+
+  async function upload(file){
+    if (!file || !file.type.startsWith("image/")) return;
+    // A screenshot is well under 12MB; a video dropped by accident is not, and
+    // the request would otherwise sit there looking like a hang.
+    if (file.size > 12 * 1024 * 1024){ pnote("too big - 12MB max"); return; }
+    pnote("uploading...");
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      // btoa over one big string blows the argument limit, so chunk it.
+      let bin = "";
+      for (let i = 0; i < bytes.length; i += 0x8000)
+        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      const r = await fetch("api/paste-image", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({token: TOKEN,
+                              name: file.name || "pasted.png",
+                              data: btoa(bin)}),
+      });
+      const d = await r.json();
+      if (!d.path){ pnote(d.error || "upload failed"); return; }
+      // At the cursor, spaced, so it reads as part of the line.
+      const at = box.selectionStart ?? box.value.length;
+      const pad = box.value && !/\s$/.test(box.value.slice(0, at)) ? " " : "";
+      box.value = box.value.slice(0, at) + pad + d.path + " " + box.value.slice(at);
+      box.placeholder = "...";
+      grow(); box.focus();
+      box.selectionStart = box.selectionEnd = at + pad.length + d.path.length + 1;
+    } catch (err) { pnote("upload failed"); }
+  }
+
+  const imagesIn = src =>
+    [...(src?.files ?? [])].filter(f => f.type.startsWith("image/"));
+
+  box.addEventListener("paste", e => {
+    const files = imagesIn(e.clipboardData);
+    if (!files.length) return;          // a plain text paste: leave it alone
+    e.preventDefault();
+    files.forEach(upload);
+  });
+
+  // Dropping on the box as well, since that is the other way a file arrives.
+  box.addEventListener("dragover", e => { e.preventDefault(); });
+  box.addEventListener("drop", e => {
+    const files = imagesIn(e.dataTransfer);
+    if (!files.length) return;
+    e.preventDefault();
+    files.forEach(upload);
+  });
+
+
   form.addEventListener("submit", async e => {
     e.preventDefault();
     const text = box.value.trim();
@@ -2780,7 +2835,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
     {'' if remote else '<button id="convenebtn" title="Summon the council now instead of waiting for the schedule">&#128483; convene</button>'}
-    {'' if remote else '<button id="termbtn" aria-pressed="false">&#9646; terminal</button>'}
     {nav.html("/", remote=remote)}
     <span id="clock"></span>
   </span>
@@ -2998,7 +3052,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
   </section>
 </footer>
 
-<div id="drawer"></div>
 
 <script>{js}</script>
 </body></html>"""
