@@ -1630,6 +1630,12 @@ const EDGE_RE = /^\s*[\u256d\u2570][\u2500]+[\u256e\u256f]\s*$/;
    already in the log get it too.
 
    Returns the text with the drawing removed, plus the options it held. */
+/* Does this reply hold a menu? Line by line, because PICK_RE is anchored and
+   carries no `m` flag -- it is for testing ONE line, never a whole reply. */
+function hasPicks(text){
+  return String(text || "").split("\n").some(l => PICK_RE.test(l));
+}
+
 function splitPicks(text){
   const lines = String(text || "").split("\n");
   const picks = [], drop = new Set();
@@ -1860,11 +1866,22 @@ async function loadStream(){
     // one. Older menus are decisions already taken -- their drawing still goes,
     // so the log reads the same all the way up, but they render as plain text
     // rather than as buttons that would answer a question nobody is asking.
+    // hasPicks, not PICK_RE.test: the regex is anchored ^...$ with no `m`
+    // flag, so testing it against a whole multi-line reply never matches and
+    // every button rendered disabled -- the menu drew correctly and did
+    // nothing (2026-09-17: "Not clickable though... LOL").
+    // The newest menu that has not been answered yet.
+    //
+    // Two things this has to get right. A turn emits SEVERAL `claude` lines --
+    // a short one before the tools, the full reply after -- so stopping at the
+    // first one from the end finds an intro sentence with no menu in it and
+    // gives up. And a menu with one of your own lines after it has already
+    // been answered; leaving it clickable invites a second answer to a
+    // question that is closed.
     let liveAt = -1;
     for (let i = lines.length - 1; i >= 0; i--){
-      if (lines[i].who !== "claude") continue;
-      if (PICK_RE.test(lines[i].text || "")) liveAt = i;
-      break;
+      if (lines[i].who === "you") break;          // answered; stop looking
+      if (lines[i].who === "claude" && hasPicks(lines[i].text)){ liveAt = i; break; }
     }
     body.innerHTML = lines.map((l, i) => {
       if (l.who !== "claude")

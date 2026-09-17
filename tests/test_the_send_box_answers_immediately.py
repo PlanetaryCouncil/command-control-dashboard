@@ -351,3 +351,67 @@ def test_an_old_menu_loses_its_drawing_but_not_its_place():
     assert "liveAt" in fn
     assert 'const live = i === liveAt;' in fn
     assert '" disabled"' in fn
+
+
+def test_an_anchored_regex_is_never_tested_against_a_whole_reply():
+    """The bug that shipped a menu which drew perfectly and did nothing.
+
+    PICK_RE is ^...$ with no `m` flag, so it matches ONE line. Testing it
+    against a multi-line reply returns false every time, `liveAt` stayed -1,
+    and every button rendered disabled. Marsita, 2026-09-17: "Not clickable
+    though... LOL".
+    """
+    assert "m" not in re.search(r"const PICK_RE = /.*?/([a-z]*)", SRC).group(1)
+    fn = _js("loadStream")
+    assert "PICK_RE.test(lines[i].text" not in fn, "anchored regex on a whole reply"
+    assert "hasPicks(lines[i].text)" in fn
+
+    split = _js("hasPicks")
+    assert '.split("\\n").some(' in split
+
+
+def _live_at(rows):
+    """Mirror of loadStream's liveAt scan."""
+    pick = re.compile(r"^\s*\u2502\s*(\d+)\s*\u2502\s+(.+?)\s*$")
+    has = lambda t: any(pick.match(x) for x in str(t or "").split("\n"))
+    for i in range(len(rows) - 1, -1, -1):
+        if rows[i]["who"] == "you":
+            return -1
+        if rows[i]["who"] == "claude" and has(rows[i]["text"]):
+            return i
+    return -1
+
+
+MENU = (f"{BOX}\n\u2502   1    \u2502    an option\n{END}")
+
+
+def test_a_turn_emits_several_claude_lines_and_the_menu_is_not_the_first():
+    """The bug behind "not clickable": a turn writes a short line before its
+    tools and the full reply after, so stopping at the first `claude` line
+    from the end found an intro sentence with no menu and gave up."""
+    rows = [{"who": "you", "text": "go"},
+            {"who": "claude", "text": "Let me look."},
+            {"who": "tool", "text": "Bash · ..."},
+            {"who": "claude", "text": MENU},
+            {"who": "tool", "text": "Bash · ..."}]
+    assert _live_at(rows) == 3
+
+
+def test_a_menu_you_already_answered_goes_dead():
+    rows = [{"who": "claude", "text": MENU}, {"who": "you", "text": "1"}]
+    assert _live_at(rows) == -1
+
+
+def test_the_scan_stops_at_your_line_not_at_the_top_of_the_log():
+    """Otherwise an ancient menu from hours ago becomes clickable again."""
+    rows = [{"who": "claude", "text": MENU},
+            {"who": "you", "text": "1"},
+            {"who": "claude", "text": "no menu here"},
+            {"who": "tool", "text": "Bash · ..."}]
+    assert _live_at(rows) == -1
+
+
+def test_a_live_menu_renders_without_disabled():
+    fn = _js("loadStream")
+    assert 'const live = i === liveAt;' in fn
+    assert '${live ? "" : " disabled"}' in fn
