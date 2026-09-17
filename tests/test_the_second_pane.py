@@ -136,3 +136,69 @@ def test_a_failed_send_keeps_your_words():
     # the box is only cleared on success
     assert fn.index("if (d.ok){ box.value = \"\"") > fn.index("await r.json()")
     assert "could not send" in fn
+
+
+# ------------------------------------------- one keyboard, two panes, 1-6
+def test_pane_two_is_offset_by_three():
+    """Marsita, 2026-09-17: "For pane 2 we will use 4 5 (possibly 6)"."""
+    assert "PANE2_OFFSET = 3" in SRC
+
+
+def test_pane_two_shows_the_offset_number_but_sends_the_agents_own():
+    """The agent in that pane offered 1/2/3. Answering with 4 would be
+    answering a question it never asked."""
+    i = SRC.index("async function loadStream2()")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert 'data-pick="${esc(pk.n)}"' in fn          # sent: the agent's number
+    assert 'PANE2_OFFSET + Number(pk.n)' in fn       # shown: the key
+
+
+def test_pane_one_keys_are_its_own_numbers():
+    i = SRC.index("async function loadStream()")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert 'data-key="${esc(p.n)}"' in fn
+
+
+def test_a_digit_typed_into_a_box_is_just_a_digit():
+    """"Outside of the text area, obviously." Hijacking every digit would make
+    the compose boxes unusable for anything containing a number."""
+    assert "function typingNow()" in SRC
+    i = SRC.index("function typingNow()")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    for tag in ('"TEXTAREA"', '"INPUT"', '"SELECT"'):
+        assert tag in fn, f"{tag} does not stand the listener down"
+    assert "isContentEditable" in fn
+
+
+def test_the_listener_checks_focus_before_acting():
+    i = SRC.index('addEventListener("keydown", e => {\n  if (e.metaKey')
+    fn = SRC[i:SRC.index("});", i)]
+    assert fn.index("typingNow()") < fn.index("b.click()")
+
+
+def test_modifiers_are_left_to_the_browser():
+    """cmd+1 switches tabs; that is not ours to take."""
+    i = SRC.index('addEventListener("keydown", e => {\n  if (e.metaKey')
+    fn = SRC[i:SRC.index("});", i)]
+    for m in ("e.metaKey", "e.ctrlKey", "e.altKey", "e.shiftKey"):
+        assert m in fn
+
+
+def test_only_one_to_six_are_taken():
+    i = SRC.index('addEventListener("keydown", e => {\n  if (e.metaKey')
+    fn = SRC[i:SRC.index("});", i)]
+    assert "/^[1-6]$/" in fn
+
+
+def test_a_disabled_option_cannot_be_pressed():
+    """An answered menu is a decision taken, and a keystroke is exactly how
+    you would answer it again by accident."""
+    i = SRC.index('addEventListener("keydown", e => {\n  if (e.metaKey')
+    fn = SRC[i:SRC.index("});", i)]
+    assert ":not([disabled])" in fn
+
+
+def test_clicking_in_pane_two_disables_that_panes_set_only():
+    i = SRC.index('const form = $("#tell2")')
+    fn = SRC[i:SRC.index("})();", i)]
+    assert 'p2.querySelectorAll(".pick")' in fn

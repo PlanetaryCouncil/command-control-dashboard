@@ -1937,9 +1937,53 @@ function pendingSettled(lines){
     if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); form.requestSubmit(); }
   });
 
+  // Clicking an option in this pane. Sends data-pick (the agent's own 1/2/3),
+  // not the 4/5/6 on the face of the button -- the offset is for your
+  // keyboard, and answering with a number the agent never offered would be
+  // answering a different question.
+  const p2 = $("#termpane2");
+  if (p2) p2.addEventListener("click", e => {
+    const hit = e.target.closest(".pick");
+    if (!hit || hit.disabled) return;
+    p2.querySelectorAll(".pick").forEach(x => { x.disabled = true; });
+    box.value = hit.dataset.pick;
+    form.requestSubmit();
+  });
+
   const sel = $("#ws2");
   if (sel) sel.addEventListener("change", () => setWs2(sel.value));
 })();
+
+/* ---------------- one keyboard, both panes -------------------------------- */
+/* Press the number, get the option. Marsita, 2026-09-17: "hotkey listener for
+   the website allowing me to click a button ... Outside of the text area,
+   obviously."
+
+   That caveat is the whole design. A digit typed into a compose box is a
+   digit, not a shortcut, and hijacking it would make the boxes unusable for
+   anything containing a number. So the listener stands down whenever the
+   focus is somewhere that takes typing, and whenever a modifier is held --
+   cmd+1 is the browser's tab switcher and not ours to take. */
+function typingNow(){
+  const el = document.activeElement;
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT"
+      || el.isContentEditable;
+}
+
+addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+  if (typingNow()) return;
+  if (!/^[1-6]$/.test(e.key)) return;
+  // Only a live option answers. A disabled one is a decision already taken,
+  // and a keystroke is exactly how you would answer it again by accident.
+  const b = document.querySelector(
+    `.pick[data-key="${e.key}"]:not([disabled])`);
+  if (!b) return;
+  e.preventDefault();
+  b.click();
+});
 
 /* ---------------- the second pane ----------------------------------------- */
 /* The same pane again, pointed at another project: one conversation keeps the
@@ -1954,6 +1998,9 @@ function pendingSettled(lines){
    `tmux attach -t <project>` from a real terminal joins the same session, the
    way the board pane has always worked. */
 const WS_KEY = "pane2.workspace";
+// Pane one answers 1/2/3, pane two 4/5/6, so one keyboard drives both without
+// asking which pane has focus.
+const PANE2_OFFSET = 3;
 
 function ws2(){
   try { return localStorage.getItem(WS_KEY) || ""; } catch (e) { return ""; }
@@ -2064,7 +2111,8 @@ async function loadStream(){
       if (cut.picks.length){
         const live = i === liveAt;
         extra = '<div class="picks">' + cut.picks.map(p =>
-          `<button class="pick" data-pick="${esc(p.n)}"${live ? "" : " disabled"}>` +
+          `<button class="pick" data-pick="${esc(p.n)}" data-key="${esc(p.n)}"` +
+          `${live ? "" : " disabled"}>` +
           `<span class="num">${esc(p.n)}</span>` +
           `<span>${esc(p.label)}</span></button>`).join("") + "</div>";
       }
@@ -2112,10 +2160,33 @@ async function loadStream2(){
     const sig = w + "|" + lines.length + "|" + (lines[lines.length - 1]?.at || "");
     if (sig === stream2Seen) return;
     const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 40;
-    body.innerHTML = lines.map(l => {
-      const text = l.who === "claude" ? splitPicks(plain(l.text)).text : l.text;
+    // The newest unanswered menu, same rule as pane one.
+    let liveAt = -1;
+    for (let i = lines.length - 1; i >= 0; i--){
+      if (lines[i].who === "you") break;
+      if (lines[i].who === "claude" && hasPicks(lines[i].text)){ liveAt = i; break; }
+    }
+    body.innerHTML = lines.map((l, i) => {
+      if (l.who !== "claude")
+        return `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
+               `<span class="tx">${esc(l.text)}</span>` +
+               `<span class="at">${esc(l.at)}</span></div>`;
+      const cut = splitPicks(plain(l.text));
+      let extra = "";
+      if (cut.picks.length){
+        const live = i === liveAt;
+        // Shown as 4/5/6, sent as 1/2/3. The offset keeps one keyboard across
+        // two panes -- Marsita, 2026-09-17: "For pane 2 we will use 4 5
+        // (possibly 6)". The agent in this pane offered 1/2/3 and must be
+        // answered in its own numbering, so the shift is display only.
+        extra = '<div class="picks">' + cut.picks.map(pk =>
+          `<button class="pick" data-pick="${esc(pk.n)}" ` +
+          `data-key="${PANE2_OFFSET + Number(pk.n)}"${live ? "" : " disabled"}>` +
+          `<span class="num">${PANE2_OFFSET + Number(pk.n)}</span>` +
+          `<span>${esc(pk.label)}</span></button>`).join("") + "</div>";
+      }
       return `<div class="sline ${esc(l.who)}"><span class="w">${esc(l.who)}</span>` +
-             `<span class="tx">${esc(text)}</span>` +
+             `<span class="tx">${esc(cut.text)}${extra}</span>` +
              `<span class="at">${esc(l.at)}</span></div>`;
     }).join("") ||
       `<div class="empty">nothing yet in ${esc(w || "this project")} &mdash; say something</div>`;
