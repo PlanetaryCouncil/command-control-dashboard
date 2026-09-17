@@ -210,11 +210,14 @@ def test_the_two_panes_share_a_row():
     could be watched. Marsita, 2026-09-17: "vertical split... And 2 different
     panes for multitasking"."""
     assert 'class="split" id="split"' in SRC
-    assert "#termpane" in SRC and "#termpane2" in SRC
-    # the grip sits BETWEEN them in the markup
-    i, g, j = (SRC.index('id="termpane"'), SRC.index('id="gripSplit"'),
-               SRC.index('id="termpane2"'))
-    assert i < g < j
+    # Inside the MARKUP, not the whole file: ids appear in CSS and JS too, and
+    # a naive first-index comparison broke the moment a selector was added
+    # above the template.
+    i = SRC.index("TERMPANE_HTML = '")
+    markup = SRC[i:SRC.index("\n", i)]
+    a, g, b = (markup.index('id="termpane"'), markup.index('id="gripSplit"'),
+               markup.index('id="termpane2"'))
+    assert a < g < b, "the splitter is not between the two panes"
 
 
 def test_the_split_is_a_grid_with_a_draggable_right_column():
