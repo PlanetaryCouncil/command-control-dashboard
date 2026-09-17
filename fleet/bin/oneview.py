@@ -704,40 +704,72 @@ canvas.mark:hover{opacity:1;}
 /* The reload control. Always there, so the gesture is discoverable rather
    than remembered; it starts quiet and turns loud only when this tab is
    actually behind the server. */
-/* A pill, not a hairline outline. Marsita, 2026-09-17: "RELOAD needs to be a
-   like a button / pill... And me clicking there actually reloadable" -- the
-   first version read as decoration in the bar and did not invite a click. */
-#bar #rebtn{display:inline-flex;align-items:center;gap:5px;
+/* The reload pill, in the compose row.
+
+   It began in the top bar, where it rendered past the right edge of a 1704px
+   window and could not be clicked at all. Moved to the left of the bar it was
+   reachable and still unseen: "pill should be directly here, above the text
+   area, this is where I'm looking" (2026-09-18). A control lives where the
+   eyes already are, not where there is room for it.
+
+   Sits to the left of the box so it never competes with send: the two do
+   opposite things and a mis-click between them costs a message. */
+.tellbar #rebtn{display:inline-flex;align-items:center;gap:5px;
   background:var(--raised);border:1px solid var(--border);
   border-radius:999px;color:var(--ink-2);
   font-family:var(--mono);font-size:9px;letter-spacing:.1em;
   text-transform:uppercase;padding:4px 11px;cursor:pointer;
   line-height:1;transition:background .12s,color .12s,border-color .12s;
   -webkit-appearance:none;appearance:none;}
-#bar #rebtn svg{width:11px;height:11px;fill:none;stroke:currentColor;
+.tellbar #rebtn svg{width:11px;height:11px;fill:none;stroke:currentColor;
   stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;
   transition:transform .5s cubic-bezier(.3,1.6,.4,1);}
-#bar #rebtn:hover{color:#0d0d0d;background:var(--good);border-color:var(--good);}
-#bar #rebtn:hover svg{transform:rotate(180deg);}
+.tellbar #rebtn:hover{color:#0d0d0d;background:var(--good);border-color:var(--good);}
+.tellbar #rebtn:hover svg{transform:rotate(180deg);}
 /* Pressed state, so the click is felt as well as seen. */
-#bar #rebtn:active{transform:translateY(1px);}
-#bar #rebtn:focus-visible{outline:2px solid var(--good);outline-offset:2px;}
+.tellbar #rebtn:active{transform:translateY(1px);}
+.tellbar #rebtn:focus-visible{outline:2px solid var(--good);outline-offset:2px;}
 /* The label and the glyph are decoration INSIDE the button; a click landing on
    either must still be a click on the button. */
-#bar #rebtn > *{pointer-events:none;}
+.tellbar #rebtn > *{pointer-events:none;}
 /* Never let the bar squeeze it away: it is the control you reach for most. */
-#bar #rebtn{flex:none;}
+/* Its own row, directly above the box. Left of the textarea it was reachable
+   and still not where Marsita looks: "pill should be directly here, above the
+   text area, this is where I'm looking" (2026-09-18). A control goes where
+   the eyes already are.
+
+   Above rather than beside also keeps it clear of send: the two do opposite
+   things and a mis-click between them costs a message. */
+/* Both panes used to open "claude — ...", which on a 16-inch screen reads as
+   the same pane twice. Marsita, 2026-09-18: "me need better naming strategy
+   ----> otherwise non obvious on MyMacBook pro 16".
+
+   So each carries its tmux session name as a coloured tag, because that IS
+   its identity: `tmux attach -t board` and `tmux attach -t <project>` join
+   these two exactly. Two colours, two words, readable at a glance and from
+   the corner of your eye. */
+.pane h2 .tag{flex:none;font-family:var(--mono);font-size:8px;font-weight:700;
+  letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;
+  border-radius:3px;background:var(--good);color:#0d0d0d;}
+.pane h2 .tag.alt{background:var(--info);}
+.tellbar{flex:none;display:flex;justify-content:flex-start;padding:4px 7px 0;}
+.tellbar #rebtn{flex:none;}
+#termpane[data-open="0"] .tellbar{display:none;}
+/* Quieter than send until it has something to say: send is the thing you came
+   here to press. The stale glow overrides all of this. */
+.tellbar #rebtn{background:none;color:var(--muted);}
+.tellbar #rebtn:hover{color:#0d0d0d;background:var(--good);}
 /* Behind the server. The ring spins and the whole control glows, because the
    one thing it has to beat is being skimmed past. */
-#bar #rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);
+.tellbar #rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);
   box-shadow:0 0 0 1px var(--warning), 0 0 9px -2px var(--warning);}
-#bar #rebtn[data-stale="1"] svg{animation:respin 1.6s linear infinite;}
-#bar #rebtn[data-stale="1"] .lbl::after{content:" ready";}
+.tellbar #rebtn[data-stale="1"] svg{animation:respin 1.6s linear infinite;}
+.tellbar #rebtn[data-stale="1"] .lbl::after{content:" ready";}
 @keyframes respin{to{transform:rotate(360deg);}}
 /* prefers-reduced-motion: the glow still says it, without the spin. */
 @media (prefers-reduced-motion:reduce){
-  #bar #rebtn[data-stale="1"] svg{animation:none;}
-  #bar #rebtn svg{transition:none;}
+  .tellbar #rebtn[data-stale="1"] svg{animation:none;}
+  .tellbar #rebtn svg{transition:none;}
 }
 #panes[data-p="0"]{grid-template-columns:1fr 6px 0;}
 #panes[data-p="0"] #termpane2{display:none;}
@@ -3288,7 +3320,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
     # split, not horizontal... One tab needs to be different for full
     # multitasking" -- two conversations you watch at once have to be
     # beside each other; stacked, the second is always the one scrolled off.
-    TERMPANE_HTML = '<div id="panes">\n      <!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine. Type in the box; `tmux attach -t board`\n           is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="grip" id="gripPanes"></div>\n\n      <!-- The second pane: a DIFFERENT session, in a different project.\n           Its picker never offers this repo, because pane one is already\n           that conversation and two sessions in one directory share a\n           transcript folder. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; <select id="ws2" title="which project this pane works in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n    </div>\n\n    <div class="griph" id="gripT"></div>'
+    TERMPANE_HTML = '<div id="panes">\n      <!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine. Type in the box; `tmux attach -t board`\n           is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2><span class="tag">board</span> command-control-dashboard <span class="n"></span></h2>\n      <div class="body"></div>\n      <div class="tellbar"><button type="button" id="rebtn" title="Reload the board (Ctrl+R, or press r)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg><span class="lbl">reload</span></button></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="grip" id="gripPanes"></div>\n\n      <!-- The second pane: a DIFFERENT session, in a different project.\n           Its picker never offers this repo, because pane one is already\n           that conversation and two sessions in one directory share a\n           transcript folder. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2><span class="tag alt">work</span> <select id="ws2" title="which project this pane works in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n    </div>\n\n    <div class="griph" id="gripT"></div>'
     # The build gate is hidden. Marsita, 2026-09-10: "I don't need it on the
     # dashboard, I'm not using it ---> please hide". It stays in the markup
     # rather than being cut out: /api/build-gate still works, the JS that
@@ -3341,23 +3373,6 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
 <div id="bar">
   <span id="pulse"></span>
   <h1>{board_h1}</h1>
-  <!-- The reload control, on the LEFT on purpose. Marsita asked for a
-       futuristic icon so she would know how to reload, then for it to be a
-       pill that actually reloads when clicked (2026-09-17).
-
-       It was in the right-hand group, which is nowrap and already holds the
-       convene button, the nav, a clock, a goal and an alarm. At 1704px the
-       pill rendered at x=1740: past the edge of the window, unclickable by
-       anyone. The handler was fine; the button was off the screen. Here it
-       sits beside the title and nothing can push it out.
-
-       Note for the next editor: Marsita writes arrows as four dashes and a
-       bracket, and that sequence contains the HTML comment terminator. Quoting
-       her verbatim in a comment ends the comment early and prints the rest of
-       it on the page, which is exactly what happened here. -->
-  <button id="rebtn" title="Reload the board (Ctrl+R, or press r)">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>
-    <span class="lbl">reload</span></button>
   <span class="grp" id="counts"></span>
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">

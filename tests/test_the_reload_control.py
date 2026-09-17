@@ -31,10 +31,20 @@ def test_the_button_is_always_there():
     assert 'id="rebtn"' in page
 
 
-def test_a_remote_visitor_gets_it_too():
-    """Reloading is not a control over the machine; it is a control over your
-    own browser, and a stale public board is just as wrong."""
-    assert 'id="rebtn"' in oneview.page("[]", "[]", "", remote=True, build="abc")
+def test_a_remote_visitor_does_not_get_it():
+    """A deliberate trade, not an oversight.
+
+    The pill sits in the compose row because that is where Marsita looks, and
+    the compose row is local-only -- nothing on a public page may put a
+    keystroke into this machine. A remote visitor therefore has no reload
+    button and must use their own browser's.
+
+    Reloading is a browser control rather than a control over the machine, so
+    a remote pill would be harmless; it would just need somewhere to live that
+    is not the compose row. Worth doing if a stale public board ever matters.
+    """
+    assert 'id="rebtn"' not in oneview.page("[]", "[]", "", remote=True, build="abc")
+    assert 'id="tellBox"' not in oneview.page("[]", "[]", "", remote=True, build="abc")
 
 
 def test_the_stamp_reaches_the_page():
@@ -115,33 +125,35 @@ def test_the_glow_survives_reduced_motion():
 
 
 def test_the_pill_is_reachable_on_a_laptop_screen():
-    """It was in the right-hand group -- nowrap, already holding convene, the
-    nav, a clock, a goal and an alarm -- and rendered at x=1740 in a 1704px
-    window. Off the edge, unclickable by anyone. The handler was fine; the
-    button was not on the screen.
+    """It began in the right-hand group -- nowrap, already holding convene,
+    the nav, a clock, a goal and an alarm -- and rendered at x=1740 in a
+    1704px window. Off the edge, unclickable by anyone. The handler was fine;
+    the button was not on the screen.
 
-    Now it sits beside the title, before the crowded group.
+    It now sits in the compose row, which is sized by the pane rather than by
+    whatever else the bar is carrying.
     """
     page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
-    assert page.index('id="rebtn"') < page.index('class="sp"')
-    assert "#bar #rebtn{flex:none;}" in SRC, "the bar could squeeze it away"
+    i = page.index('id="rebtn"')
+    assert page.rindex('class="tellbar"', 0, i) > page.rindex('id="bar"', 0, i)
+    assert ".tellbar #rebtn{flex:none;}" in SRC, "the row could squeeze it away"
 
 
 def test_the_pill_wins_the_cascade():
-    """`#bar button` is (1,0,1) and beat a plain `#rebtn` (1,0,0), so the pill
-    rendered with the bar's 5px radius instead of its own."""
-    assert "#bar #rebtn{display:inline-flex" in SRC
+    """A bare `#rebtn` at (1,0,0) lost to `#bar button` at (1,0,1) and
+    rendered with the bar's 5px radius. Every rule carries a second selector
+    so it cannot lose that fight again, wherever the pill is moved to."""
+    assert ".tellbar #rebtn{display:inline-flex" in SRC
     assert "border-radius:999px" in SRC
-    # no un-prefixed rule left to lose the fight again
     import re
-    loose = [m.start() for m in re.finditer(r"(?<!#bar )#rebtn[{\[:]", SRC)]
-    assert not loose, "an unprefixed #rebtn rule will lose to #bar button"
+    loose = [m.start() for m in re.finditer(r"(?<!\.tellbar )#rebtn[{\[:]", SRC)]
+    assert not loose, "an unprefixed #rebtn rule will lose to a tag selector"
 
 
 def test_a_click_anywhere_on_the_pill_counts():
     """The glyph and the label are decoration inside the button; a click
     landing on either must still be a click on the button."""
-    assert "#bar #rebtn > *{pointer-events:none;}" in SRC
+    assert ".tellbar #rebtn > *{pointer-events:none;}" in SRC
 
 
 def test_no_comment_carries_the_html_terminator():
@@ -165,3 +177,21 @@ def test_no_comment_carries_the_html_terminator():
     for m in re.finditer(r"<!--", page):
         rest = page[m.end():]
         assert "-->" in rest, "an HTML comment that never closes"
+
+
+def test_the_pill_sits_above_the_box_not_beside_it():
+    """Left of the textarea it was reachable and still not where Marsita
+    looks: "pill should be directly here, above the text area, this is where
+    I'm looking" (2026-09-18)."""
+    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
+    assert 'class="tellbar"' in page
+    assert page.index('class="tellbar"') < page.index('id="tellBox"')
+    assert '.tellbar{' in SRC and "padding:4px 7px 0" in SRC
+
+
+def test_the_pill_is_not_a_submit_button():
+    """Inside a <form>, a bare <button> submits it. A reload control that
+    also sent your half-written message would be a trap."""
+    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
+    i = page.index('id="rebtn"')
+    assert 'type="button"' in page[max(0, i - 120):i]

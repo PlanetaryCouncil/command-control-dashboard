@@ -289,3 +289,23 @@ def test_choosing_pane_ones_repo_says_so_instead_of_mirroring():
     fn = SRC[i:SRC.index("\n}\n", i)]
     assert "w === d.this_repo" in fn
     assert fn.index("w === d.this_repo") < fn.index("body.innerHTML = lines.map")
+
+
+def test_each_pane_is_named_by_its_tmux_session():
+    """Both opened "claude — ..." and on a 16-inch screen that reads as the
+    same pane twice. Marsita, 2026-09-18: "me need better naming strategy
+    ----> otherwise non obvious on MyMacBook pro 16".
+
+    The tag IS the identity: `tmux attach -t board` and `tmux attach -t
+    <project>` join these two exactly.
+    """
+    import oneview
+    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
+    assert '<span class="tag">board</span>' in page
+    assert '<span class="tag alt">work</span>' in page
+    assert "claude &mdash; this machine" not in page
+
+
+def test_the_two_tags_do_not_look_alike():
+    assert ".pane h2 .tag.alt{background:var(--info);}" in SRC
+    assert ".pane h2 .tag{" in SRC
