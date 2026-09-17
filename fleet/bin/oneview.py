@@ -713,6 +713,20 @@ canvas.mark:hover{opacity:1;}
   border-radius:4px;color:var(--ink-2);padding:5px 9px;cursor:pointer;}
 #tell2 button:hover{color:var(--good);border-color:var(--good);}
 #termpane2[data-open="0"] #tell2{display:none;}
+/* The two conversations, side by side. Stacked, the second pane pushed the
+   first off the screen and only one could be watched at a time; the point of
+   a second pane is seeing both (2026-09-17: "vertical split... And 2
+   different panes for multitasking").
+   The pair owns the height that the terminal pane used to own alone, and
+   --wPane2 splits it left/right. min-width:0 on both, or a long unbroken tool
+   line in one pane shoves the other off the grid. */
+.split{display:grid;grid-template-columns:1fr 6px var(--wPane2,1fr);
+  gap:0;min-height:0;flex:0 0 var(--hTerm,320px);}
+.split > .pane{min-width:0;min-height:0;}
+/* A collapsed pane should not hold a column open. Give the whole width to the
+   one still showing. */
+.split:has(#termpane[data-open="0"]){grid-template-columns:auto 6px 1fr;}
+.split:has(#termpane2[data-open="0"]){grid-template-columns:1fr 6px auto;}
 .empty{color:var(--muted);font-style:italic;padding:9px;font-size:10.5px;}
 """
 
@@ -2653,6 +2667,58 @@ function setHeight(h, varName, key){
    carries the CSS variable; the other flexes. Dragging is one number -- the
    sized pane's height -- clamped to the column, and both ends of the range
    collapse the pane that is being squeezed out. */
+/* The splitter between the two conversations. Its own small function rather
+   than a fourth case in dragGripV: that one measures heights against a column
+   and collapses panes at the ends, and neither applies here. Widths, one
+   container, no collapsing -- a pane you cannot see is not a pane you are
+   multitasking with. */
+function dragSplit(grip){
+  if (!grip) return;
+  const split = $("#split");
+  if (!split) return;
+  const MIN = 220;                       // narrower than this and nothing reads
+  let dragging = false;
+
+  const apply = px => {
+    const total = split.clientWidth - 6;
+    // Clamp BOTH sides: dragging past either end used to leave one pane at
+    // zero width with no way to get it back without clearing storage.
+    const right = Math.max(MIN, Math.min(px, total - MIN));
+    split.style.setProperty("--wPane2", right + "px");
+    return right;
+  };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}");
+    if (saved && saved.wPane2) apply(saved.wPane2);
+  } catch (e) {}
+
+  grip.addEventListener("pointerdown", e => {
+    dragging = true;
+    grip.setPointerCapture(e.pointerId);
+    document.body.style.cursor = "col-resize";
+    e.preventDefault();
+  });
+  addEventListener("pointermove", e => {
+    if (!dragging) return;
+    apply(split.getBoundingClientRect().right - e.clientX);
+  });
+  addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    document.body.style.cursor = "";
+    // One write per drag, on release. Writing on every pointermove is a JSON
+    // parse and a synchronous localStorage write per pixel, which is what
+    // made the other dividers feel like treacle.
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+      saved.wPane2 = parseInt(
+        getComputedStyle(split).getPropertyValue("--wPane2"), 10) || 0;
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
+    } catch (e) {}
+  });
+}
+
 function dragGripV(grip, varName, key, fallback, opts){
   if (!grip) return;
   opts = opts || {};
@@ -2774,6 +2840,7 @@ dragGripV($("#gripA"), "--hArt", "hArt", 240,
 // This column had no divider at all -- "on the right cannot go up and down".
 dragGripV($("#gripP"), "--hCredit", "hCredit", 220,
           {pane: "#credit", sizes: "above", other: "#procs"});
+dragSplit($("#gripSplit"));
 if ($("#gripT")){
   // Middle: the terminal is sized above its grip; the stream flexes below.
   dragGripV($("#gripT"), "--hTerm", "hTerm", 320,
@@ -2797,6 +2864,15 @@ if ($("#termpane")){
   try { wanted = (JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}")
                   || {}).termpaneOpen; } catch(e){}
   if (wanted !== 0) setPaneOpen($("#termpane"), true);
+  // The second pane opens with the first: side by side, a collapsed one is an
+  // empty column, and nobody asked for two panes in order to look at one.
+  // Its own remembered state, so it can still be shut on purpose.
+  if ($("#termpane2")){
+    let w2 = 1;
+    try { w2 = (JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}")
+                || {}).termpane2Open; } catch(e){}
+    if (w2 !== 0) setPaneOpen($("#termpane2"), true);
+  }
   loadStream();
   // Three seconds. It is a thing you glance at, not a frame buffer.
   // 1s. Three seconds is long enough to read as a frozen page, and this
@@ -3003,7 +3079,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # 3.11, where a triple-quoted string inside an f-string is a
     # SyntaxError. It parsed on the NUC's 3.14 and broke the moment it
     # reached the laptop -- the one machine the terminal pane is for.
-    TERMPANE_HTML = '<!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine: no xterm, no socket, no compose box.\n           Type on the laptop -- `tmux attach -t board` is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT"></div>\n\n      <!-- The second pane. Same machinery, pointed at another project.\n           Marsita, 2026-09-17: "Meanwhile 2nd panel here for\n           multitasking". A pane is pinned to a DIRECTORY, not just a\n           name: Claude Code files transcripts per working directory, so\n           two conversations in one directory would be indistinguishable. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; second pane <select id="ws2" title="which project this pane is working in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="griph" id="gripT2"></div>'
+    TERMPANE_HTML = '<!-- Two conversations side by side, not stacked.\n           Marsita, 2026-09-17: "vertical split... And 2 different panes for\n           multitasking". Stacked, the second pane pushed the first off the\n           screen and you could only ever watch one. Side by side you can\n           read both while one of them works.\n\n           A one-way stream, not a terminal: nothing here puts a keystroke\n           into the machine except the compose box under each pane. -->\n      <div class="split" id="split">\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n      <div class="grip" id="gripSplit"></div>\n\n      <!-- Pinned to a DIRECTORY, not just a session name: Claude Code files\n           transcripts per working directory, so two conversations in one\n           directory would be indistinguishable. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; <select id="ws2" title="which project this pane is working in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n      </div>\n\n    <div class="griph" id="gripT"></div>'
     # The build gate is hidden. Marsita, 2026-09-10: "I don't need it on the
     # dashboard, I'm not using it ---> please hide". It stays in the markup
     # rather than being cut out: /api/build-gate still works, the JS that

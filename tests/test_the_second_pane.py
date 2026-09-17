@@ -202,3 +202,59 @@ def test_clicking_in_pane_two_disables_that_panes_set_only():
     i = SRC.index('const form = $("#tell2")')
     fn = SRC[i:SRC.index("})();", i)]
     assert 'p2.querySelectorAll(".pick")' in fn
+
+
+# --------------------------------------------------------- side by side, not stacked
+def test_the_two_panes_share_a_row():
+    """Stacked, the second pane pushed the first off the screen and only one
+    could be watched. Marsita, 2026-09-17: "vertical split... And 2 different
+    panes for multitasking"."""
+    assert 'class="split" id="split"' in SRC
+    assert "#termpane" in SRC and "#termpane2" in SRC
+    # the grip sits BETWEEN them in the markup
+    i, g, j = (SRC.index('id="termpane"'), SRC.index('id="gripSplit"'),
+               SRC.index('id="termpane2"'))
+    assert i < g < j
+
+
+def test_the_split_is_a_grid_with_a_draggable_right_column():
+    assert "grid-template-columns:1fr 6px var(--wPane2,1fr)" in SRC
+
+
+def test_neither_pane_can_be_squeezed_to_nothing():
+    """Dragging past the end used to leave a pane at zero width with no way
+    back without clearing storage."""
+    i = SRC.index("function dragSplit(")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert "Math.max(MIN, Math.min(px, total - MIN))" in fn
+    assert "MIN = 220" in fn
+
+
+def test_both_panes_can_hold_a_long_line():
+    """A long unbroken tool line in one pane would shove the other off the
+    grid without min-width:0."""
+    assert ".split > .pane{min-width:0;min-height:0;}" in SRC
+
+
+def test_the_width_is_remembered_but_written_once_per_drag():
+    """A JSON parse and a synchronous write per pixel is what made the other
+    dividers feel like treacle."""
+    i = SRC.index("function dragSplit(")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert "saved.wPane2" in fn
+    assert fn.index('addEventListener("pointerup"') < fn.index("localStorage.setItem")
+    move = fn[fn.index('addEventListener("pointermove"'):
+              fn.index('addEventListener("pointerup"')]
+    assert "localStorage" not in move
+
+
+def test_a_collapsed_pane_gives_its_column_away():
+    assert '.split:has(#termpane[data-open="0"])' in SRC
+    assert '.split:has(#termpane2[data-open="0"])' in SRC
+
+
+def test_the_second_pane_opens_with_the_first():
+    """Side by side, a collapsed pane is an empty column, and nobody asked for
+    two panes in order to look at one."""
+    assert 'setPaneOpen($("#termpane2"), true)' in SRC
+    assert "termpane2Open" in SRC, "no way to shut it on purpose"
