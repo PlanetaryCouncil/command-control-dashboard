@@ -1852,12 +1852,61 @@ function pendingSettled(lines){
      sent, because it is usually part of a sentence you are still writing. */
   const pnote = m => { box.placeholder = m; };
 
+  /* A placeholder goes in NOW; the path replaces it when the upload lands.
+
+     Marsita, 2026-09-18: "massive delay on pasting images from clip... taking
+     ages and then inserts as I type". Base64 of a few megabytes plus the round
+     trip is a second or more, and the old version wrote the path at the cursor
+     whenever it finished -- which is to say, into the middle of whatever
+     sentence she had started in the meantime.
+
+     So the insert happens at paste time, at the cursor, instantly. The upload
+     then rewrites that exact token wherever it has drifted to, and never
+     touches the caret. The count is kept across reloads, for posterity. */
+  const IMG_N_KEY = "img.count";
+
+  function nextImgN(){
+    let n = 0;
+    try { n = parseInt(localStorage.getItem(IMG_N_KEY) || "0", 10) || 0; }
+    catch (e) {}
+    n += 1;
+    try { localStorage.setItem(IMG_N_KEY, String(n)); } catch (e) {}
+    return n;
+  }
+
+  function insertAtCursor(text){
+    const at = box.selectionStart ?? box.value.length;
+    const pad = box.value && !/\s$/.test(box.value.slice(0, at)) ? " " : "";
+    box.value = box.value.slice(0, at) + pad + text + " " + box.value.slice(at);
+    const end = at + pad.length + text.length + 1;
+    box.selectionStart = box.selectionEnd = end;
+    grow();
+  }
+
+  /* Swap a token for whatever it turned out to be. Rewrites box.value rather
+     than splicing at an index, because by now the token may have moved: the
+     whole point is that you kept typing. The caret is preserved relative to
+     the change so a rewrite behind you does not throw you forward. */
+  function replaceToken(token, withText){
+    const at = box.value.indexOf(token);
+    if (at === -1) return;                 // deleted it; nothing to do
+    const caret = box.selectionStart ?? 0;
+    box.value = box.value.slice(0, at) + withText
+              + box.value.slice(at + token.length);
+    if (caret > at){
+      const shift = withText.length - token.length;
+      box.selectionStart = box.selectionEnd = Math.max(at, caret + shift);
+    }
+    grow();
+  }
+
   async function upload(file){
     if (!file || !file.type.startsWith("image/")) return;
     // A screenshot is well under 12MB; a video dropped by accident is not, and
     // the request would otherwise sit there looking like a hang.
     if (file.size > 12 * 1024 * 1024){ pnote("too big - 12MB max"); return; }
-    pnote("uploading...");
+    const token = "[### " + nextImgN() + "]";
+    insertAtCursor(token);
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       // btoa over one big string blows the argument limit, so chunk it.
@@ -1871,15 +1920,12 @@ function pendingSettled(lines){
                               data: btoa(bin)}),
       });
       const d = await r.json();
-      if (!d.path){ pnote(d.error || "upload failed"); return; }
-      // At the cursor, spaced, so it reads as part of the line.
-      const at = box.selectionStart ?? box.value.length;
-      const pad = box.value && !/\s$/.test(box.value.slice(0, at)) ? " " : "";
-      box.value = box.value.slice(0, at) + pad + d.path + " " + box.value.slice(at);
-      box.placeholder = "...";
-      grow(); box.focus();
-      box.selectionStart = box.selectionEnd = at + pad.length + d.path.length + 1;
-    } catch (err) { pnote("upload failed"); }
+      // A failure leaves the token in place and says so beside it, rather than
+      // silently removing something you watched yourself paste.
+      replaceToken(token, d.path || (token + " (upload failed)"));
+    } catch (err) {
+      replaceToken(token, token + " (upload failed)");
+    }
   }
 
   const imagesIn = src =>

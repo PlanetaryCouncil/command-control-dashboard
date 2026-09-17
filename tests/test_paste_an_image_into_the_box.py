@@ -55,13 +55,69 @@ def test_only_images_are_taken():
 def test_the_path_lands_in_the_box_and_is_not_sent():
     """It is usually part of a sentence you are still writing."""
     t = _tell()
-    assert "box.value = box.value.slice(0, at)" in t
-    assert "form.requestSubmit()" not in t.split("async function upload")[1].split("}")[0]
+    assert "function insertAtCursor(" in t
+    assert "form.requestSubmit()" not in t.split("async function upload")[1].split("\n  }")[0]
 
 
-def test_the_cursor_ends_after_the_path():
+def test_a_placeholder_goes_in_immediately():
+    """Marsita, 2026-09-18: "massive delay on pasting images from clip...
+    taking ages and then inserts as I type". Base64 of a few megabytes plus
+    the round trip is a second or more, and writing the path at the cursor
+    whenever it finished landed it in the middle of the next sentence."""
     t = _tell()
-    assert "box.selectionStart = box.selectionEnd = at" in t
+    i = t.index("async function upload(")
+    fn = t[i:t.index("\n  }", i)]
+    assert 'const token = "[### " + nextImgN() + "]"' in fn
+    assert fn.index("insertAtCursor(token)") < fn.index("await file.arrayBuffer()")
+
+
+def test_the_upload_rewrites_the_token_not_the_cursor():
+    """By the time it lands the token has moved -- that is the whole point."""
+    t = _tell()
+    assert "function replaceToken(" in t
+    i = t.index("function replaceToken(")
+    fn = t[i:t.index("\n  }", i)]
+    assert "box.value.indexOf(token)" in fn
+
+
+def test_a_rewrite_behind_the_caret_does_not_move_you_forward():
+    t = _tell()
+    i = t.index("function replaceToken(")
+    fn = t[i:t.index("\n  }", i)]
+    assert "if (caret > at)" in fn
+
+
+def test_a_token_you_deleted_is_left_alone():
+    t = _tell()
+    i = t.index("function replaceToken(")
+    fn = t[i:t.index("\n  }", i)]
+    assert "if (at === -1) return;" in fn
+
+
+def test_the_count_survives_a_reload():
+    """"keep count for posterity"."""
+    t = _tell()
+    assert 'IMG_N_KEY = "img.count"' in t
+    assert "localStorage.setItem(IMG_N_KEY" in t
+
+
+def test_a_broken_counter_still_pastes():
+    """localStorage throws in a private window; a number is never worth the
+    feature."""
+    t = _tell()
+    i = t.index("function nextImgN(")
+    fn = t[i:t.index("\n  }", i)]
+    assert fn.count("catch (e) {}") >= 2
+
+
+def test_a_failed_upload_leaves_the_token_visible():
+    """Silently removing something you watched yourself paste is worse than
+    leaving a mark that says it failed."""
+    t = _tell()
+    assert "(upload failed)" in t
+    i = t.index("async function upload(")
+    fn = t[i:t.index("\n  }", i)]
+    assert "replaceToken(token, token + \" (upload failed)\")" in fn
 
 
 def test_a_huge_file_is_refused_with_a_reason():
@@ -81,4 +137,4 @@ def test_base64_is_chunked():
 
 def test_a_failure_says_so_in_the_box():
     t = _tell()
-    assert 'pnote("upload failed")' in t
+    assert "(upload failed)" in t
