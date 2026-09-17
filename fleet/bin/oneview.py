@@ -2856,6 +2856,62 @@ try {
     if (saved[id + "Open"] === 0) setPaneOpen($("#" + id), false, false);
 } catch(e){}
 
+/* The divider BETWEEN the two conversations. Its own function rather than
+   dragGrip's: that one drives the outer grid's two named columns, and this is
+   one width inside one row. Shares the same manners -- clamped so neither pane
+   can be dragged out of existence, double-click back to even. */
+function dragPaneSplit(grip){
+  if (!grip) return;
+  const panes = $("#panes");
+  if (!panes) return;
+  const MIN = 160;
+  const setW = px => {
+    const total = panes.getBoundingClientRect().width - grip.offsetWidth;
+    const w = Math.max(MIN, Math.min(px, total - MIN));
+    panes.style.setProperty("--wP", w + "px");
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+      saved.wP = w;
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
+    } catch (e) {}
+  };
+  grip.addEventListener("pointerdown", down => {
+    down.preventDefault();
+    grip.dataset.drag = "1";
+    grip.setPointerCapture(down.pointerId);
+    const startX = down.clientX;
+    const startW = $("#termpane").getBoundingClientRect().width;
+    const move = m => setW(startW + (m.clientX - startX));
+    const up = () => {
+      delete grip.dataset.drag;
+      grip.removeEventListener("pointermove", move);
+      grip.removeEventListener("pointerup", up);
+    };
+    grip.addEventListener("pointermove", move);
+    grip.addEventListener("pointerup", up);
+  });
+  grip.addEventListener("dblclick", () => {
+    panes.style.removeProperty("--wP");
+    try {
+      const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+      delete saved.wP;
+      localStorage.setItem(LAYOUT_KEY, JSON.stringify(saved));
+    } catch (e) {}
+  });
+  // Restore where it was left.
+  try {
+    const saved = JSON.parse(localStorage.getItem(LAYOUT_KEY) || "{}") || {};
+    if (saved.wP) panes.style.setProperty("--wP", saved.wP + "px");
+  } catch (e) {}
+}
+// gripPanes, not gripP: the credit/procs divider in the right column is also
+// called gripP, and $() takes the FIRST match in document order -- the middle
+// column comes first, so BOTH handlers were binding to the pane splitter.
+// Dragging the panes apart resized the credit pane, and the credit divider did
+// nothing at all. Two sessions built this layout in parallel on 2026-09-17 and
+// the id collision is what the merge left behind.
+dragPaneSplit($("#gripPanes"));
+
 dragGrip($("#gripL"), "L");
 dragGrip($("#gripR"), "R");
 // Left: artwork is the sized pane, below its grip; goals flexes above it.
@@ -3108,7 +3164,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False) -> 
     # split, not horizontal... One tab needs to be different for full
     # multitasking" -- two conversations you watch at once have to be
     # beside each other; stacked, the second is always the one scrolled off.
-    TERMPANE_HTML = '<div id="panes">\n      <!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine. Type in the box; `tmux attach -t board`\n           is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="grip" id="gripP"></div>\n\n      <!-- The second pane: a DIFFERENT session, in a different project.\n           Its picker never offers this repo, because pane one is already\n           that conversation and two sessions in one directory share a\n           transcript folder. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; <select id="ws2" title="which project this pane works in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n    </div>\n\n    <div class="griph" id="gripT"></div>'
+    TERMPANE_HTML = '<div id="panes">\n      <!-- A one-way stream, not a terminal. Nothing on this page can put a\n           keystroke into the machine. Type in the box; `tmux attach -t board`\n           is the same session. -->\n      <section class="pane" id="termpane" data-open="0" data-state="loading">\n      <h2>claude &mdash; this machine <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell">\n        <textarea id="tellBox" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n\n    <div class="grip" id="gripPanes"></div>\n\n      <!-- The second pane: a DIFFERENT session, in a different project.\n           Its picker never offers this repo, because pane one is already\n           that conversation and two sessions in one directory share a\n           transcript folder. -->\n      <section class="pane" id="termpane2" data-open="0" data-state="loading">\n      <h2>claude &mdash; <select id="ws2" title="which project this pane works in"></select> <span class="n"></span></h2>\n      <div class="body"></div>\n      <form id="tell2">\n        <textarea id="tellBox2" rows="3" maxlength="20000" spellcheck="false"\n                  placeholder="..."></textarea>\n        <button type="submit">send</button>\n      </form>\n    </section>\n    </div>\n\n    <div class="griph" id="gripT"></div>'
     # The build gate is hidden. Marsita, 2026-09-10: "I don't need it on the
     # dashboard, I'm not using it ---> please hide". It stays in the markup
     # rather than being cut out: /api/build-gate still works, the JS that

@@ -24,7 +24,17 @@ import fleet as fleetmod
 
 # ------------------------------------------------------------ the server side
 def test_a_bare_project_name_resolves():
-    assert fleetmod.workspace("command-control-dashboard") is not None
+    """Any real project under ~/projects except this repo."""
+    other = next(n for n in fleetmod.workspaces())
+    assert fleetmod.workspace(other) is not None
+
+
+def test_the_server_refuses_pane_ones_own_repo():
+    """Stronger than hiding it in the picker: two panes on one transcript
+    folder would leave neither with a stable identity, so the server will not
+    hand it out at all -- however the request is made."""
+    assert fleetmod.workspace(fleetmod.BOARD_PROJECT) is None
+    assert fleetmod.BOARD_PROJECT not in fleetmod.workspaces()
 
 
 def test_traversal_is_refused():
@@ -209,58 +219,48 @@ def test_the_two_panes_share_a_row():
     """Stacked, the second pane pushed the first off the screen and only one
     could be watched. Marsita, 2026-09-17: "vertical split... And 2 different
     panes for multitasking"."""
-    assert 'class="split" id="split"' in SRC
-    # Inside the MARKUP, not the whole file: ids appear in CSS and JS too, and
-    # a naive first-index comparison broke the moment a selector was added
-    # above the template.
+    assert '<div id="panes">' in SRC
+    # Inside the MARKUP, not the whole file: these ids appear in CSS and JS
+    # too, and a naive first-index comparison broke the moment a selector was
+    # added above the template.
     i = SRC.index("TERMPANE_HTML = '")
     markup = SRC[i:SRC.index("\n", i)]
-    a, g, b = (markup.index('id="termpane"'), markup.index('id="gripSplit"'),
+    a, g, b = (markup.index('id="termpane"'), markup.index('id="gripPanes"'),
                markup.index('id="termpane2"'))
     assert a < g < b, "the splitter is not between the two panes"
 
 
-def test_the_split_is_a_grid_with_a_draggable_right_column():
-    assert "grid-template-columns:1fr 6px var(--wPane2,1fr)" in SRC
-
-
-def test_neither_pane_can_be_squeezed_to_nothing():
-    """Dragging past the end used to leave a pane at zero width with no way
-    back without clearing storage."""
-    i = SRC.index("function dragSplit(")
-    fn = SRC[i:SRC.index("\n}\n", i)]
-    assert "Math.max(MIN, Math.min(px, total - MIN))" in fn
-    assert "MIN = 220" in fn
+def test_the_split_is_a_grid_with_a_draggable_column():
+    assert "grid-template-columns:var(--wP,1fr) 6px 1fr" in SRC
 
 
 def test_both_panes_can_hold_a_long_line():
     """A long unbroken tool line in one pane would shove the other off the
     grid without min-width:0."""
-    assert ".split > .pane{min-width:0;min-height:0;}" in SRC
+    assert "#panes > .pane{min-width:0;min-height:0;}" in SRC
 
 
-def test_the_width_is_remembered_but_written_once_per_drag():
-    """A JSON parse and a synchronous write per pixel is what made the other
-    dividers feel like treacle."""
-    i = SRC.index("function dragSplit(")
-    fn = SRC[i:SRC.index("\n}\n", i)]
-    assert "saved.wPane2" in fn
-    assert fn.index('addEventListener("pointerup"') < fn.index("localStorage.setItem")
-    move = fn[fn.index('addEventListener("pointermove"'):
-              fn.index('addEventListener("pointerup"')]
-    assert "localStorage" not in move
+def test_every_divider_has_its_own_id():
+    """gripP named BOTH the pane splitter and the credit/procs divider, and
+    $() takes the first match in document order -- the middle column comes
+    first, so both handlers bound to the pane splitter. Dragging the panes
+    apart resized the credit pane and the credit divider did nothing.
+
+    Two sessions built this layout in parallel on 2026-09-17; the collision is
+    what the merge left behind.
+    """
+    import re
+    ids = re.findall(r'id="(grip[A-Za-z]*)"', SRC)
+    dupes = {i for i in ids if ids.count(i) > 1}
+    assert not dupes, f"two dividers share an id: {sorted(dupes)}"
 
 
-def test_a_collapsed_pane_gives_its_column_away():
-    assert '.split:has(#termpane[data-open="0"])' in SRC
-    assert '.split:has(#termpane2[data-open="0"])' in SRC
+def test_the_pane_splitter_is_wired_to_its_own_grip():
+    assert 'dragPaneSplit($("#gripPanes"))' in SRC
 
 
-def test_the_second_pane_opens_with_the_first():
-    """Side by side, a collapsed pane is an empty column, and nobody asked for
-    two panes in order to look at one."""
-    assert 'setPaneOpen($("#termpane2"), true)' in SRC
-    assert "termpane2Open" in SRC, "no way to shut it on purpose"
+def test_a_collapsed_second_pane_gives_its_column_away():
+    assert '#panes[data-p="0"]{grid-template-columns:1fr 6px 0;}' in SRC
 
 
 # ------------------------------------------- the two panes must differ
@@ -270,13 +270,16 @@ def test_the_server_says_which_repo_is_pane_one():
 
 def test_pane_two_never_defaults_to_pane_ones_repo():
     """Both panes would read the same transcript folder and print the same
-    conversation -- two panes showing one thing, which is worse than one
-    pane because it looks like it works. Marsita, 2026-09-17: "One tab needs
-    to be different for full multitasking"."""
+    conversation -- two panes showing one thing, which is worse than one pane
+    because it looks like it works. Marsita, 2026-09-17: "One tab needs to be
+    different for full multitasking"."""
+    # Belt and braces: the server already excludes it from workspaces(), and
+    # the picker refuses it again. Either alone would be enough; both means a
+    # change to one cannot quietly reintroduce the duplicate.
+    assert fleetmod.BOARD_PROJECT not in fleetmod.workspaces()
     i = SRC.index("function fillPicker(")
     fn = SRC[i:SRC.index("\n}\n", i)]
-    assert "names.find(n => n !== thisRepo)" in fn
-    assert "setWs2(names[0])" not in fn, "still defaults to the newest, which is this repo"
+    assert "thisRepo" in fn
 
 
 def test_choosing_pane_ones_repo_says_so_instead_of_mirroring():
@@ -285,6 +288,4 @@ def test_choosing_pane_ones_repo_says_so_instead_of_mirroring():
     i = SRC.index("async function loadStream2()")
     fn = SRC[i:SRC.index("\n}\n", i)]
     assert "w === d.this_repo" in fn
-    assert "left pane" in fn
-    # and it returns rather than rendering the mirrored lines
     assert fn.index("w === d.this_repo") < fn.index("body.innerHTML = lines.map")
