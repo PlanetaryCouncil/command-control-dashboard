@@ -232,9 +232,10 @@ An honest list, not a roadmap.
 - **Navigation reloads.** Five separate documents. Pages are prerendered on hover
   so switching is quick, but per-page state does not survive — the chat thread
   resets when you navigate away. A single-document rewrite is the fix.
-- **No always-on host.** Everything assumes this machine is awake. Publishing it
-  from the laptop over a tunnel is supported — see `docs/PUBLISHING.md` — and the
-  site simply stops existing when the lid closes.
+- **The laptop is not the host.** Scheduled work runs on the NUC, which is
+  always on; Gaia serves the board and the terminal. Both boxes stay up, so the
+  split is capacity, not uptime. See `docs/FLEET.md` for which of the six roles
+  runs where, and `docs/PUBLISHING.md` for serving it over a tunnel.
 - **The cockpit reads the fleet but cannot control it.** Deliberate for now.
 - **Hardware matters more than expected.** This runs on a four-core laptop with
   8 GB of memory. Local vision models were tried and abandoned; agent processes

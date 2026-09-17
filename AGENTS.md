@@ -23,7 +23,10 @@ python3 fleet/bin/brief.py
 It combines live git/quota state with the newest handoff. Read further only
 when the task requires it:
 
-1. The relevant section/file only. Use `README.md` for the system map,
+1. The relevant section/file only. Use `docs/FLEET.md` for **where work
+   runs** — two machines, six roles, and which launch agents are dead on
+   purpose; it is the single source of truth and overrules any plist, timer or
+   README that disagrees. Then `README.md` for the system map,
    `fleet/README.md` for fleet operations, and `STRAIGHT-HANDOFF.md` for the
    proposal/build/verify pipeline.
 

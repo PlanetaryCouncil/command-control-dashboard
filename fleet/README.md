@@ -54,9 +54,18 @@ without it and never writes SSH errors onto the public board.
 bash bin/run-watchdogs.sh          # run all checks now
 python3 bin/fleet.py render        # write a static index.html snapshot
 
-launchctl list | grep genesis      # what's loaded
+launchctl list | grep genesis      # what's loaded on Gaia
 launchctl unload ~/Library/LaunchAgents/re.genesis.fleet-server.plist   # stop board
-launchctl unload ~/Library/LaunchAgents/re.genesis.watchdogs.plist      # stop checks
+```
+
+The scheduled jobs are NOT on Gaia. They run on the NUC as systemd user
+timers, and Gaia's `re.genesis.*` job agents are disabled on purpose -- see
+`docs/FLEET.md`, which is the single source of truth for what runs where.
+To stop or start a job, do it on the NUC:
+
+```bash
+systemctl --user list-timers | grep fleet     # what's scheduled
+systemctl --user stop fleet-health.timer      # stop one
 ```
 
 Logs are in `logs/` (last 20 runs per project); failure digests in `digests/`.

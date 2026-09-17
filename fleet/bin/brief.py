@@ -61,6 +61,18 @@ def render():
         "## Operating contract",
         agentcontract.as_markdown(),
         "",
+        # Named here because brief.py is the one thing every arriving agent
+        # runs, and "where does work run" is the question they keep answering
+        # wrong. On 2026-09-17 a session spent an afternoon trying to load
+        # eight launch agents that were disabled on purpose, because the
+        # answer lived only in a commit message from three weeks earlier.
+        "## Where work runs",
+        "Two machines, six roles: `docs/FLEET.md` is the single source of "
+        "truth and overrules any plist, timer or README that disagrees. "
+        "Scheduled jobs run on the NUC. Gaia serves the board. The eight "
+        "`re.genesis.*` launch agents on Gaia are disabled deliberately -- "
+        "do not load them.",
+        "",
     ]
     if handoff:
         lines.extend([f"Source: {handoff.relative_to(REPO)}", "",
