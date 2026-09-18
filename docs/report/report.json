@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-17T18:00:00+00:00",
+  "generated_at": "2026-09-18T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-09-16T18:00:00+00:00",
+  "since": "2026-09-17T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,37 +24,145 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 5,
+    "count": 23,
     "list": [
       {
-        "sha": "e87db167",
+        "sha": "51d35510",
         "author": "Marsita the Ultra",
-        "at": "2026-09-17T18:14:39+01:00",
-        "subject": "fleet: one short command to load the launch agents"
+        "at": "2026-09-18T17:24:07+01:00",
+        "subject": "board: pane two answers back, and tests that use a real browser"
       },
       {
-        "sha": "4a8e200b",
+        "sha": "06d5c7dc",
         "author": "Marsita the Ultra",
-        "at": "2026-09-17T15:48:43+01:00",
-        "subject": "board: the menu is actually clickable"
+        "at": "2026-09-18T16:29:04+01:00",
+        "subject": "board: the first packet is the board's shape, not a splash screen"
       },
       {
-        "sha": "73c6f3ad",
+        "sha": "311f4756",
         "author": "Marsita the Ultra",
-        "at": "2026-09-17T15:27:56+01:00",
-        "subject": "board: the menu drawing becomes the buttons, not a copy of them"
+        "at": "2026-09-18T15:34:13+01:00",
+        "subject": "board: a loader in the first packet, the board streamed behind it"
       },
       {
-        "sha": "2c5fe110",
+        "sha": "ffe46780",
         "author": "Marsita the Ultra",
-        "at": "2026-09-16T22:43:50+01:00",
-        "subject": "board: a log you can read, and a menu you can click"
+        "at": "2026-09-18T05:58:19+01:00",
+        "subject": "board: the pill waits for the turn to end, and one send button not two"
       },
       {
-        "sha": "25abfe73",
+        "sha": "4838989e",
         "author": "Marsita the Ultra",
-        "at": "2026-09-16T22:41:05+01:00",
-        "subject": "board: say something is happening, whatever door you typed through"
+        "at": "2026-09-18T05:32:55+01:00",
+        "subject": "board: send goes back beside the box, on the right"
+      },
+      {
+        "sha": "a3d0e34d",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T03:49:31+01:00",
+        "subject": "board: reload and send share one row, at one height"
+      },
+      {
+        "sha": "22763669",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T03:20:09+01:00",
+        "subject": "board: the reload pill is amber and filled, not an amber outline"
+      },
+      {
+        "sha": "45401662",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T02:04:47+01:00",
+        "subject": "board: the reload pill appears only when there is something to reload"
+      },
+      {
+        "sha": "9255d446",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T02:01:13+01:00",
+        "subject": "house style: the poem is retired"
+      },
+      {
+        "sha": "fad6d0ef",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T00:55:39+01:00",
+        "subject": "board: the pill above the box, and two panes you can tell apart"
+      },
+      {
+        "sha": "6b37e392",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T00:23:03+01:00",
+        "subject": "board: a pasted image marks its place immediately"
+      },
+      {
+        "sha": "1f334018",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-18T00:12:48+01:00",
+        "subject": "board: the reload pill, where you can actually click it"
+      },
+      {
+        "sha": "42ea730b",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T23:54:42+01:00",
+        "subject": "board: a reload control that tells you when you need it"
+      },
+      {
+        "sha": "39a06808",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T23:13:03+01:00",
+        "subject": "board: two dividers cannot share an id"
+      },
+      {
+        "sha": "8ee22520",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T23:09:41+01:00",
+        "subject": "tests: compare pane order inside the markup, not the whole file"
+      },
+      {
+        "sha": "58522574",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T23:09:11+01:00",
+        "subject": "board: the second pane must not be the first one again"
+      },
+      {
+        "sha": "89f2bec9",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T22:54:00+01:00",
+        "subject": "board: the two conversations sit side by side"
+      },
+      {
+        "sha": "cef2dd9f",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T22:27:56+01:00",
+        "subject": "board: one keyboard, two panes, 1-6"
+      },
+      {
+        "sha": "13edd141",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T22:14:44+01:00",
+        "subject": "board: a second pane, for the work"
+      },
+      {
+        "sha": "a8d4fb62",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T22:01:02+01:00",
+        "subject": "board: paste a screenshot straight into the box"
+      },
+      {
+        "sha": "b4f1ce06",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T20:36:55+01:00",
+        "subject": "fleet: suspend the council, slow the rota"
+      },
+      {
+        "sha": "c39adf3c",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T20:31:34+01:00",
+        "subject": "docs: one place that says where work runs"
+      },
+      {
+        "sha": "2cb931e2",
+        "author": "Marsita the Ultra",
+        "at": "2026-09-17T19:00:00+01:00",
+        "subject": "report: 2026-09-17 fleet summary"
       }
     ]
   },
@@ -63,9 +171,13 @@
     "stages": {}
   },
   "events": {
-    "count": 0,
-    "by_level": {},
-    "by_agent": {}
+    "count": 3,
+    "by_level": {
+      "ok": 3
+    },
+    "by_agent": {
+      "visitors": 3
+    }
   },
   "needs_you": [],
   "workers": [
@@ -102,20 +214,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-09-17T17:58:00Z",
-      "summary": "load 5.7 over 4 on 4 cores; disk 90% 22.9G free"
+      "last_run": "2026-09-18T17:55:27Z",
+      "summary": "load 4.6 over 4 on 4 cores; disk 90% 22.3G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-09-17T17:58:00Z",
+      "last_run": "2026-09-18T17:55:27Z",
       "summary": "spending hermes unknown \u00b7 claude unknown \u00b7 holding grok, openclaw, agy"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-17T15:45:03+00:00",
-      "summary": "24h: 260 public \u00b7 4 homies \u00b7 browser 175 \u00b7 ClaudeBot 38 \u00b7 Mozilla/5.0 (Windows NT 10.0; Win64; x64 15 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 9 \u00b7 Mozilla/5.0"
+      "last_run": "2026-09-18T17:28:31+00:00",
+      "summary": "24h: 190 public \u00b7 0 homies \u00b7 Python-urllib/3.11 140 \u00b7 browser 28 \u00b7 Applebot 14 \u00b7 Twitterbot/1.0 3 \u00b7 Mozilla/5.0 (Windows NT 10.0; Win64; x64 2 \u00b7 Googlebot 2 \u00b7 A"
     }
   ],
   "proposals_total": 261
