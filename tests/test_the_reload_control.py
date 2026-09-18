@@ -25,6 +25,11 @@ import fleet as fleetmod
 import oneview
 
 
+def _js_loadstream():
+    i = SRC.index("async function loadStream(){")
+    return SRC[i:SRC.index("\n}\n", i)]
+
+
 def test_the_button_is_in_the_page_but_hidden_until_it_matters():
     """Marsita, 2026-09-18: "reload should appear only if something new
     deployed... only when something needs reloading".
@@ -93,15 +98,46 @@ def test_the_endpoint_answers_without_rendering():
     assert "oneview.page" not in route
 
 
+def test_it_waits_for_the_turn_to_finish():
+    """Marsita, 2026-09-18: "reload appears during your work? maybe should
+    appear later?"
+
+    The board restarts every time a file is touched, so the stamp moves many
+    times DURING a turn. Revealing the pill then puts a flashing amber button
+    under her eyes while the work that caused it is still running.
+    """
+    assert "const STALE = {known: false, idle: false};" in SRC
+    i = SRC.index("function showStaleIfSettled()")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    assert "!STALE.known || !STALE.idle" in fn, "shows before the turn settles"
+
+
+def test_idle_means_the_last_line_is_claude():
+    """The same signal the waiting dots use: a `tool` or `you` line last means
+    the turn has not finished."""
+    fn = _js_loadstream()
+    assert 'STALE.idle = !!(last && last.who === "claude")' in fn
+    assert "showStaleIfSettled()" in fn
+
+
+def test_a_pending_local_echo_also_counts_as_busy():
+    """You have just pressed send; the turn has not started yet, but it is
+    certainly not finished."""
+    fn = _js_loadstream()
+    assert "&& !PENDING.el" in fn
+
+
 def test_the_badge_is_never_cleared():
     """Once the server has moved on, this tab cannot become current again by
     any means except reloading. A badge that flickered off would say
     otherwise."""
-    i = SRC.index("function wireReload()")
-    fn = SRC[i:SRC.index("\n}\n", i)]
-    assert 'b.dataset.stale = "1"' in fn
-    assert "delete b.dataset.stale" not in fn
-    assert 'dataset.stale = "0"' not in fn
+    # The invariant is file-wide, not per-function: the setter lives in
+    # showStaleIfSettled and the noticing in wireReload, so checking one
+    # function would have missed a clear added to the other.
+    assert 'b.dataset.stale = "1"' in SRC
+    assert "delete b.dataset.stale" not in SRC
+    assert 'dataset.stale = "0"' not in SRC
+    assert 'removeAttribute("data-stale")' not in SRC
 
 
 def test_it_never_reloads_by_itself():
@@ -290,3 +326,28 @@ def test_the_empty_reload_row_collapses():
     row = re.search(r"\.tellhead\{[^}]*\}", SRC).group(0)
     assert "display:none" in row
     assert '.tellhead:has(#rebtn[data-stale="1"]){display:flex;}' in SRC
+
+
+def test_both_panes_describe_send_once():
+    """They had separate rules and had drifted -- 3px radius against 4px, 11px
+    padding against 9px, stretch against not -- so the two boxes looked like
+    different widgets side by side (2026-09-18: "different send height,
+    different border radius?"). Two panes doing the same job get one
+    description of it.
+    """
+    assert "#tell button,#tell2 button{" in SRC
+    import re
+    # no second rule left to drift away again
+    assert not re.search(r"(?<![,\w])#tell2 button\{", SRC)
+
+
+def test_both_boxes_are_the_same_box():
+    import re
+    a = re.search(r"#tellBox\{([^}]*)\}", SRC).group(1)
+    b = re.search(r"#tellBox2\{([^}]*)\}", SRC).group(1)
+    for prop in ("padding", "border-radius", "font-size", "line-height",
+                 "height", "max-height"):
+        va = re.search(prop + r":([^;]*)", a)
+        vb = re.search(prop + r":([^;]*)", b)
+        assert va and vb and va.group(1) == vb.group(1), \
+            f"{prop} differs between the two compose boxes"

@@ -511,10 +511,17 @@ canvas.mark:hover{opacity:1;}
    Leaving it under the cursor is a hint competing with the thing it hinted at. */
 #tellBox:focus::placeholder{color:transparent;}
 #tellBox[data-busy="1"]{opacity:.5;}
-#tell button{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
-  text-transform:uppercase;padding:5px 11px;border-radius:3px;cursor:pointer;
-  background:var(--surface);color:var(--ink-2);border:1px solid var(--border);
-  align-self:stretch;}
+/* ONE rule for both panes' send buttons. They had separate ones and had
+   drifted: 3px radius against 4px, 11px padding against 9px, stretch against
+   not -- so the two boxes looked like different widgets side by side
+   (2026-09-18: "different send height, different border radius?").
+   Two panes doing the same job get one description of it. */
+#tell button,#tell2 button{font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.09em;text-transform:uppercase;padding:5px 11px;
+  border-radius:3px;cursor:pointer;background:var(--surface);
+  color:var(--ink-2);border:1px solid var(--border);align-self:stretch;}
+#tell button:hover,#tell2 button:hover{color:var(--good);
+  border-color:var(--good);}
 #tell button:hover{color:var(--good);border-color:var(--good);}
 #termpane[data-open="0"] #tell{display:none;}
 
@@ -813,18 +820,15 @@ canvas.mark:hover{opacity:1;}
   padding:1px 3px;max-width:150px;}
 #termpane2 select:focus{outline:none;border-color:var(--good);}
 #tell2{flex:none;display:flex;gap:6px;align-items:flex-end;padding:5px 7px;
-  border-top:1px solid var(--border);}
+  border-top:1px solid var(--border);background:var(--raised);}
 #tellBox2{flex:1;min-width:0;font-family:var(--mono);font-size:11px;
-  line-height:1.4;padding:6px 8px;border:1px solid var(--border);
-  border-radius:6px;background:var(--raised);color:var(--ink);
+  line-height:1.5;padding:5px 7px;border-radius:3px;
+  border:1px solid var(--border);background:var(--surface);color:var(--ink);
   height:56px;max-height:40vh;overflow-y:auto;resize:none;}
 #tellBox2:focus{outline:none;border-color:var(--good);}
 #tellBox2:focus::placeholder{color:transparent;}
 #tellBox2[data-busy="1"]{opacity:.5;}
-#tell2 button{font-family:var(--mono);font-size:8.5px;letter-spacing:.09em;
-  text-transform:uppercase;background:none;border:1px solid var(--border);
-  border-radius:4px;color:var(--ink-2);padding:5px 9px;cursor:pointer;}
-#tell2 button:hover{color:var(--good);border-color:var(--good);}
+
 #termpane2[data-open="0"] #tell2{display:none;}
 /* The two conversations, side by side. Stacked, the second pane pushed the
    first off the screen and only one could be watched at a time; the point of
@@ -2137,6 +2141,19 @@ function pendingSettled(lines){
    current. The button is always visible so the gesture is discoverable
    ("CTRL +R should be some funky futuristic icon ----> so I know how to
    reload", 2026-09-17) and lights up only when this tab is behind. */
+/* Whether the page is behind, and whether now is the moment to say so. */
+const STALE = {known: false, idle: false};
+
+/* Reveal only once the turn has finished. The last transcript line being
+   `claude` means it stopped talking; a `tool` or `you` line means it has not.
+   Nagging mid-turn is asking someone to reload the page you are still
+   writing. */
+function showStaleIfSettled(){
+  const b = $("#rebtn");
+  if (!b || !STALE.known || !STALE.idle) return;
+  b.dataset.stale = "1";
+}
+
 function wireReload(){
   const b = $("#rebtn");
   if (!b) return;
@@ -2153,10 +2170,16 @@ function wireReload(){
   const check = async () => {
     try {
       const d = await (await fetch("api/build", {cache:"no-store"})).json();
-      // Only ever set it, never clear it. Once the server has moved on, this
-      // tab cannot become current again by any means except reloading, and a
-      // badge that flickers off would be saying otherwise.
-      if (d.build && d.build !== BUILD) b.dataset.stale = "1";
+      // Noticed, remembered, shown later. The board is restarted repeatedly
+      // DURING a turn -- every time a file is touched -- so revealing the pill
+      // the moment the stamp moves puts a flashing amber button under your
+      // eyes while the work that caused it is still going (2026-09-18:
+      // "reload appears during your work? maybe should appear later?").
+      //
+      // Set once and never cleared: the tab cannot become current again by any
+      // means except reloading.
+      if (d.build && d.build !== BUILD) STALE.known = true;
+      showStaleIfSettled();
     } catch (e) {}                     // a board mid-restart is not news
   };
   check();
@@ -2290,6 +2313,10 @@ async function loadStream(){
     const last = lines[lines.length - 1];
     if (!PENDING.el && last && last.who !== "claude") showWaiting(body, last.who);
     else if (!PENDING.el) clearWaiting();
+    // The same signal the dots use, reused: nothing but a `claude` line last
+    // means the turn is still going.
+    STALE.idle = !!(last && last.who === "claude") && !PENDING.el;
+    showStaleIfSettled();
     if (sig === streamSeen) return;
     // Only stick to the bottom if that is where you already were. Scrolling
     // up to read something and being yanked back is the exact behaviour that
