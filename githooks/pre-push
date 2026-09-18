@@ -14,6 +14,9 @@
 # extra file outside docs/report/ gets the full suite like everyone else.
 # Nothing about who is pushing, which script, or which env var is trusted.
 #
+# Marsita, 2026-09-19: "this sounds like it will be exploited one day,
+# please be smart when using it :)"
+#
 # GitHub Actions runs the same suite after the push and main requires it green
 # to merge a PR. This hook is the earlier, cheaper copy of that gate: it stops
 # the red commit leaving the machine at all.
