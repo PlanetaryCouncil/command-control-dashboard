@@ -769,17 +769,29 @@ canvas.mark:hover{opacity:1;}
 .tellbar #rebtn[data-stale="1"]{display:inline-flex;}
 /* It only ever appears when it is the thing to press, so it does not have to
    be shy about it. */
-.tellbar #rebtn:hover{color:#0d0d0d;background:var(--warning);}
-/* Behind the server. The ring spins and the whole control glows, because the
-   one thing it has to beat is being skimmed past. */
-.tellbar #rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);
-  box-shadow:0 0 0 1px var(--warning), 0 0 9px -2px var(--warning);}
+.tellbar #rebtn:hover{color:#0d0d0d;background:#ffc93c;border-color:#ffc93c;}
+/* Behind the server: FILLED amber, not an amber outline. Marsita, 2026-09-18:
+   "Make it yellow / orange / bright." An outline on a dark board is still a
+   dark button, and the one thing this has to beat is being skimmed past. Dark
+   text on the fill, because amber-on-amber is a smudge.
+
+   Bright enough that it does not need the pulse to be noticed -- the pulse is
+   there for the corner of the eye, not to carry the message. */
+.tellbar #rebtn[data-stale="1"]{color:#1a1200;background:var(--warning);
+  border-color:#ffd469;font-weight:700;
+  box-shadow:0 0 0 1px var(--warning), 0 0 14px -1px var(--warning);
+  animation:reglow 1.8s ease-in-out infinite;}
+@keyframes reglow{
+  50%{box-shadow:0 0 0 1px #ffd469, 0 0 22px 1px var(--warning);}
+}
+.tellbar #rebtn[data-stale="1"]:hover{background:#ffd469;border-color:#fff;}
 .tellbar #rebtn[data-stale="1"] svg{animation:respin 1.6s linear infinite;}
 .tellbar #rebtn[data-stale="1"] .lbl::after{content:" ready";}
 @keyframes respin{to{transform:rotate(360deg);}}
 /* prefers-reduced-motion: the glow still says it, without the spin. */
 @media (prefers-reduced-motion:reduce){
   .tellbar #rebtn[data-stale="1"] svg{animation:none;}
+  .tellbar #rebtn[data-stale="1"]{animation:none;}
   .tellbar #rebtn svg{transition:none;}
 }
 #panes[data-p="0"]{grid-template-columns:1fr 6px 0;}

@@ -224,3 +224,26 @@ def test_the_pill_is_not_a_submit_button():
     page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
     i = page.index('id="rebtn"')
     assert 'type="button"' in page[max(0, i - 120):i]
+
+
+def test_the_stale_pill_is_filled_not_outlined():
+    """Marsita, 2026-09-18: "Make it yellow / orange / bright." An amber
+    outline on a dark board is still a dark button, and the one thing this has
+    to beat is being skimmed past."""
+    import re
+    rule = re.search(r'\.tellbar #rebtn\[data-stale="1"\]\{color:[^}]*\}', SRC)
+    assert rule, "no stale rule"
+    css = rule.group(0)
+    assert "background:var(--warning)" in css, "outline only; not bright"
+    # dark text on the fill: amber on amber is a smudge
+    assert re.search(r"color:#[0-9a-f]{6}", css), "no explicit text colour"
+    assert "box-shadow" in css
+
+
+def test_the_pulse_is_not_carrying_the_message():
+    """Reduced motion must kill the animation and leave a button that still
+    reads as urgent on its own."""
+    import re
+    m = re.search(r"@media \(prefers-reduced-motion:reduce\)\{([^@]*)\}", SRC)
+    assert m and m.group(1).count("animation:none") >= 2, \
+        "the pill or its ring keeps animating under reduced motion"
