@@ -1696,6 +1696,49 @@ loadGate();
    happening". */
 const PENDING = {text: "", el: null, timer: 0, since: 0, clock: null};
 
+/* An echo in any pane, and a scroll so you can see it.
+
+   Pane two had none of this: send did nothing visible against a transcript
+   that is usually empty, which reads exactly like a broken button -- and was
+   reported as one (2026-09-18: "Does not work"). Pane one had the echo but
+   appended it below the fold, so the dots had to be scrolled to by hand, and
+   a "something is happening" sign you have to go looking for is not one.
+
+   Keyed by pane, because two conversations can be waiting at once. */
+const ECHOES = {};
+
+function echoInto(paneSel, text){
+  const pane = $(paneSel);
+  if (!pane) return;
+  clearEcho(paneSel);
+  const body = pane.querySelector(".body");
+  if (!body) return;
+  const row = document.createElement("div");
+  row.className = "sline you pending";
+  const w = document.createElement("span");
+  w.className = "w"; w.textContent = "you";
+  const tx = document.createElement("span");
+  tx.className = "tx"; tx.textContent = text;
+  const at = document.createElement("span");
+  at.className = "at";
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  at.appendChild(dots);
+  row.append(w, tx, at);
+  body.appendChild(row);
+  body.scrollTop = body.scrollHeight;
+  ECHOES[paneSel] = {el: row, timer: startDots(dots), text: text,
+                     since: Date.now()};
+}
+
+function clearEcho(paneSel){
+  const e = ECHOES[paneSel];
+  if (!e) return;
+  if (e.timer) clearInterval(e.timer);
+  if (e.el && e.el.parentNode) e.el.remove();
+  delete ECHOES[paneSel];
+}
+
 /* One dot to five, then back. The count is the only moving thing on the
    page while a turn is thinking, so it is doing the whole job of saying
    "still here" -- fixed width, or the line jitters as it grows. */
@@ -1730,6 +1773,8 @@ function showPending(text){
   status.append(dots, clock);
   row.append(w, tx, at, status);
   body.appendChild(row);
+  // Unconditionally to the bottom: you have just pressed send, so wherever you
+  // were reading, the thing you want to see now is the thing you just did.
   body.scrollTop = body.scrollHeight;
   PENDING.text = text;
   PENDING.el = row;
@@ -1943,6 +1988,20 @@ function pendingSettled(lines){
    The old behavior raced: send before the upload landed and the raw token
    went through; after, and a wall of /Users/... noise did. Now the human
    always reads tokens and the agent always receives paths. */
+
+/* fetch with a deadline. The box locks itself with data-busy while a send is
+   in flight; a fetch with no timeout caught mid-restart (the board restarts
+   on every file touch) can hang forever, and a hung fetch is a box that
+   never unlocks -- "I had to reload in order to send this message"
+   (2026-09-18). A deadline turns the worst case into fifteen seconds and a
+   "timed out - try again", with the words still in the box. */
+function fetchT(url, opts, ms){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, {...opts, signal: ctl.signal})
+    .finally(() => clearTimeout(t));
+}
+
 function wireImagePaste(box, grow){
   const pnote = m => { box.placeholder = m; };
   const pending = new Set(), paths = new Map();
@@ -2008,12 +2067,12 @@ function wireImagePaste(box, grow){
       let bin = "";
       for (let i = 0; i < bytes.length; i += 0x8000)
         bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
-      const r = await fetch("api/paste-image", {
+      const r = await fetchT("api/paste-image", {
         method: "POST", headers: {"Content-Type": "application/json"},
         body: JSON.stringify({token: TOKEN,
                               name: file.name || "pasted.png",
                               data: btoa(bin)}),
-      });
+      }, 30000);
       const d = await r.json();
       // A failure leaves the token in place and says so beside it, rather than
       // silently removing something you watched yourself paste. A success is
@@ -2090,10 +2149,10 @@ function wireImagePaste(box, grow){
     TTFB.since = Date.now();
     TTFB.mark = document.querySelectorAll("#termpane .body .sline").length || 0;
     try {
-      const r = await fetch("api/tell", {
+      const r = await fetchT("api/tell", {
         method: "POST", headers: {"Content-Type": "application/json"},
         body: JSON.stringify({text}),
-      });
+      }, 15000);
       const d = await r.json();
       if (d.ok){
         box.value = ""; grow();
@@ -2106,7 +2165,8 @@ function wireImagePaste(box, grow){
       // The send failed, so there is nothing pending to wait for. Leaving the
       // dots spinning would be the page lying about work it never started.
       clearPending();
-      box.placeholder = "could not send";
+      box.placeholder =
+        err.name === "AbortError" ? "timed out - try again" : "could not send";
     } finally {
       delete box.dataset.busy;
       box.focus();
@@ -2154,20 +2214,30 @@ function wireImagePaste(box, grow){
     // Waits out any in-flight image uploads, then swaps tokens for paths.
     const text = (await paste.finalize(box.value)).trim();
     try {
-      const r = await fetch("api/tell", {
+      const r = await fetchT("api/tell", {
         method: "POST", headers: {"Content-Type": "application/json"},
         // The project goes with the message. Without it the server falls back
         // to the board session and this pane would quietly type into the
         // other conversation.
         body: JSON.stringify({text, w: ws2()}),
-      });
+      }, 15000);
       const d = await r.json();
       // Dim and lock rather than clear-and-hope: if the send fails the words
       // are still in the box.
-      if (d.ok){ box.value = ""; grow(); setTimeout(loadStream2, 400); }
-      else box.placeholder = d.why || "could not send";
+      if (d.ok){
+        box.value = ""; grow();
+        // Pane two used to do NOTHING visible on send -- no echo, no dots, no
+        // scroll -- against a project whose transcript is usually empty. From
+        // the outside that is indistinguishable from broken, and Marsita
+        // reported it as broken (2026-09-18: "Does not work").
+        echoInto("#termpane2", text);
+        setTimeout(loadStream2, 400);
+      }
+      else { clearEcho("#termpane2"); box.placeholder = d.why || "could not send"; }
     } catch (err) {
-      box.placeholder = "could not send";
+      clearEcho("#termpane2");
+      box.placeholder =
+        err.name === "AbortError" ? "timed out - try again" : "could not send";
     } finally {
       delete box.dataset.busy;
       box.focus();
@@ -2457,7 +2527,10 @@ async function loadStream(){
     // apply, being the more specific thing to say.
     if (PENDING.el) body.appendChild(PENDING.el);
     else if (WAIT.el) body.appendChild(WAIT.el);
-    if (atEnd || !streamSeen) body.scrollTop = body.scrollHeight;
+    // While something of yours is in flight, stay pinned to it. The dots used
+    // to be appended below the fold and had to be scrolled to by hand.
+    if (atEnd || !streamSeen || PENDING.el || WAIT.el)
+      body.scrollTop = body.scrollHeight;
     streamSeen = sig;
     pane.querySelector("h2 .n").textContent = d.session || "";
     if (!pane.querySelector("h2 .ttfb")){
@@ -2528,7 +2601,18 @@ async function loadStream2(){
              `<span class="at">${esc(l.at)}</span></div>`;
     }).join("") ||
       `<div class="empty">nothing yet in ${esc(w || "this project")} &mdash; say something</div>`;
-    if (atEnd || !stream2Seen) body.scrollTop = body.scrollHeight;
+    // Same contract as pane one: the echo stands in for a line that has not
+    // arrived, and goes the moment it does.
+    const e2 = ECHOES["#termpane2"];
+    if (e2){
+      const head = e2.text.slice(0, 40);
+      const landed = lines.some(l => l.who === "you"
+                                     && (l.text || "").includes(head));
+      if (landed || Date.now() - e2.since > 120000) clearEcho("#termpane2");
+      else body.appendChild(e2.el);
+    }
+    if (atEnd || !stream2Seen || ECHOES["#termpane2"])
+      body.scrollTop = body.scrollHeight;
     stream2Seen = sig;
     pane.querySelector("h2 .n").textContent = d.session || "";
     pane.dataset.state = "ok";

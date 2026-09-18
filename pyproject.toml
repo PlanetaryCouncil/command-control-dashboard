@@ -37,6 +37,13 @@ dev = [
   # starlette.testclient requires httpx2; the old httpx pin made every
   # http test fail at collection rather than at assert.
   "httpx2>=0.28.0",
+  # Real-browser end-to-end tests. Every other test in this suite reads the
+  # page as a STRING -- they prove the markup and the CSS say the right
+  # things, and they proved a menu was clickable while it drew off the edge of
+  # the screen and a send button did nothing visible. Only a browser catches
+  # that. Configured to drive the Chrome already on this machine
+  # (channel="chrome"), so no 130MB browser download.
+  "playwright>=1.47.0",
 ]
 
 [tool.pytest.ini_options]
