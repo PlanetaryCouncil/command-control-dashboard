@@ -3458,13 +3458,21 @@ def _first_contact() -> str:
         return ""
 
 
-# The shell. Small enough to land in the first packet, complete enough to look
-# like the board already exists: the background, the bar's height, and a loader
-# sitting where the panes will be.
+# The shell. Small enough to land in the first packet, and shaped like the
+# board rather than like a splash screen.
 #
-# Everything here is inline. A <link> or a <script src> in the head would stall
-# the "instant" part on a second round trip, which is the whole thing this is
-# avoiding.
+# A centred logo and three dots told Marsita the page was busy and nothing
+# else: "I prefer partial load ----> and then different panes load inside"
+# (2026-09-18). So the first packet draws the LAYOUT -- the bar, the three
+# columns, the panes in their real proportions -- and each block breathes
+# where its content will be. The eye settles on the arrangement while the
+# content is still on the wire, and the real board lands into a shape that is
+# already familiar instead of replacing a logo.
+#
+# Everything is inline. A <link> or a <script src> here would stall the
+# instant part on a second round trip, which is the whole thing this avoids.
+# The proportions are copied from #grid so the skeleton does not lie about
+# where things will be.
 SHELL = """<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -3472,35 +3480,47 @@ SHELL = """<!doctype html>
 <title>{title}</title>
 <style>
 html,body{{margin:0;height:100%;background:#0d0d0d;color:#c3c2b7;
-  font-family:ui-monospace,"SF Mono",Menlo,monospace;}}
-/* The loader is position:fixed so the real page can be parsed underneath it
-   without anything jumping; it is removed once that page says it is ready. */
-#boot{{position:fixed;inset:0;z-index:9999;display:flex;
-  flex-direction:column;align-items:center;justify-content:center;gap:14px;
-  background:#0d0d0d;transition:opacity .28s ease, visibility .28s;}}
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;overflow:hidden;}}
+#boot{{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;
+  background:#0d0d0d;transition:opacity .3s ease,visibility .3s;}}
 #boot[data-done="1"]{{opacity:0;visibility:hidden;}}
-#boot .name{{font-size:12px;letter-spacing:.34em;text-transform:uppercase;
-  color:#c3c2b7;}}
-/* Three dots, one beat apart. Cheap, and it says "working" without a
-   spinner's implication that progress is being measured -- it is not. */
-#boot .dots{{display:flex;gap:7px;}}
-#boot .dots i{{width:5px;height:5px;border-radius:50%;background:#0ca30c;
-  animation:bootpulse 1.1s ease-in-out infinite;}}
-#boot .dots i:nth-child(2){{animation-delay:.18s;}}
-#boot .dots i:nth-child(3){{animation-delay:.36s;}}
-@keyframes bootpulse{{0%,100%{{opacity:.22;transform:scale(.8);}}
-  50%{{opacity:1;transform:scale(1);}}}}
-#boot .msg{{font-size:9px;letter-spacing:.12em;color:#5c6674;}}
+#boot .bar{{flex:none;height:26px;display:flex;align-items:center;gap:11px;
+  padding:0 8px;background:#1a1a19;border-bottom:1px solid #2f2f2d;
+  font-size:11.5px;font-weight:600;letter-spacing:.04em;}}
+#boot .bar b{{color:#c3c2b7;font-weight:600;}}
+#boot .bar span{{font-size:9px;color:#5c6674;letter-spacing:.12em;}}
+#boot .grid{{flex:1;display:grid;gap:6px;padding:6px;min-height:0;
+  grid-template-columns:290px 1fr 520px;}}
+#boot .col{{display:flex;flex-direction:column;gap:6px;min-height:0;}}
+/* Each block sits where a pane will. Flex weights, not pixels, so the
+   skeleton keeps its shape on any window the board itself would. */
+#boot .blk{{background:#151514;border:1px solid #2f2f2d;border-radius:4px;
+  position:relative;overflow:hidden;min-height:0;}}
+#boot .blk::after{{content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,#ffffff0d 45%,transparent);
+  transform:translateX(-100%);animation:sweep 1.5s ease-in-out infinite;}}
+#boot .blk:nth-child(2)::after{{animation-delay:.2s;}}
+#boot .blk:nth-child(3)::after{{animation-delay:.4s;}}
+@keyframes sweep{{to{{transform:translateX(100%);}}}}
 @media (prefers-reduced-motion:reduce){{
-  #boot .dots i{{animation:none;opacity:.7;}}
+  #boot .blk::after{{animation:none;}}
   #boot{{transition:none;}}
 }}
+@media (max-width:1100px){{#boot .grid{{grid-template-columns:1fr;}}
+  #boot .col:last-child{{display:none;}}}}
 </style>
 </head><body>
-<div id="boot" role="status" aria-live="polite">
-  <span class="name">{title}</span>
-  <span class="dots"><i></i><i></i><i></i></span>
-  <span class="msg">assembling the board</span>
+<div id="boot" role="status" aria-live="polite" aria-label="Loading the board">
+  <div class="bar"><b>{title}</b><span>assembling</span></div>
+  <div class="grid">
+    <div class="col"><div class="blk" style="flex:2"></div>
+      <div class="blk" style="flex:3"></div>
+      <div class="blk" style="flex:2"></div></div>
+    <div class="col"><div class="blk" style="flex:3"></div>
+      <div class="blk" style="flex:2"></div></div>
+    <div class="col"><div class="blk" style="flex:1"></div>
+      <div class="blk" style="flex:2"></div></div>
+  </div>
 </div>
 """
 

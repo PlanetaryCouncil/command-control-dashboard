@@ -23,8 +23,9 @@ import oneview
 
 
 def test_the_shell_fits_in_the_first_packet():
-    """Above ~1.5KB it stops being one round trip, which is the whole point."""
-    assert len(oneview.shell().encode()) < 2048
+    """It carries a whole skeleton now, so it is bigger -- but an initial
+    congestion window is ~14KB and this must stay nowhere near it."""
+    assert len(oneview.shell().encode()) < 4096
 
 
 def test_the_shell_needs_no_second_request():
@@ -36,10 +37,35 @@ def test_the_shell_needs_no_second_request():
     assert "<style>" in sh, "no inline styling; the loader would be unstyled"
 
 
-def test_the_shell_carries_a_loader():
+def test_the_shell_is_shaped_like_the_board():
+    """A centred logo said "busy" and nothing else. Marsita, 2026-09-18: "I
+    prefer partial load ----> and then different panes load inside". The first
+    packet draws the layout, so the real board lands into a shape that is
+    already familiar rather than replacing a splash screen."""
     sh = oneview.shell()
     assert 'id="boot"' in sh
     assert 'role="status"' in sh, "a loader that says nothing to a screenreader"
+    assert sh.count('class="col"') == 3, "not the three-column board"
+    assert sh.count('class="blk"') >= 6, "too few panes to read as the board"
+
+
+def test_the_skeleton_does_not_lie_about_the_layout():
+    """Its columns are the ones #grid actually uses; a skeleton that settles
+    somewhere else is worse than none, because the board then jumps."""
+    import re
+    real = re.search(r"#grid\{[^}]*grid-template-columns:var\(--wL,(\d+)px\)"
+                     r"[^}]*var\(--wR,(\d+)px\)", SRC)
+    assert real, "could not read #grid's columns"
+    sh = oneview.shell()
+    assert f"grid-template-columns:{real.group(1)}px 1fr {real.group(2)}px" in sh
+
+
+def test_the_panes_load_individually_behind_it():
+    """"different panes load inside" -- each pane carries its own loading
+    state, so once the skeleton lifts they fill in one at a time rather than
+    all at once."""
+    rest = oneview.page_rest("[]", "[]", "tok", remote=False, build="x")
+    assert rest.count('data-state="loading"') >= 6
 
 
 def test_the_shell_is_a_constant_and_is_cached():
