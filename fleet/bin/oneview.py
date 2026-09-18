@@ -752,13 +752,24 @@ canvas.mark:hover{opacity:1;}
   letter-spacing:.12em;text-transform:uppercase;padding:2px 6px;
   border-radius:3px;background:var(--good);color:#0d0d0d;}
 .pane h2 .tag.alt{background:var(--info);}
-.tellbar{flex:none;display:flex;justify-content:flex-start;padding:4px 7px 0;}
+/* The row exists only when there is something in it. An empty strip above the
+   box is a gap that never explains itself. */
+.tellbar{flex:none;display:none;justify-content:flex-start;padding:4px 7px 0;}
+.tellbar:has(#rebtn[data-stale="1"]){display:flex;}
 .tellbar #rebtn{flex:none;}
 #termpane[data-open="0"] .tellbar{display:none;}
-/* Quieter than send until it has something to say: send is the thing you came
-   here to press. The stale glow overrides all of this. */
-.tellbar #rebtn{background:none;color:var(--muted);}
-.tellbar #rebtn:hover{color:#0d0d0d;background:var(--good);}
+/* Hidden until the server has actually moved on. Marsita, 2026-09-18:
+   "reload should appear only if something new deployed... only when something
+   needs reloading". A control that is always there is furniture; one that
+   appears exactly when it is the right thing to press is information.
+
+   Ctrl+R and `r` keep working whether it is showing or not -- the button is
+   the notice, not the only way in. */
+.tellbar #rebtn{display:none;}
+.tellbar #rebtn[data-stale="1"]{display:inline-flex;}
+/* It only ever appears when it is the thing to press, so it does not have to
+   be shy about it. */
+.tellbar #rebtn:hover{color:#0d0d0d;background:var(--warning);}
 /* Behind the server. The ring spins and the whole control glows, because the
    one thing it has to beat is being skimmed past. */
 .tellbar #rebtn[data-stale="1"]{color:var(--warning);border-color:var(--warning);

@@ -25,10 +25,32 @@ import fleet as fleetmod
 import oneview
 
 
-def test_the_button_is_always_there():
-    """A keystroke you have to be reminded of is not a control."""
+def test_the_button_is_in_the_page_but_hidden_until_it_matters():
+    """Marsita, 2026-09-18: "reload should appear only if something new
+    deployed... only when something needs reloading".
+
+    A control that is always there is furniture. One that appears exactly when
+    it is the right thing to press is information -- and with nothing to say,
+    the row above the box is a gap that never explains itself.
+    """
     page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
-    assert 'id="rebtn"' in page
+    assert 'id="rebtn"' in page, "it must exist to be revealed later"
+    assert ".tellbar #rebtn{display:none;}" in SRC
+    assert '.tellbar #rebtn[data-stale="1"]{display:inline-flex;}' in SRC
+
+
+def test_the_empty_row_collapses_too():
+    """Otherwise a blank strip sits above the box forever."""
+    assert ".tellbar{flex:none;display:none;" in SRC
+    assert '.tellbar:has(#rebtn[data-stale="1"]){display:flex;}' in SRC
+
+
+def test_the_keys_work_whether_it_is_showing_or_not():
+    """The button is the notice, not the only way in."""
+    i = SRC.index("function wireReload()")
+    fn = SRC[i:SRC.index("\n}\n", i)]
+    # the keydown handler is bound unconditionally, before the BUILD guard
+    assert fn.index('addEventListener("keydown"') < fn.index("if (!BUILD) return;")
 
 
 def test_a_remote_visitor_does_not_get_it():
@@ -121,7 +143,12 @@ def test_the_glow_survives_reduced_motion():
     """The spin is a nicety; the warning is not."""
     m = re.search(r"@media \(prefers-reduced-motion:reduce\)\{([^@]*)\}", SRC)
     assert m and "animation:none" in m.group(1)
-    assert 'box-shadow' in SRC[SRC.index('#rebtn[data-stale="1"]'):][:300]
+    # The glow lives in the stale rule that also sets the colour, not in
+    # whichever `[data-stale]` selector happens to come first in the file --
+    # one of those is a :has() that only controls layout.
+    rule = re.search(
+        r'\.tellbar #rebtn\[data-stale="1"\]\{color:[^}]*\}', SRC)
+    assert rule and "box-shadow" in rule.group(0)
 
 
 def test_the_pill_is_reachable_on_a_laptop_screen():
@@ -146,7 +173,9 @@ def test_the_pill_wins_the_cascade():
     assert ".tellbar #rebtn{display:inline-flex" in SRC
     assert "border-radius:999px" in SRC
     import re
-    loose = [m.start() for m in re.finditer(r"(?<!\.tellbar )#rebtn[{\[:]", SRC)]
+    # `:has(#rebtn[...])` is a match on a descendant, not a rule whose
+    # specificity competes -- exclude it rather than pretend it is a bug.
+    loose = [m.start() for m in re.finditer(r"(?<![.\w] )(?<!\()#rebtn[{\[:]", SRC)]
     assert not loose, "an unprefixed #rebtn rule will lose to a tag selector"
 
 
