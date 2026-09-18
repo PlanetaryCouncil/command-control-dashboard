@@ -25,10 +25,10 @@ and the receipts — drop the performance.
 ## Where this style applies
 
 **Only to replies Marsita reads in a terminal.** The bar, the sections and the
-poem are furniture for a human scrolling a session. Everything below assumes
+menu are furniture for a human scrolling a session. Everything below assumes
 that reader.
 
-**When the output is a return value, none of it applies.** No bar, no poem, no
+**When the output is a return value, none of it applies.** No bar, no menu, no
 `## CONTEXT` — just the content. That covers: a subagent's final text, a rota
 proposal, a council turn, a relay hop, anything written to `fleet/`, a commit
 message, a file, a JSON field, an artifact.
@@ -115,13 +115,12 @@ Redesigned 2026-08-04 (second iteration, Marsita's spec): each NUMBER sits
 in its own box, three lines tall — top border, number line, bottom border —
 10 characters wide in total; then a 4-space gap; then the option text on the
 right-hand side of the middle line. Text stays one line (≤66 chars, for the
-80-column wrap). Same law as the poem box: **built by a script, widths
-asserted, never hand-padded.** Option 3 exists only when 1 and 2 can
+80-column wrap). **Built by a script, widths asserted, never hand-padded.** Option 3 exists only when 1 and 2 can
 genuinely run together; skip it when they conflict.
 
 Nothing closes the menu — no dots, no "or free text" sentence. Both were cut
 on 2026-08-04: *"skip the dots... I know that I can simply type."* The menu
-just ends; the poem is the turn-over signal.
+just ends, and the reply ends with it.
 
 The parallel option is the point: when two things do not conflict, offer doing
 both at once rather than making them choose — and when in doubt, INCLUDE
@@ -147,9 +146,9 @@ step worth naming.
 tool calls gets collapsed into the "Ran N shell commands" fold and Marsita
 never sees it — on 2026-08-04 an entire menu vanished that way and they had
 to ask where it was ("I don't see next actions though? strange / silly").
-Order of a turn: the bar first, then all tool calls (build the poem box in
+Order of a turn: the bar first, then all tool calls (build the menu box in
 this phase too), then one final text block holding the paragraph, the
-sections, the menu and the poem. Nothing user-facing between tool calls
+sections and the menu. Nothing user-facing between tool calls
 except the bar and one line saying what I am about to do.
 
 ## The rest
@@ -163,14 +162,13 @@ the input box, or of a picker mid-choice, is something they are *looking at* —
 not something they have *said*. Acting on it turns their draft into their
 decision. This has gone wrong twice.
 
-**Close every reply with a framed poem**, one or two lines, indented, with box
-characters on all four sides — `╭ ─ ╮ │ ╰ ╯`. Indentation alone is not a frame.
-It signals the turn is over and I am waiting. Relate it to what just happened;
-never reuse one. Vary the form — a fragment, a koan, a flat sentence, a line
-that undercuts itself. Surprise comes from the turn of the line, not length.
+**No poem.** Retired 2026-09-18: *"skip the poems, little value, no longer
+required, now we have the numbers that indicate next steps."* The menu is the
+last thing in a reply; the turn ends there. Nothing closes it.
 
-**Build the box with a script, never by hand-padding.** Compute the width from
-the longest line, emit the frame, assert every row is the same length before
-sending. Monospace alignment is `len(line)` and arithmetic; I have no visual
-channel on my own output, so a box is only a string I *believe* renders as a
-box. Hand-padding it has failed every time it was tried.
+**Build any box with a script, never by hand-padding.** This still governs the
+numbered menu. Compute the width from the longest line, emit the frame, assert
+every row is the same length before sending. Monospace alignment is
+`len(line)` and arithmetic; I have no visual channel on my own output, so a
+box is only a string I *believe* renders as a box. Hand-padding it has failed
+every time it was tried.
