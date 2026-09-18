@@ -990,6 +990,57 @@ def serve(port):
             self.end_headers()
             self.wfile.write(body)
 
+        def _send_streamed(self, shell: bytes, rest_fn):
+            """Flush a small shell, then stream the rest behind it.
+
+            The board is ~200KB and was built in full before a single byte
+            left: the browser sat on a white screen for the whole render AND
+            the whole transfer. Marsita, 2026-09-18: "create a unloader and
+            loader... I want to make it appear smooth and sleek".
+
+            Chunked transfer, because a shell that is flushed early cannot
+            carry a Content-Length for a body not written yet. `rest_fn` is
+            called AFTER the shell is on the wire, so the expensive render
+            happens while the loader is already on screen rather than before
+            it.
+
+            No Content-Length and no keep-alive games: one response, chunked,
+            closed at the end.
+            """
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.send_header("Cache-Control", "no-store")
+            # Proxies that buffer would undo the whole point; say so.
+            self.send_header("X-Accel-Buffering", "no")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+
+            def chunk(b: bytes):
+                if not b:
+                    return
+                self.wfile.write(f"{len(b):X}\r\n".encode())
+                self.wfile.write(b)
+                self.wfile.write(b"\r\n")
+                self.wfile.flush()
+
+            try:
+                chunk(shell)
+                # A render that throws must not leave the page half-written
+                # with no explanation, so the failure is written INTO the
+                # stream -- the shell is already gone and cannot be replaced
+                # by an error page.
+                try:
+                    body = rest_fn()
+                except Exception as exc:
+                    body = ("<script>window.__boardFailed="
+                            + json.dumps(str(exc)[:300]) + "</script>").encode()
+                chunk(body if isinstance(body, bytes) else body.encode())
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except OSError:
+                pass                     # the tab went away mid-stream
+
         def _hang_selfie(self, body):
             """Validate a face and hang it on the wall.
 
@@ -1262,19 +1313,34 @@ def serve(port):
 
             if path in ("/", "/fleet", "/one", "/index.html"):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
-                import events as ev, oneview, agentsview as av
-                evts = ev.tail(200)
-                seed = json.dumps([{"ts": e.get("ts"), "agent": e.get("agent", ""),
-                                    "level": e.get("level", "info"),
-                                    "msg": e.get("msg", "")} for e in evts])
-                agents = json.dumps({k: [v[0], v[1]] for k, v in av.AGENTS.items()})
-                # The landing page embeds the kill token for its own controls.
-                # A remote viewer gets an empty one — blocking /api/kill is no
-                # use if the page hands the token out on the way in.
-                token = "" if self._remote() else KILL_TOKEN
-                self._send(oneview.page(seed, agents, token,
-                                        remote=self._remote(),
-                                        build=build_stamp()).encode())
+                import oneview
+                remote = self._remote()
+
+                # NOTHING expensive above this line. Reading 200 events off
+                # disk and building the agent table took ~1.5s, and doing it
+                # before the flush meant the loader arrived after the wait it
+                # was supposed to cover. The shell goes out first; everything
+                # else happens inside rest_fn, with the loader already on
+                # screen.
+                def rest():
+                    import events as ev, agentsview as av
+                    evts = ev.tail(200)
+                    seed = json.dumps([{"ts": e.get("ts"),
+                                        "agent": e.get("agent", ""),
+                                        "level": e.get("level", "info"),
+                                        "msg": e.get("msg", "")} for e in evts])
+                    agents = json.dumps({k: [v[0], v[1]]
+                                         for k, v in av.AGENTS.items()})
+                    # The landing page embeds the kill token for its own
+                    # controls. A remote viewer gets an empty one — blocking
+                    # /api/kill is no use if the page hands the token out on
+                    # the way in.
+                    token = "" if remote else KILL_TOKEN
+                    return oneview.page_rest(seed, agents, token,
+                                             remote=remote,
+                                             build=build_stamp()).encode()
+
+                self._send_streamed(oneview.shell(remote=remote).encode(), rest)
                 return
 
             if path == "/board":

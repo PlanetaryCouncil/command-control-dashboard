@@ -696,6 +696,14 @@ canvas.mark:hover{opacity:1;}
 /* The elapsed seconds beside the dots. The dots say "alive"; this says "how
    long", which is the question you actually have after the first few. */
 .sline.pending .at{color:var(--muted);font-variant-numeric:tabular-nums;}
+/* The dots and the clock, on their own line at the BOTTOM of the pending row.
+   They lived in the right-hand timestamp column, where a long paste pushed
+   them out of sight -- "If I paste loads of text, then the '.....' indicator
+   not visible" (2026-09-18). */
+.sline.pending{flex-wrap:wrap;}
+.sline.pending .status{flex-basis:100%;display:flex;gap:8px;
+  align-items:baseline;padding-left:52px;font-family:var(--mono);
+  font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums;}
 /* A menu option you can click instead of retyping its digit. The reply draws
    these as boxes; the stream turns each one back into a button. */
 .pick{display:inline-flex;align-items:center;gap:7px;margin:2px 0;padding:3px 8px;
@@ -1686,7 +1694,7 @@ loadGate();
    that ATE your message looks like. Marsita, 2026-09-16: "As I press enter
    here to send, update the text long above ... so I know something is
    happening". */
-const PENDING = {text: "", el: null, timer: 0, since: 0};
+const PENDING = {text: "", el: null, timer: 0, since: 0, clock: null};
 
 /* One dot to five, then back. The count is the only moving thing on the
    page while a turn is thinking, so it is doing the whole job of saying
@@ -1711,16 +1719,27 @@ function showPending(text){
   tx.className = "tx"; tx.textContent = text;
   const at = document.createElement("span");
   at.className = "at";
+  // The dots and the clock go on their own line at the BOTTOM of the row,
+  // not in the timestamp column: a long paste pushed the right-hand
+  // indicator out of sight (Marsita, 2026-09-18).
+  const status = document.createElement("span");
+  status.className = "status";
   const dots = document.createElement("span");
   dots.className = "dots";
-  at.appendChild(dots);
-  row.append(w, tx, at);
+  const clock = document.createElement("span");
+  status.append(dots, clock);
+  row.append(w, tx, at, status);
   body.appendChild(row);
   body.scrollTop = body.scrollHeight;
   PENDING.text = text;
   PENDING.el = row;
   PENDING.since = Date.now();
   PENDING.timer = startDots(dots);
+  const tickClock = () => {
+    clock.textContent = ((Date.now() - PENDING.since) / 1000).toFixed(0) + "s";
+  };
+  tickClock();
+  PENDING.clock = setInterval(tickClock, 1000);
 }
 
 /* A turn in flight, whoever started it.
@@ -1846,12 +1865,17 @@ function showWaiting(body, who){
   w.className = "w"; w.textContent = who === "tool" ? "working" : "sent";
   const tx = document.createElement("span");
   tx.className = "tx";
-  const dots = document.createElement("span");
-  dots.className = "dots";
-  tx.appendChild(dots);
   const at = document.createElement("span");
   at.className = "at";
-  row.append(w, tx, at);
+  // Same bottom line as the echo's: dots and clock under the text, where a
+  // tall row cannot hide them.
+  const status = document.createElement("span");
+  status.className = "status";
+  const dots = document.createElement("span");
+  dots.className = "dots";
+  const clock = document.createElement("span");
+  status.append(dots, clock);
+  row.append(w, tx, at, status);
   body.appendChild(row);
   WAIT.el = row;
   WAIT.since = Date.now();
@@ -1859,7 +1883,7 @@ function showWaiting(body, who){
   // Seconds, counting. The dots say "alive"; this says "how long", which is
   // the question you actually have once the first few have gone by.
   const tickClock = () => {
-    at.textContent = ((Date.now() - WAIT.since) / 1000).toFixed(0) + "s";
+    clock.textContent = ((Date.now() - WAIT.since) / 1000).toFixed(0) + "s";
   };
   tickClock();
   WAIT.clock = setInterval(tickClock, 1000);
@@ -1875,7 +1899,8 @@ function clearWaiting(){
 
 function clearPending(){
   if (PENDING.timer) clearInterval(PENDING.timer);
-  PENDING.timer = 0;
+  if (PENDING.clock) clearInterval(PENDING.clock);
+  PENDING.timer = 0; PENDING.clock = null;
   if (PENDING.el && PENDING.el.parentNode) PENDING.el.remove();
   PENDING.el = null;
   PENDING.text = "";
@@ -1898,28 +1923,29 @@ function pendingSettled(lines){
    holds a pty and none of the latency that made the old box unusable is on
    this path. Separate from #say below, which posts to the public board --
    two boxes, two endpoints, neither doing the other's job. */
-(() => {
-  const form = $("#tell");
-  if (!form) return;
-  const box = $("#tellBox"), FLOOR = 56;
-  const grow = () => {
-    box.style.height = "auto";
-    box.style.height =
-      Math.max(FLOOR, Math.min(box.scrollHeight, innerHeight * 0.4)) + "px";
-  };
-  box.addEventListener("input", grow);
 
-  /* Paste or drop an image and get its path typed into the line.
+/* Paste or drop an image and get its path typed into the line. Shared by both
+   send boxes: pane two never had it — "it works on the left, what's the
+   difference bro?" (2026-09-18).
 
-     Marsita, 2026-09-17: "I would like to paste images here in the console...
-     Last time I posted to twitter and shared link here." A screenshot should
-     not need a detour through a social network to reach the machine it is a
-     screenshot OF.
+   Marsita, 2026-09-17: "I would like to paste images here in the console...
+   Last time I posted to twitter and shared link here." A screenshot should
+   not need a detour through a social network to reach the machine it is a
+   screenshot OF.
 
-     /api/paste-image already existed -- only the handler was lost when the
-     browser terminal was retired. The path goes INTO the box rather than being
-     sent, because it is usually part of a sentence you are still writing. */
+   /api/paste-image already existed -- only the handler was lost when the
+   browser terminal was retired.
+
+   The short [### n] token STAYS in the box; the full path is substituted into
+   the message at send time, after every pending upload has settled. Marsita,
+   2026-09-18: "sometimes it uploads as [#### ] and sometimes as full file
+   path... I prefer consistency, I don't need to know the full path actually."
+   The old behavior raced: send before the upload landed and the raw token
+   went through; after, and a wall of /Users/... noise did. Now the human
+   always reads tokens and the agent always receives paths. */
+function wireImagePaste(box, grow){
   const pnote = m => { box.placeholder = m; };
+  const pending = new Set(), paths = new Map();
 
   /* A placeholder goes in NOW; the path replaces it when the upload lands.
 
@@ -1990,11 +2016,19 @@ function pendingSettled(lines){
       });
       const d = await r.json();
       // A failure leaves the token in place and says so beside it, rather than
-      // silently removing something you watched yourself paste.
-      replaceToken(token, d.path || (token + " (upload failed)"));
+      // silently removing something you watched yourself paste. A success is
+      // silent: the token keeps standing in for the file until send time.
+      if (d.path) paths.set(token, d.path);
+      else replaceToken(token, token + " (upload failed)");
     } catch (err) {
       replaceToken(token, token + " (upload failed)");
     }
+  }
+
+  function track(file){
+    const p = upload(file);
+    pending.add(p);
+    p.finally(() => pending.delete(p));
   }
 
   const imagesIn = src =>
@@ -2004,7 +2038,7 @@ function pendingSettled(lines){
     const files = imagesIn(e.clipboardData);
     if (!files.length) return;          // a plain text paste: leave it alone
     e.preventDefault();
-    files.forEach(upload);
+    files.forEach(track);
   });
 
   // Dropping on the box as well, since that is the other way a file arrives.
@@ -2013,21 +2047,46 @@ function pendingSettled(lines){
     const files = imagesIn(e.dataTransfer);
     if (!files.length) return;
     e.preventDefault();
-    files.forEach(upload);
+    files.forEach(track);
   });
 
+  return {
+    // What the wire gets: the box text with every settled token swapped for
+    // its path. Loops because a paste can land while we await the first
+    // batch.
+    async finalize(text){
+      while (pending.size) await Promise.allSettled([...pending]);
+      for (const [tok, p] of paths) text = text.split(tok).join(p);
+      return text;
+    },
+  };
+}
+
+(() => {
+  const form = $("#tell");
+  if (!form) return;
+  const box = $("#tellBox"), FLOOR = 56;
+  const grow = () => {
+    box.style.height = "auto";
+    box.style.height =
+      Math.max(FLOOR, Math.min(box.scrollHeight, innerHeight * 0.4)) + "px";
+  };
+  box.addEventListener("input", grow);
+  const paste = wireImagePaste(box, grow);
 
   form.addEventListener("submit", async e => {
     e.preventDefault();
-    const text = box.value.trim();
-    if (!text || box.dataset.busy) return;
+    const shown = box.value.trim();
+    if (!shown || box.dataset.busy) return;
     // Dim and lock rather than clear-and-hope: if the send fails, the words
     // are still in the box. Losing a paragraph to a dropped request is the
     // one thing a send-only box must never do.
     box.dataset.busy = "1";
     // Up before the request, not after it. The round trip is the part that
-    // feels slow, so the echo has to beat it.
-    showPending(text);
+    // feels slow, so the echo has to beat it. The echo shows the tokens the
+    // human typed; only the wire copy below carries the substituted paths.
+    showPending(shown);
+    const text = (await paste.finalize(shown)).trim();
     TTFB.since = Date.now();
     TTFB.mark = document.querySelectorAll("#termpane .body .sline").length || 0;
     try {
@@ -2086,12 +2145,14 @@ function pendingSettled(lines){
       Math.max(FLOOR, Math.min(box.scrollHeight, innerHeight * 0.4)) + "px";
   };
   box.addEventListener("input", grow);
+  const paste = wireImagePaste(box, grow);
 
   form.addEventListener("submit", async e => {
     e.preventDefault();
-    const text = box.value.trim();
-    if (!text || box.dataset.busy) return;
+    if (!box.value.trim() || box.dataset.busy) return;
     box.dataset.busy = "1";
+    // Waits out any in-flight image uploads, then swaps tokens for paths.
+    const text = (await paste.finalize(box.value)).trim();
     try {
       const r = await fetch("api/tell", {
         method: "POST", headers: {"Content-Type": "application/json"},
@@ -2133,6 +2194,29 @@ function pendingSettled(lines){
   const sel = $("#ws2");
   if (sel) sel.addEventListener("change", () => setWs2(sel.value));
 })();
+
+/* ---------------- the loader comes down ------------------------------------ */
+/* The shell paints a loader in the first packet; this takes it away once the
+   board behind it is real. Marsita, 2026-09-18: "create a unloader and
+   loader... I want to make it appear smooth and sleek".
+
+   Dismissed here, at the END of the page script, rather than on DOMContentLoaded:
+   by the time this line runs the panes have been wired and the first paint is
+   the board, not a half-built one. A board that throws before this point
+   leaves the loader up, which is the honest outcome -- an empty screen is not
+   a loaded one. */
+function unload(){
+  const boot = document.getElementById("boot");
+  if (!boot) return;
+  // One frame, so the browser has painted the real layout before the fade
+  // starts; without it the two happen together and it reads as a flicker.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    boot.dataset.done = "1";
+    // Removed rather than left invisible: it is position:fixed over the whole
+    // board, and an invisible sheet still swallows the first click.
+    setTimeout(() => boot.remove(), 400);
+  }));
+}
 
 /* ---------------- the reload control ---------------------------------------- */
 /* There is deliberately no live reload here -- "live reload is like asking for
@@ -3286,6 +3370,10 @@ async function loadTools(){
 }
 loadTools();
 setInterval(loadTools, 60000);
+
+// Last line on purpose. Everything above has run, so the board behind
+// the loader is wired rather than merely parsed.
+unload();
 """
 
 
@@ -3368,6 +3456,96 @@ def _first_contact() -> str:
         return mod.as_html()
     except Exception:
         return ""
+
+
+# The shell. Small enough to land in the first packet, complete enough to look
+# like the board already exists: the background, the bar's height, and a loader
+# sitting where the panes will be.
+#
+# Everything here is inline. A <link> or a <script src> in the head would stall
+# the "instant" part on a second round trip, which is the whole thing this is
+# avoiding.
+SHELL = """<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title}</title>
+<style>
+html,body{{margin:0;height:100%;background:#0d0d0d;color:#c3c2b7;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;}}
+/* The loader is position:fixed so the real page can be parsed underneath it
+   without anything jumping; it is removed once that page says it is ready. */
+#boot{{position:fixed;inset:0;z-index:9999;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  background:#0d0d0d;transition:opacity .28s ease, visibility .28s;}}
+#boot[data-done="1"]{{opacity:0;visibility:hidden;}}
+#boot .name{{font-size:12px;letter-spacing:.34em;text-transform:uppercase;
+  color:#c3c2b7;}}
+/* Three dots, one beat apart. Cheap, and it says "working" without a
+   spinner's implication that progress is being measured -- it is not. */
+#boot .dots{{display:flex;gap:7px;}}
+#boot .dots i{{width:5px;height:5px;border-radius:50%;background:#0ca30c;
+  animation:bootpulse 1.1s ease-in-out infinite;}}
+#boot .dots i:nth-child(2){{animation-delay:.18s;}}
+#boot .dots i:nth-child(3){{animation-delay:.36s;}}
+@keyframes bootpulse{{0%,100%{{opacity:.22;transform:scale(.8);}}
+  50%{{opacity:1;transform:scale(1);}}}}
+#boot .msg{{font-size:9px;letter-spacing:.12em;color:#5c6674;}}
+@media (prefers-reduced-motion:reduce){{
+  #boot .dots i{{animation:none;opacity:.7;}}
+  #boot{{transition:none;}}
+}}
+</style>
+</head><body>
+<div id="boot" role="status" aria-live="polite">
+  <span class="name">{title}</span>
+  <span class="dots"><i></i><i></i><i></i></span>
+  <span class="msg">assembling the board</span>
+</div>
+"""
+
+
+_SHELL_CACHE = {}
+
+
+def shell(remote: bool = False) -> str:
+    """The first bytes out of the door, before anything expensive is built.
+
+    Cached: it is the same string every time, and the only work in it --
+    nav.board_name() -- reads config and cost 13ms, which is a tenth of a
+    second every ten loads spent rebuilding a constant. The point of this
+    function is to be the fastest thing the server does.
+    """
+    if "s" not in _SHELL_CACHE:
+        import nav
+        _SHELL_CACHE["s"] = SHELL.format(title=nav.board_name())
+    return _SHELL_CACHE["s"]
+
+
+def page_rest(*args, **kw) -> str:
+    """Everything the shell did not send, ready to stream behind it.
+
+    The shell has already opened <head>, closed it and opened <body>, so the
+    remainder cannot carry its own doctype or a second head. What it CAN carry
+    is the head's contents, moved into the body: a <style> or a <script src>
+    is valid there and applies exactly the same. That is the whole trick --
+    the expensive 51KB of CSS stops being the thing that delays the first
+    paint and becomes the thing that arrives during it.
+
+    Dropped from the head: charset, viewport and title, which the shell has
+    already said. Duplicating charset in particular is not harmless.
+    """
+    import re
+    html = page(*args, **kw)
+    head = html[html.index("<head>") + len("<head>"):html.index("</head>")]
+    body = html[html.index("<body>") + len("<body>"):]
+    keep = [m.group(0) for m in
+            re.finditer(r"<script\b[^>]*>.*?</script>|<style\b[^>]*>.*?</style>"
+                        r"|<link\b[^>]*>", head, re.S)]
+    # The loader is dismissed by the page's own script once it has run, so a
+    # board that fails to parse leaves the loader up rather than showing an
+    # empty screen and calling that success.
+    return "".join(keep) + body
 
 
 def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
