@@ -35,15 +35,8 @@ def test_the_button_is_in_the_page_but_hidden_until_it_matters():
     """
     page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
     assert 'id="rebtn"' in page, "it must exist to be revealed later"
-    assert "#tell .tellhead #rebtn{display:none;}" in SRC
-    assert '#tell .tellhead #rebtn[data-stale="1"]{display:inline-flex;}' in SRC
-
-
-def test_the_empty_row_collapses_too():
-    """Otherwise a blank strip sits above the box forever."""
-    # The row itself stays: send lives in it and is always there. Only the
-    # pill hides, and space-between keeps send hard right without it.
-    assert "justify-content:space-between" in SRC
+    assert ".tellhead #rebtn{display:none;}" in SRC
+    assert '.tellhead #rebtn[data-stale="1"]{display:inline-flex;}' in SRC
 
 
 def test_the_keys_work_whether_it_is_showing_or_not():
@@ -148,7 +141,7 @@ def test_the_glow_survives_reduced_motion():
     # whichever `[data-stale]` selector happens to come first in the file --
     # one of those is a :has() that only controls layout.
     rule = re.search(
-        r'\#tell .tellhead #rebtn\[data-stale="1"\]\{color:[^}]*\}', SRC)
+        r'\.tellhead #rebtn\[data-stale="1"\]\{color:[^}]*\}', SRC)
     assert rule and "box-shadow" in rule.group(0)
 
 
@@ -167,14 +160,14 @@ def test_the_pill_is_reachable_on_a_laptop_screen():
     # bar, which is sized by whatever else it happens to be carrying.
     assert 'class="tellhead"' in page[:i]
     assert page.rindex('class="tellhead"', 0, i) > page.index('id="grid"')
-    assert "#tell .tellhead #rebtn{flex:none;}" in SRC
+    assert ".tellhead #rebtn{flex:none;}" in SRC
 
 
 def test_the_pill_wins_the_cascade():
     """A bare `#rebtn` at (1,0,0) lost to `#bar button` at (1,0,1) and
     rendered with the bar's 5px radius. Every rule carries a second selector
     so it cannot lose that fight again, wherever the pill is moved to."""
-    assert "#tell .tellhead #rebtn{display:inline-flex" in SRC
+    assert ".tellhead #rebtn{display:inline-flex" in SRC
     assert "border-radius:999px" in SRC
     import re
     # `:has(#rebtn[...])` is a match on a descendant, not a rule whose
@@ -186,7 +179,7 @@ def test_the_pill_wins_the_cascade():
 def test_a_click_anywhere_on_the_pill_counts():
     """The glyph and the label are decoration inside the button; a click
     landing on either must still be a click on the button."""
-    assert "#tell .tellhead #rebtn > *{pointer-events:none;}" in SRC
+    assert ".tellhead #rebtn > *{pointer-events:none;}" in SRC
 
 
 def test_no_comment_carries_the_html_terminator():
@@ -234,7 +227,7 @@ def test_the_stale_pill_is_filled_not_outlined():
     outline on a dark board is still a dark button, and the one thing this has
     to beat is being skimmed past."""
     import re
-    rule = re.search(r'\#tell .tellhead #rebtn\[data-stale="1"\]\{color:[^}]*\}', SRC)
+    rule = re.search(r'\.tellhead #rebtn\[data-stale="1"\]\{color:[^}]*\}', SRC)
     assert rule, "no stale rule"
     css = rule.group(0)
     assert "background:var(--warning)" in css, "outline only; not bright"
@@ -261,27 +254,39 @@ def test_the_label_says_what_it_does():
     assert 'content:" ready"' not in SRC
 
 
-def test_reload_and_send_share_a_row_and_a_height():
-    """"with the send button on the right-hand side same height"."""
+def test_send_stays_beside_the_box_on_the_right():
+    """Marsita, 2026-09-18: "you did something funny with send image size...
+    I prefer it is on the right." Moving send up into the control row changed
+    its shape; it belongs against the thing you just typed."""
+    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
+    i = page.index('id="tellBox"')
+    after = page[i:page.index("</form>", i)]
+    assert 'type="submit"' in after, "send is no longer beside the box"
+    assert "#tell{flex:none;display:flex;gap:6px;align-items:flex-end" in SRC
+
+
+def test_the_reload_row_is_above_the_form_and_holds_only_the_pill():
     page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
     i = page.index('class="tellhead"')
     row = page[i:page.index("</div>", i)]
-    assert 'id="rebtn"' in row and 'class="sendbtn"' in row
-    assert row.index('id="rebtn"') < row.index('class="sendbtn"'), "send is not right"
-    # One height, set once, for both -- not two numbers that happen to match.
-    assert "#tell .tellhead > button{height:21px" in SRC
+    assert 'id="rebtn"' in row
+    assert "submit" not in row, "send crept back into the control row"
+    assert page.index('class="tellhead"') < page.index('<form id="tell">')
 
 
-def test_the_row_beats_the_generic_tell_button_rule():
-    """`#tell button` is (1,0,1) and would keep its 3px radius and
-    align-self:stretch over a bare `.tellhead > button` at (0,1,1)."""
-    assert "#tell .tellhead > button{" in SRC
-    assert "#tell .tellhead .sendbtn{margin-left:auto;}" in SRC
+def test_the_pill_lines_up_with_the_text_you_are_writing():
+    """"have an indentation like you code" -- the row takes the same 7px the
+    box does, so the pill's left edge sits under the first character."""
+    import re
+    row = re.search(r"\.tellhead\{[^}]*\}", SRC).group(0)
+    assert "padding:5px 7px 0" in row
+    box = re.search(r"#tell\{[^}]*\}", SRC).group(0)
+    assert "padding:5px 7px" in box
 
 
-def test_the_box_gets_the_full_width_now():
-    """With send moved up into the row, the textarea stops losing 60px to it."""
-    page = oneview.page("[]", "[]", "tok", remote=False, build="abc")
-    i = page.index('id="tellBox"')
-    after = page[i:i + 400]
-    assert "sendbtn" not in after, "send is still beside the box"
+def test_the_empty_reload_row_collapses():
+    """Otherwise a blank strip sits above the box whenever nothing is stale."""
+    import re
+    row = re.search(r"\.tellhead\{[^}]*\}", SRC).group(0)
+    assert "display:none" in row
+    assert '.tellhead:has(#rebtn[data-stale="1"]){display:flex;}' in SRC
