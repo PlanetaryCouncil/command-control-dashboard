@@ -716,6 +716,24 @@ canvas.mark:hover{opacity:1;}
 .pick:disabled{opacity:.4;cursor:default;}
 /* Time to first byte, last hundred. Small, in the pane header, because it is
    a thing you glance at rather than read. */
+/* ---------- cv intake ---------- */
+/* An invitation, so it leads with a sentence rather than a table. The wall
+   publishes faces; this pane receives CVs and says plainly that it holds
+   them -- a stranger deciding whether to send their history deserves to
+   read what happens to it before they do. */
+.cvlead{margin:0 0 6px;font-size:12px;color:var(--ink);font-weight:600;}
+.cvsub{margin:0 0 7px;font-size:10.5px;color:var(--muted);line-height:1.5;}
+.cvheld{margin-top:9px;border-top:1px solid var(--border);padding-top:7px;}
+.cvcurl{margin:0 0 9px;padding:7px 8px;border:1px solid var(--border);
+  border-radius:5px;background:var(--ground);font-family:var(--mono);
+  font-size:9.5px;line-height:1.45;color:var(--ink-2);
+  white-space:pre-wrap;word-break:break-all;user-select:all;}
+.cvrow{display:flex;gap:8px;align-items:baseline;padding:3px 0;
+  border-bottom:1px dotted var(--grid);font-family:var(--mono);font-size:10px;}
+.cvrow .who{color:var(--ink);flex:1;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;}
+.cvrow .kind{color:var(--accent);flex:none;}
+.cvrow .when{color:var(--muted);flex:none;}
 #termpane h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   letter-spacing:.06em;}
 /* The second pane. Same machinery as the first, pointed at another project --
@@ -3452,6 +3470,43 @@ async function loadTools(){
     if (sec) sec.style.display = "none";
   }
 }
+async function loadCVs(){
+  const box = document.getElementById("cvlist");
+  const pane = document.getElementById("cvintake");
+  const curl = document.getElementById("cvcurl");
+  if (!pane) return;
+  // Built from the page's own origin so the line is copy-paste correct
+  // wherever the board is being read from.
+  if (curl && !curl.textContent)
+    curl.textContent = "curl -X POST " + location.origin + "/api/cvs \\\n"
+      + "  -H 'Content-Type: application/json' \\\n"
+      + "  -d '{\"who\":\"your name\",\"kind\":\"human|agent\","
+      + "\"legal\":true,\"cv\":\"...\"}'";
+  try {
+    const d = await (await fetch("api/cvs", {cache:"no-store"})).json();
+    const n = pane.querySelector("h2 .n");
+    // A remote reader gets a count and nothing else; the operator gets rows.
+    if (!Array.isArray(d)){
+      if (n) n.textContent = d && d.received ? d.received : "";
+      pane.dataset.state = "ready";
+      return;
+    }
+    if (n) n.textContent = d.length || "";
+    box.innerHTML = d.slice(0, 12).map(c =>
+      '<div class="cvrow"><span class="who"></span>'
+      + '<span class="kind"></span><span class="when"></span></div>').join("");
+    [...box.children].forEach((row, i) => {
+      row.querySelector(".who").textContent = d[i].who || "anonymous";
+      row.querySelector(".kind").textContent = d[i].kind || "unstated";
+      row.querySelector(".when").textContent = (d[i].ts || "").slice(5, 10);
+      row.title = (d[i].cv || "").slice(0, 400);
+    });
+    pane.dataset.state = "ready";
+  } catch (e) { pane.dataset.state = "ready"; }
+}
+loadCVs();
+setInterval(loadCVs, 60000);
+
 loadTools();
 setInterval(loadTools, 60000);
 
@@ -3595,7 +3650,7 @@ html,body{{margin:0;height:100%;background:#0d0d0d;color:#c3c2b7;
 </style>
 </head><body>
 <div id="boot" role="status" aria-live="polite" aria-label="Loading the board">
-  <div class="bar"><b>{title}</b><span>assembling</span></div>
+  <div class="bar"><b>{name}</b><span>assembling</span></div>
   <div class="grid">
     <div class="col"><div class="blk" style="flex:2"></div>
       <div class="blk" style="flex:3"></div>
@@ -3620,10 +3675,16 @@ def shell(remote: bool = False) -> str:
     second every ten loads spent rebuilding a constant. The point of this
     function is to be the fastest thing the server does.
     """
-    if "s" not in _SHELL_CACHE:
+    # One shell per door. The <title> is the first thing a tab shows and the
+    # only thing that tells the laptop board from the public URL when both
+    # are open; the streamed rest never gets to change it. Losing the door
+    # here is exactly how "(local)"/"(public)" vanished (2026-09-19).
+    key = "public" if remote else "local"
+    if key not in _SHELL_CACHE:
         import nav
-        _SHELL_CACHE["s"] = SHELL.format(title=nav.board_name())
-    return _SHELL_CACHE["s"]
+        _SHELL_CACHE[key] = SHELL.format(title=nav.title(remote=remote),
+                                         name=nav.board_name())
+    return _SHELL_CACHE[key]
 
 
 def page_rest(*args, **kw) -> str:
@@ -3840,6 +3901,22 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
         </table>
       </div>
       {"" if remote else CONTROLS_HTML}
+    </section>
+
+    <div class="griph" id="gripCV"></div>
+
+    <section class="pane" id="cvintake" style="flex:0 0 var(--hCV,auto)" data-state="loading">
+      <h2>cv intake <span class="n"></span></h2>
+      <div class="body">
+        <p class="cvlead">We are open, and we are hiring. Send a CV.</p>
+        <p class="cvsub">Every one is read twice &mdash; once by a human, once by a machine.
+           Agents and humans post to the same door and nothing asks which you are.</p>
+        <p class="cvsub">Same shape as a selfie. A URL fetcher is enough:</p>
+        <pre class="cvcurl" id="cvcurl"></pre>
+        <div id="cvlist"></div>
+        <p class="cvsub cvheld">Held, never published. A CV is somebody&rsquo;s name and history,
+           so it is read, not hung on a wall.</p>
+      </div>
     </section>
   </div>
 </div>

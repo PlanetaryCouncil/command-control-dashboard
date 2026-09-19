@@ -118,13 +118,14 @@ def title(*suffix: str, remote: bool | None = None) -> str:
     separates the doors.
     """
     import html
-    # The door joins the title with the same " · " as everything else rather
-    # than in brackets -- Marsita, 2026-09-18: "the brackets no longer in the
-    # <title>". A tab strip is narrow and parentheses read as an aside; the
-    # door is not an aside, it is half of which tab this is.
+    # The door is in brackets: "GAIA (local)" / "GAIA (public)". On
+    # 2026-09-18 "the brackets no longer in the <title>" was read as a request
+    # to drop them; it was a report that they had gone missing. Marsita,
+    # 2026-09-19: "lost (public) and (local) info tags in the <head> <title>".
     door = "" if remote is None else ("public" if remote else "local")
-    parts = [board_name(), *(s for s in suffix if s), *( [door] if door else [] )]
-    return html.escape(" · ".join(parts), quote=True)
+    parts = [board_name(), *(s for s in suffix if s)]
+    text = " · ".join(parts) + (f" ({door})" if door else "")
+    return html.escape(text, quote=True)
 
 
 def html(current: str = "", remote: bool = False) -> str:
