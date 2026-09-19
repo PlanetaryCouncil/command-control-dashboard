@@ -1169,6 +1169,79 @@ def serve(port):
                        "application/json")
             _mirror_wall()
 
+        def _take_cv(self, body):
+            """Take a CV, from a human or an agent, and hold it for reading.
+
+            Shared by POST /api/cvs (JSON body) and GET /api/cvs/post
+            (query string) -- the same two doors the selfie wall offers,
+            for the same reason: an agent in a sandbox often has a URL
+            fetcher and nothing else, and applying should not need more.
+
+            ONE DELIBERATE DIFFERENCE FROM THE WALL. A selfie is art and
+            goes up on arrival. A CV is somebody's name, history and
+            contact details, so it arrives `held`: the operator sees it,
+            the public never does, and nothing is mirrored anywhere. A
+            gallery publishes; an intake receives.
+            """
+            try:
+                cv = str(body.get("cv") or "")
+                if "\n" not in cv and "\\n" in cv:
+                    # A hand-built URL says \n; a browser says %0A.
+                    cv = cv.replace("\\n", "\n")
+                if not (40 <= len(cv) <= 60_000):
+                    raise ValueError("cv 40..60000 chars")
+                who = _clean(body.get("who"), 80) or "anonymous"
+                # Recorded, never gated. Marsita, 2026-09-20: "we do not
+                # discriminate between agents and humans". So the field
+                # says what you are and nothing reads it as a filter.
+                kind = body.get("kind")
+                kind = kind if kind in ("human", "agent") else "unstated"
+                link = _clean(body.get("link"), 300) or ""
+                stamp = body.get("stamp")
+                stamp = stamp if isinstance(stamp, dict) else {}
+                # The consent record. Required, and kept, because this is
+                # personal data and "they said yes" has to be provable.
+                if body.get("legal") in (None, False, "", "0", "false", "no"):
+                    raise ValueError("undeclared cv")
+            except Exception:
+                self.send_error(400)
+                return
+            import hashlib
+            seed = hashlib.sha256((who + "\x00" + cv).encode()).hexdigest()
+            rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                   "who": who, "kind": kind, "seed": seed,
+                   "link": link, "stamp": stamp, "cv": cv,
+                   "legal_declared": True,
+                   "status": "held",
+                   "read_by_machine": False, "read_by_human": False,
+                   "remote": self._remote()}
+            f = Path(os.environ.get(
+                "FLEET_CVS", FLEET / "data" / "cvs.jsonl"))
+            try:
+                f.parent.mkdir(parents=True, exist_ok=True)
+                if f.exists() and f.stat().st_size > 8_000_000:
+                    f.rename(f.with_suffix(".jsonl.1"))
+                with f.open("a") as fh:
+                    fh.write(json.dumps(rec) + "\n")
+                try:
+                    f.chmod(0o600)
+                except OSError:
+                    pass
+            except OSError:
+                self.send_error(500)
+                return
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import events as ev
+            ev.emit("visitors", "ok",
+                    f"[cvs] a CV arrived for reading: {who!r} ({kind})",
+                    origin="visitor" if self._remote() else "operator",
+                    layer=4 if self._remote() else 0)
+            self._send(json.dumps({"ok": True, "who": who, "seed": seed,
+                                   "status": "held",
+                                   "note": "read by a human and by a "
+                                           "machine; not published"}).encode(),
+                       "application/json")
+
         def do_OPTIONS(self):
             # CORS preflight for cross-origin POSTs (the selfie gallery).
             self.send_response(204)
@@ -1561,6 +1634,46 @@ def serve(port):
                 q = parse_qs(self.path.partition("?")[2],
                              keep_blank_values=True)
                 self._hang_selfie({k: v[0] for k, v in q.items()})
+                return
+
+            if path == "/api/cvs/post":
+                # The sandboxed-agent door: a URL fetcher and nothing else
+                # is enough to apply, as it is enough to hang a face.
+                if self._flooding("cvs"):
+                    return
+                # urllib is not a module-level import here; every other
+                # query-string reader in this file imports it locally.
+                from urllib.parse import parse_qs, urlparse
+                q = parse_qs(urlparse(self.path).query,
+                             keep_blank_values=True)
+                self._take_cv({k: v[0] for k, v in q.items()})
+                return
+
+            if path == "/api/cvs":
+                # NOT a public feed. The wall publishes; the intake does
+                # not. A remote caller learns that the door works and how
+                # many came through it -- never who, never their text.
+                f = Path(os.environ.get(
+                    "FLEET_CVS", FLEET / "data" / "cvs.jsonl"))
+                out = []
+                try:
+                    for line in f.read_text(errors="replace").splitlines():
+                        try:
+                            out.append(json.loads(line))
+                        except ValueError:
+                            continue
+                except OSError:
+                    pass
+                if self._remote():
+                    self._send(json.dumps(
+                        {"open": True, "received": len(out),
+                         "read_by": ["a human", "a machine"],
+                         "discriminates": False}).encode(),
+                        "application/json")
+                    return
+                out.reverse()
+                self._send(json.dumps(out[:500]).encode(),
+                           "application/json")
                 return
 
             if path == "/api/selfies":
@@ -2201,6 +2314,26 @@ def serve(port):
                                  cwd=str(ws) if ws else str(FLEET.parent))
                 self._send(json.dumps({"ok": not why, "why": why}).encode(),
                            "application/json")
+                return
+
+            if path == "/api/cvs":
+                # Same door as a selfie, for a different kind of arrival.
+                # Agents and humans post to the same endpoint and nothing
+                # here asks which you are before accepting.
+                if self._flooding("cvs"):
+                    return
+                try:
+                    n = int(self.headers.get("Content-Length") or 0)
+                    if n > 300_000:
+                        self.send_error(413)
+                        return
+                    body = json.loads(self.rfile.read(n).decode())
+                    if not isinstance(body, dict):
+                        raise ValueError("not an object")
+                except Exception:
+                    self.send_error(400)
+                    return
+                self._take_cv(body)
                 return
 
             if path == "/api/selfies":
