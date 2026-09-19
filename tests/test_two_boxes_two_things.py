@@ -43,7 +43,8 @@ def test_they_live_in_different_panes():
 
 def test_they_post_to_different_endpoints():
     src = (BIN / "oneview.py").read_text()
-    assert 'fetch("api/tell"' in src           # Claude
+    # fetchT is fetch with a deadline; either spelling is the same endpoint.
+    assert 'fetchT("api/tell"' in src or 'fetch("api/tell"' in src  # Claude
     assert "/api/signals" in src               # the board
 
 
