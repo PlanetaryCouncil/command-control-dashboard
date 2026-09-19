@@ -141,12 +141,26 @@ def test_the_send_carries_the_project():
 
 
 def test_a_failed_send_keeps_your_words():
-    i = SRC.index('const form = $("#tell2")')
-    fn = SRC[i:SRC.index("})();", i)]
-    # the box is only cleared on success
-    assert fn.index("if (d.ok){ box.value = \"\"") > fn.index("await r.json()")
-    assert "could not send" in fn
+    """Losing a paragraph to a dropped request is the one thing a send-only
+    box must never do.
 
+    Asserts the INVARIANT rather than the line that used to express it: the
+    box is emptied only inside the success branch, and only after the server
+    has answered. The old version pinned the exact string
+    `if (d.ok){ box.value = ""; grow(); }`, which stopped being true the
+    moment the branch grew an echo and a re-poll -- a behaviour that had not
+    changed at all.
+    """
+    src = (REPO / "fleet" / "bin" / "oneview.py").read_text()
+    i = src.index('const form = $("#tell2");')
+    body = src[i:src.index("})();", i)]
+    clear = body.index('box.value = ""')
+    sent = min(i for i in (body.find("await fetchT"), body.find("await fetch"))
+               if i != -1)
+    assert sent < clear, "cleared before the server replied"
+    assert body.index("if (d.ok)") < clear, "cleared outside the success branch"
+    # and the failure paths say so instead of silently emptying it
+    assert "could not send" in body
 
 # ------------------------------------------- one keyboard, two panes, 1-6
 def test_pane_two_is_offset_by_three():

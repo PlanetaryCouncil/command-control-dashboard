@@ -17,9 +17,17 @@ SERVER = (REPO / "fleet" / "bin" / "fleet.py").read_text()
 
 
 def _tell():
-    """The #tellBox closure."""
-    i = SRC.index('const box = $("#tellBox")')
-    return SRC[i:SRC.index("})();", i)]
+    """The paste wiring, plus the #tellBox closure that uses it.
+
+    The handlers used to live inline in the #tellBox closure. Pane two
+    needed the same behaviour, so they moved into wireImagePaste(box, grow)
+    and both panes call it. Slicing forward from #tellBox alone stopped
+    seeing them -- the code had moved ABOVE the thing this sliced from,
+    which is why fifteen tests failed at once for a feature that works.
+    """
+    i = SRC.index("function wireImagePaste(")
+    j = SRC.index('const box = $("#tellBox")')
+    return SRC[i:SRC.index("})();", j)]
 
 
 def test_the_endpoint_is_still_there():
@@ -29,7 +37,9 @@ def test_the_endpoint_is_still_there():
 def test_a_pasted_image_is_uploaded():
     t = _tell()
     assert 'box.addEventListener("paste"' in t
-    assert 'fetch("api/paste-image"' in t
+    # fetchT is fetch with a deadline; either spelling is the same endpoint.
+    assert ('fetchT("api/paste-image"' in t
+            or 'fetch("api/paste-image"' in t)
 
 
 def test_a_dropped_image_is_uploaded_too():

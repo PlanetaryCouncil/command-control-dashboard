@@ -66,9 +66,25 @@ def test_the_name_is_not_printed_twice():
 
 
 def test_the_tab_says_which_door():
-    """Two tabs both reading GAIA cannot be told apart."""
-    assert "(local)" in oneview.page(*ARGS, remote=False)
-    assert "(public)" in oneview.page(*ARGS, remote=True)
+    """Two tabs both reading GAIA cannot be told apart.
+
+    The door used to be bracketed. Marsita, 2026-09-18: "the brackets no
+    longer in the <title>", so it joins with the same separator as the rest
+    of the title. What has to hold is that the two doors read differently,
+    not how they are punctuated -- pinning the brackets is what made a
+    cosmetic change look like a broken guarantee.
+    """
+    import re
+
+    def title(remote):
+        m = re.search(r"<title>(.*?)</title>",
+                      oneview.page(*ARGS, remote=remote), re.S)
+        assert m, "no <title> at all"
+        return m.group(1)
+
+    assert "local" in title(remote=False)
+    assert "public" in title(remote=True)
+    assert title(remote=False) != title(remote=True)
 
 
 def test_the_operator_is_not_sold_their_own_board():
