@@ -112,3 +112,6 @@ fleet/data/telegram-session
 .coverage
 .coverage.*
 htmlcov/
+
+# A flock target, recreated on every run. Never content.
+fleet/data/selfiesync.lock
