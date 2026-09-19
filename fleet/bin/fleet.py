@@ -1295,21 +1295,6 @@ def serve(port):
                     self._send(_report.as_html(d).encode())
                 return
 
-            if path == "/intro":
-                # Retired 2026-09-03. It was written as "the page you send
-                # someone", but the board grew a FIRST CONTACT banner, a
-                # welcome row and a goal chain of its own, and /about already
-                # explains the system in plain language. What was left was a
-                # second copy of the dashboard with a join box on top.
-                # Marsita: "it does nothing other than duplicating dashboard".
-                #
-                # A redirect rather than a 404: the path is in the wild, in
-                # old messages and in whatever a visitor bookmarked, and a
-                # dead link is a worse answer than the right page.
-                self.send_response(301)
-                self.send_header("Location", "/about")
-                self.end_headers()
-                return
 
             if path in ("/", "/fleet", "/one", "/index.html"):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -1930,15 +1915,6 @@ def serve(port):
                            "application/json")
                 return
 
-            if path == "/terminal":
-                # Retired 2026-09-05 -- see fleet/dormant/termview.py. The
-                # browser terminal was the wrong product; the board's stream
-                # pane replaced it. The path still answers, so an old tab or
-                # a bookmark lands somewhere real instead of on a 404.
-                self.send_response(301)
-                self.send_header("Location", "/")
-                self.end_headers()
-                return
 
             if path.startswith("/static/"):
                 # Subdirectories allowed, traversal still not: the old
