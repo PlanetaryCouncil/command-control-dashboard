@@ -26,7 +26,9 @@ import pytest
 FLEET = Path(__file__).resolve().parent.parent / "fleet"
 PORT = 8913
 
-CONTROL = ["/terminal", "/chat", "/api/kill-token", "/api/ask"]
+# /terminal left with the route on 2026-09-19. /ws/terminal is NOT here
+# because it is a websocket -- a plain GET cannot tell you it works.
+CONTROL = ["/chat", "/api/kill-token", "/api/ask"]
 # `/events` is public too, but it is an open SSE stream that never closes —
 # asserting on it here would hang the suite rather than test anything.
 PUBLIC = ["/", "/board", "/workers.json", "/agents", "/procs",

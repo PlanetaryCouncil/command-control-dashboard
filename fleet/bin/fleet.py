@@ -746,7 +746,7 @@ PUBLIC_WRITE_LIMITER = _public_write_limiter()
 # 404 rather than 403: a stranger learns these routes do not exist here, which
 # is cheaper than telling them there is a terminal they are not allowed to use.
 CONTROL_PATHS = frozenset({
-    "/terminal", "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
+    "/ws/terminal", "/chat", "/chat/stream", "/chat/send",
     "/api/kill", "/api/kill-token", "/api/paste-image", "/api/convene",
     "/api/build-gate", "/api/ask",
     # Puts a line into the session running on this machine. 404 from the
