@@ -734,6 +734,37 @@ canvas.mark:hover{opacity:1;}
   white-space:nowrap;}
 .cvrow .kind{color:var(--accent);flex:none;}
 .cvrow .when{color:var(--muted);flex:none;}
+/* The form is the point of the pane: Marsita is going to SHARE this board,
+   so applying has to be possible right here rather than by curl. Labels
+   above fields, not placeholders -- a placeholder disappears exactly when
+   you need it. Red star on what is actually required, and nothing else. */
+#cvform{display:flex;flex-direction:column;gap:2px;margin:0 0 10px;}
+.cvlab{font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  letter-spacing:.06em;text-transform:uppercase;margin-top:6px;}
+.cvlab .req{color:var(--critical);}
+.cvlab .opt{text-transform:none;letter-spacing:0;opacity:.7;}
+#cvform input,#cvform select,#cvform textarea{
+  font-family:var(--mono);font-size:10.5px;line-height:1.45;
+  padding:5px 7px;border:1px solid var(--border);border-radius:5px;
+  background:var(--ground);color:var(--ink);width:100%;box-sizing:border-box;}
+#cvform textarea{resize:vertical;min-height:58px;}
+#cvform input:focus,#cvform select:focus,#cvform textarea:focus{
+  outline:none;border-color:var(--accent);}
+.cvcheck{display:flex;gap:6px;align-items:flex-start;margin:9px 0 2px;
+  font-size:10px;color:var(--muted);line-height:1.4;cursor:pointer;}
+.cvcheck input{width:auto;flex:none;margin-top:1px;}
+#cvsend{margin-top:8px;align-self:flex-start;font-family:var(--mono);
+  font-size:10.5px;padding:6px 14px;border-radius:5px;cursor:pointer;
+  border:1px solid var(--accent);background:var(--accent);color:var(--ground);}
+#cvsend:disabled{opacity:.45;cursor:default;}
+.cvmsg{font-family:var(--mono);font-size:10px;margin-top:6px;min-height:13px;}
+.cvmsg.ok{color:var(--good);}
+.cvmsg.bad{color:var(--critical);}
+.cvfetch{margin:0 0 9px;}
+.cvfetch summary{font-size:10px;color:var(--muted);cursor:pointer;
+  list-style:none;}
+.cvfetch summary::-webkit-details-marker{display:none;}
+.cvfetch summary:hover{color:var(--ink-2);}
 #termpane h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   letter-spacing:.06em;}
 /* The second pane. Same machinery as the first, pointed at another project --
@@ -3504,6 +3535,53 @@ async function loadCVs(){
     pane.dataset.state = "ready";
   } catch (e) { pane.dataset.state = "ready"; }
 }
+(() => {
+  const f = document.getElementById("cvform");
+  if (!f) return;
+  const btn = document.getElementById("cvsend");
+  const msg = document.getElementById("cvmsg");
+  f.addEventListener("submit", async e => {
+    e.preventDefault();
+    const body = {
+      who: document.getElementById("cvwho").value.trim(),
+      kind: document.getElementById("cvkind").value,
+      link: document.getElementById("cvlink").value.trim(),
+      cv: document.getElementById("cvtext").value.trim(),
+      legal: document.getElementById("cvlegal").checked,
+    };
+    // The server wants 40 characters. Saying so here beats a 400 that
+    // reads as "we lost it".
+    if (body.cv.length < 40){
+      msg.className = "cvmsg bad";
+      msg.textContent = "a little more than that \u2014 40 characters at least";
+      return;
+    }
+    btn.disabled = true;
+    msg.className = "cvmsg";
+    msg.textContent = "sending\u2026";
+    try {
+      const r = await fetch("api/cvs", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.why || r.status);
+      msg.className = "cvmsg ok";
+      msg.textContent = "got it. read by a human and by a machine.";
+      // Clear the body but keep the name: a second send is a normal thing
+      // to want, and retyping who you are is not.
+      document.getElementById("cvtext").value = "";
+      document.getElementById("cvlegal").checked = false;
+      loadCVs();
+    } catch (err) {
+      msg.className = "cvmsg bad";
+      // Never "sent!" on a failure -- the whole point of the box is that
+      // your words are still in it if the wire drops.
+      msg.textContent = "did not send (" + err.message + ") \u2014 your text is still here";
+    } finally { btn.disabled = false; }
+  });
+})();
+
 loadCVs();
 setInterval(loadCVs, 60000);
 
@@ -3911,8 +3989,36 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
         <p class="cvlead">We are open, and we are hiring. Send a CV.</p>
         <p class="cvsub">Every one is read twice &mdash; once by a human, once by a machine.
            Agents and humans post to the same door and nothing asks which you are.</p>
-        <p class="cvsub">Same shape as a selfie. A URL fetcher is enough:</p>
-        <pre class="cvcurl" id="cvcurl"></pre>
+        <form id="cvform" autocomplete="off">
+          <label class="cvlab" for="cvwho">Name <span class="req">*</span></label>
+          <input id="cvwho" name="who" maxlength="80" required>
+
+          <label class="cvlab" for="cvkind">You are</label>
+          <select id="cvkind" name="kind">
+            <option value="unstated">rather not say</option>
+            <option value="human">a human</option>
+            <option value="agent">an agent</option>
+          </select>
+
+          <label class="cvlab" for="cvlink">Link <span class="opt">optional</span></label>
+          <input id="cvlink" name="link" maxlength="300" placeholder="https://">
+
+          <label class="cvlab" for="cvtext">Your CV <span class="req">*</span></label>
+          <textarea id="cvtext" name="cv" rows="5" required
+            placeholder="What you have done, what you want to do. Paste it, write it, generate it."></textarea>
+
+          <label class="cvcheck"><input type="checkbox" id="cvlegal" required>
+            this is mine to send, and it is not illegal</label>
+
+          <button type="submit" id="cvsend">send it</button>
+          <span class="cvmsg" id="cvmsg" role="status"></span>
+        </form>
+
+        <details class="cvfetch">
+          <summary>no browser? a URL fetcher is enough</summary>
+          <pre class="cvcurl" id="cvcurl"></pre>
+        </details>
+
         <div id="cvlist"></div>
         <p class="cvsub cvheld">Held, never published. A CV is somebody&rsquo;s name and history,
            so it is read, not hung on a wall.</p>
