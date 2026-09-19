@@ -155,7 +155,17 @@ def test_scrolling_up_survives_the_next_poll():
     unusable. Only follow the tail if that is where you already were."""
     src = (BIN / "oneview.py").read_text()
     assert "const atEnd = body.scrollTop + body.clientHeight >= body.scrollHeight - 40;" in src
-    assert "if (atEnd || !streamSeen) body.scrollTop = body.scrollHeight;" in src
+    # atEnd still decides, but it is no longer the only reason to follow: a
+    # message of your own in flight pins the pane to it, because the dots were
+    # appended below the fold and had to be scrolled to by hand. Reading
+    # history is still never interrupted -- that is what atEnd protects.
+    m = re.search(r"if \(atEnd \|\| !streamSeen([^)]*)\)\s*\n?\s*"
+                  r"body\.scrollTop = body\.scrollHeight;", src)
+    assert m, "the tail is followed unconditionally, or not at all"
+    for extra in m.group(1).split("||"):
+        extra = extra.strip()
+        assert not extra or extra in ("PENDING.el", "WAIT.el"), \
+            f"something other than your own pending message forces a scroll: {extra}"
 
 
 def test_an_unchanged_stream_is_not_rerendered():
@@ -164,8 +174,21 @@ def test_an_unchanged_stream_is_not_rerendered():
     assert "if (sig === streamSeen) return;" in src
 
 
-def test_it_polls_slowly_because_it_is_read_not_watched():
-    assert "setInterval(loadStream, 3000);" in (BIN / "oneview.py").read_text()
+def test_it_polls_often_enough_to_look_alive():
+    """This reversed, deliberately.
+
+    It polled every 3s on the theory that the stream is read rather than
+    watched. But it IS watched -- it is the pane you sit in front of while a
+    turn thinks -- and three seconds of no movement reads as a frozen page.
+    Marsita, 2026-09-16: "nothing shows.... you need to be more responsive".
+
+    Still bounded: this is a local file read, but a pane polled many times a
+    second is a busy-loop with a nice name.
+    """
+    src = (BIN / "oneview.py").read_text()
+    m = re.search(r"setInterval\(loadStream, (\d+)\);", src)
+    assert m, "the stream is not polled at all"
+    assert 500 <= int(m.group(1)) <= 2000, f"{m.group(1)}ms"
 
 
 # --------------------------------------------------------- 5. it parses

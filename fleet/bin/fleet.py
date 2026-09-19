@@ -913,6 +913,11 @@ def _redact_processes(snap):
     }
 
 
+# The port the real board serves on. Anything else is a scratch boot -- a
+# rehearsal by reload.sh -- and must not grab shared resources.
+CANONICAL_PORT = 8787
+
+
 def start_legacy_cockpit(port=8770):
     """Run the legacy green cockpit inside this process.
 
@@ -934,9 +939,51 @@ def start_legacy_cockpit(port=8770):
         from app.main import app as legacy_app
         cfg = uvicorn.Config(legacy_app, host="127.0.0.1", port=port,
                              log_level="warning")
-        threading.Thread(target=uvicorn.Server(cfg).run,
-                         name="legacy-cockpit", daemon=True).start()
-        print(f"legacy cockpit: http://127.0.0.1:{port}", flush=True)
+
+        bound = threading.Event()
+
+        class _Server(uvicorn.Server):
+            # Uvicorn tells us itself, rather than us guessing from the
+            # outside. The first version polled the port -- which happily
+            # confirmed a DIFFERENT process's bind, and said "cockpit up" in a
+            # log where uvicorn had printed "address already in use" two lines
+            # earlier. A liveness check that can be satisfied by somebody else
+            # is not a liveness check.
+            def startup(self, *a, **kw):
+                r = super().startup(*a, **kw)
+                if not self.should_exit:
+                    bound.set()
+                return r
+
+        def run():
+            # uvicorn.Server.run in a bare thread loses its own exception:
+            # a port already taken, an import that fails late, anything --
+            # the thread dies and the only symptom is six public routes
+            # answering 502 hours later. The board found this the hard way
+            # on 2026-09-19 (/about, /auth, /llms.txt, /health, /api/fleet,
+            # /api/signals all down, nothing in any log).
+            try:
+                _Server(cfg).run()
+            except Exception as exc:
+                print(f"legacy cockpit died: {exc!r}", flush=True)
+            else:
+                print("legacy cockpit exited", flush=True)
+
+        threading.Thread(target=run, name="legacy-cockpit", daemon=True).start()
+
+        # Announce the bind, not the intention. The old line printed the URL
+        # the moment the thread was handed off, so the log said the cockpit
+        # was up on every boot where it was not.
+        def confirm():
+            if bound.wait(timeout=60):
+                print(f"legacy cockpit: http://127.0.0.1:{port}", flush=True)
+            else:
+                print(f"legacy cockpit never bound :{port} "
+                      f"-- /about, /auth, /llms.txt and /health will 502",
+                      flush=True)
+
+        threading.Thread(target=confirm, name="legacy-cockpit-confirm",
+                         daemon=True).start()
     except Exception as e:
         print(f"legacy cockpit failed to start: {e}", flush=True)
 
@@ -969,8 +1016,21 @@ def serve(port):
     # was a blackout exactly as long as the imports ("why offline —
     # annoying", 2026-08-04). The board binds NOW; the cockpit joins when
     # it's dressed, and its routes 502 harmlessly until then.
-    threading.Thread(target=start_legacy_cockpit,
-                     name="legacy-cockpit-boot", daemon=True).start()
+    # Only the real board runs the cockpit. reload.sh boots the new code on a
+    # scratch port to check it before swapping, and that instance was also
+    # binding :8770 -- two processes racing for one port on every reload, with
+    # the loser dying silently. A scratch boot is a rehearsal; it does not get
+    # to take the stage (2026-09-19).
+    if port == CANONICAL_PORT or os.environ.get("FLEET_COCKPIT") == "1":
+        # FLEET_COCKPIT_PORT exists so this can be exercised without evicting
+        # the real cockpit from :8770 -- a test that has to take down the
+        # thing it is testing is a test nobody runs twice.
+        cport = int(os.environ.get("FLEET_COCKPIT_PORT") or 8770)
+        threading.Thread(target=start_legacy_cockpit, args=(cport,),
+                         name="legacy-cockpit-boot", daemon=True).start()
+    else:
+        print(f"scratch boot on :{port} -- not starting the cockpit",
+              flush=True)
 
     class Handler(http.server.BaseHTTPRequestHandler):
         # A keep-alive browser tab would otherwise hold the only connection

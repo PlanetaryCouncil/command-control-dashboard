@@ -54,8 +54,12 @@ def test_the_echo_goes_up_before_the_request_returns():
     follow it. Showing it in the success branch would still leave the page
     still for as long as the network took."""
     submit = _submit()
-    assert "showPending(text);" in submit
-    assert submit.index("showPending(text);") < submit.index("await fetch")
+    # `shown`, not `text`: the echo carries the tokens the human typed, while
+    # the wire copy has the uploaded paths substituted in. Asserting the
+    # variable name was always the weaker half -- what matters is that the
+    # echo is up before anything is awaited.
+    assert "showPending(shown);" in submit
+    assert submit.index("showPending(shown);") < submit.index("await ")
 
 
 def test_a_refused_send_does_not_leave_the_dots_spinning():
