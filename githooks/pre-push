@@ -5,18 +5,6 @@
 # what to run)". 66 s on Gaia, 14 s on the NUC. Deciding which tests a change
 # touches costs more thought than the run and is wrong often enough to matter.
 #
-# ONE exception, and it is about the CONTENT of the push, never the caller:
-# a push whose every changed file is under docs/report/ is plain text the
-# daily report job generates, and it goes out untested. Marsita, 2026-09-19:
-# "for pushing reports no test required? it's just plain text... I'm comfy
-# with risk". The rule is judged on `git diff --name-only` between what the
-# remote has and what is being pushed, so a job that is hijacked to carry one
-# extra file outside docs/report/ gets the full suite like everyone else.
-# Nothing about who is pushing, which script, or which env var is trusted.
-#
-# Marsita, 2026-09-19: "this sounds like it will be exploited one day,
-# please be smart when using it :)"
-#
 # GitHub Actions runs the same suite after the push and main requires it green
 # to merge a PR. This hook is the earlier, cheaper copy of that gate: it stops
 # the red commit leaving the machine at all.
@@ -25,37 +13,6 @@
 set -uo pipefail
 REPO="$(git rev-parse --show-toplevel)"
 cd "$REPO" || exit 1
-
-REPORT_ONLY_PREFIX="docs/report/"
-ZERO="0000000000000000000000000000000000000000"
-
-# stdin: <local ref> <local sha> <remote ref> <remote sha>, one line per ref.
-# Collect every file any pushed commit touches. A deleted ref pushes nothing.
-changed=""
-while read -r _lref lsha _rref rsha; do
-  [[ "$lsha" == "$ZERO" ]] && continue
-  if [[ "$rsha" == "$ZERO" ]]; then
-    # A new branch has no remote point to diff from. The rule cannot be
-    # judged, so the rule does not apply: full suite.
-    changed+="?new-branch"$'\n'
-  else
-    changed+="$(git diff --name-only "$rsha" "$lsha" 2>/dev/null || echo "?unknown")"$'\n'
-  fi
-done
-changed="$(printf '%s' "$changed" | sed '/^$/d')"
-
-if [[ -n "$changed" ]] && ! printf '%s\n' "$changed" | grep -qv "^$REPORT_ONLY_PREFIX"; then
-  n="$(printf '%s\n' "$changed" | wc -l | tr -d ' ')"
-  echo "→ pre-push: report-only push ($n files under $REPORT_ONLY_PREFIX), no tests by rule"
-  # The receipt for the post-mortem. One line per use of the loophole:
-  # when, which commit, which files. Marsita, 2026-09-19, on the wording:
-  # "I like reporting: this is a loophole, might be abused, trust me bro".
-  mkdir -p "$REPO/fleet/logs"
-  printf '%s loophole: report-only push, might be abused, trust me bro | %s | %s\n' \
-    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse --short HEAD)" \
-    "$(printf '%s' "$changed" | tr '\n' ' ')" >> "$REPO/fleet/logs/pre-push.log"
-  exit 0
-fi
 
 PY=""
 for v in .venv .venv311 .venv312 .venv313; do
