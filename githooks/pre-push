@@ -45,7 +45,15 @@ done
 changed="$(printf '%s' "$changed" | sed '/^$/d')"
 
 if [[ -n "$changed" ]] && ! printf '%s\n' "$changed" | grep -qv "^$REPORT_ONLY_PREFIX"; then
-  echo "→ pre-push: report-only push ($(printf '%s\n' "$changed" | wc -l | tr -d ' ') files under $REPORT_ONLY_PREFIX), no tests by rule"
+  n="$(printf '%s\n' "$changed" | wc -l | tr -d ' ')"
+  echo "→ pre-push: report-only push ($n files under $REPORT_ONLY_PREFIX), no tests by rule"
+  # The receipt for the post-mortem. One line per use of the loophole:
+  # when, which commit, which files. Marsita, 2026-09-19, on the wording:
+  # "I like reporting: this is a loophole, might be abused, trust me bro".
+  mkdir -p "$REPO/fleet/logs"
+  printf '%s loophole: report-only push, might be abused, trust me bro | %s | %s\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse --short HEAD)" \
+    "$(printf '%s' "$changed" | tr '\n' ' ')" >> "$REPO/fleet/logs/pre-push.log"
   exit 0
 fi
 
