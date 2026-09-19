@@ -12,7 +12,8 @@ CSS = """
   --border:#DCE1E7; --ink:#171B21; --ink-2:#414B58; --muted:#5C6674;
   --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sans:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",
+    "Cascadia Code","IBM Plex Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){
   :root{--ground:#0d0d0d;--surface:#1a1a19;--raised:#232322;

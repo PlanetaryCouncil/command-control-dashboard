@@ -33,8 +33,10 @@ CSS = """
   --ground:#F4F6F8; --surface:#FFFFFF; --raised:#EDF0F3;
   --border:#DCE1E7; --ink:#171B21; --ink-2:#414B58; --muted:#5C6674;
   --good:#0ca30c; --warning:#fab219; --critical:#d03b3b;
-  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",
+    "Cascadia Code","IBM Plex Mono",Menlo,Consolas,monospace;
+  --sans:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",
+    "Cascadia Code","IBM Plex Mono",Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme:dark){
   :root{--ground:#0d0d0d;--surface:#1a1a19;--raised:#232322;
@@ -53,11 +55,11 @@ header{display:flex;align-items:center;gap:14px;padding:12px 16px;flex:none;
   border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;}
 h1{font-family:var(--mono);font-size:14px;font-weight:600;margin:0;letter-spacing:-.01em;}
 header nav{margin-left:auto;display:flex;gap:8px;}
-a.btn,button{font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:6px;
+.btn,button{font-family:var(--mono);font-size:11px;padding:6px 12px;border-radius:6px;
   border:1px solid var(--border);background:var(--raised);color:var(--ink);
   cursor:pointer;text-decoration:none;display:inline-block;}
-button:hover,a.btn:hover{border-color:var(--muted);}
-button:focus-visible,a.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+button:hover,.btn:hover{border-color:var(--muted);}
+button:focus-visible,.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
 button[disabled]{opacity:.45;cursor:not-allowed;}
 
 #picker{display:flex;gap:8px;flex-wrap:wrap;padding:11px 16px;flex:none;
@@ -79,6 +81,7 @@ button[disabled]{opacity:.45;cursor:not-allowed;}
 .turn{display:flex;flex-direction:column;gap:11px;}
 .you{align-self:flex-end;max-width:min(680px,88%);background:var(--raised);
   border:1px solid var(--border);border-radius:12px 12px 3px 12px;padding:11px 14px;
+  font-family:var(--mono);font-size:12px;line-height:1.45;
   white-space:pre-wrap;word-break:break-word;}
 .you .files{margin-top:8px;display:flex;gap:7px;flex-wrap:wrap;}
 .you .files img{max-height:82px;border-radius:6px;border:1px solid var(--border);}
@@ -92,12 +95,38 @@ button[disabled]{opacity:.45;cursor:not-allowed;}
 .reply h3{margin:0 0 8px;font-family:var(--mono);font-size:11.5px;font-weight:600;
   color:var(--agent);display:flex;align-items:center;gap:7px;}
 .reply .secs{margin-left:auto;font-size:10px;color:var(--muted);font-weight:400;}
-.reply .body{white-space:pre-wrap;word-break:break-word;font-size:13.5px;
+.reply .body{white-space:pre-wrap;word-break:break-word;
+  font-family:var(--mono);font-size:12px;line-height:1.45;
+  font-variant-ligatures:none;-webkit-font-smoothing:antialiased;
   color:var(--ink-2);max-height:460px;overflow-y:auto;}
 .reply.err,.reply.err .body{color:var(--critical);}
 .dots::after{content:'';animation:dots 1.2s steps(4,end) infinite;}
 @keyframes dots{0%{content:'';}25%{content:'.';}50%{content:'..';}75%{content:'...';}}
 @media (prefers-reduced-motion:reduce){.dots::after{content:'...';animation:none;}}
+
+/* Block bars and box art are drawings, not prose: one line each, never
+   re-flowed. A wrapped 80-block rule stops being a landmark, and a wrapped
+   frame stops being a frame. */
+.body .bar{white-space:pre;overflow:hidden;font-family:var(--mono);
+  font-size:11px;line-height:1.1;color:var(--agent);opacity:.85;}
+.body .art{white-space:pre;overflow-x:auto;font-family:var(--mono);
+  font-size:12px;line-height:1.15;}
+.body .art::-webkit-scrollbar{display:none;}
+
+/* A numbered option is a button. Typing the digit still works. */
+.body .opt{display:flex;align-items:center;gap:11px;width:100%;
+  font-family:var(--mono);
+  margin:5px 0;padding:8px 11px;text-align:left;cursor:pointer;
+  border:1px solid var(--border);border-radius:9px;background:var(--ground);
+  color:var(--ink);font-size:12px;line-height:1.4;}
+.body .opt:hover{border-color:var(--agent);background:var(--surface);}
+.body .opt:active{transform:translateY(1px);}
+.body .opt[disabled]{opacity:.4;cursor:default;transform:none;}
+.body .opt .n{flex:none;width:23px;height:23px;border-radius:6px;
+  display:grid;place-items:center;font-family:var(--mono);font-size:11.5px;
+  background:var(--surface);border:1px solid var(--border);color:var(--agent);}
+.body .opt:hover .n{background:var(--agent);color:var(--ground);
+  border-color:var(--agent);}
 
 footer{flex:none;border-top:1px solid var(--border);background:var(--surface);
   padding:11px 16px calc(11px + env(safe-area-inset-bottom));}
@@ -107,10 +136,12 @@ footer{flex:none;border-top:1px solid var(--border);background:var(--surface);
 #attached img{max-height:34px;border-radius:3px;}
 #attached .x{cursor:pointer;color:var(--muted);}
 #row{display:flex;gap:9px;align-items:flex-end;min-width:0;}
-#row .btn,#row button{flex:none;height:44px;line-height:32px;}
+#row .btn,#row button{flex:none;height:44px;line-height:32px;
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;}
 #msg{flex:1;resize:none;min-height:44px;max-height:180px;padding:11px 13px;
   border-radius:9px;border:1px solid var(--border);background:var(--ground);
-  color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;}
+  color:var(--ink);font-family:var(--mono);font-size:12.5px;line-height:1.5;}
 #msg:focus{outline:2px solid var(--muted);outline-offset:-1px;}
 #hint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:7px;}
 """
@@ -174,6 +205,48 @@ msg.addEventListener('input', () => {
   msg.style.height = 'auto'; msg.style.height = Math.min(msg.scrollHeight, 180) + 'px';
 });
 sendBtn.addEventListener('click', send);
+
+const RE_BAR = /^\u2588+$/;
+const RE_TOP = /^\s*\u256d\u2500+\u256e\s*$/;
+const RE_BOT = /^\s*\u2570\u2500+\u256f\s*$/;
+const RE_OPT = /^\s*\u2502\s*(\d+)\s*\u2502\s{2,}(.*?)\s*$/;
+const RE_ART = /[\u2588\u2500\u2502\u256d\u256e\u2570\u256f\u250c\u2510\u2514\u2518\u251c\u2524\u252c\u2534\u253c\u2501\u2503]/;
+
+// Streamed text is plain; this runs once at the end, when the box art is
+// whole. A three-line number box becomes one real button — clicking it
+// sends the digit, which is exactly what typing it would have done.
+function renderRich(el, text){
+  el.textContent = '';
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++){
+    const L = lines[i];
+    if (RE_BAR.test(L.trim())){
+      const d = document.createElement('div');
+      d.className = 'bar'; d.textContent = L.trim();
+      el.appendChild(d); continue;
+    }
+    const m = lines[i+1] ? RE_OPT.exec(lines[i+1]) : null;
+    if (RE_TOP.test(L) && m && RE_BOT.test(lines[i+2] || '')){
+      const b = document.createElement('button');
+      b.className = 'opt'; b.type = 'button';
+      const n = document.createElement('span');
+      n.className = 'n'; n.textContent = m[1];
+      const t = document.createElement('span'); t.textContent = m[2];
+      b.append(n, t);
+      b.addEventListener('click', () => {
+        el.querySelectorAll('.opt').forEach(o => { o.disabled = true; });
+        msg.value = m[1]; send();
+      });
+      el.appendChild(b); i += 2; continue;
+    }
+    if (RE_ART.test(L)){
+      const d = document.createElement('div');
+      d.className = 'art'; d.textContent = L;
+      el.appendChild(d); continue;
+    }
+    el.appendChild(document.createTextNode(L + '\n'));
+  }
+}
 
 async function send(){
   const text = msg.value.trim();
@@ -251,7 +324,7 @@ async function send(){
     } else if (e.kind === 'done'){
       clearInterval(c.tick);
       c.body.classList.remove('dots');
-      c.body.textContent = e.data.text;
+      renderRich(c.body, e.data.text);
       c.secs.textContent = e.data.seconds + 's';
       if (/^\[(error|timed out|stderr)/.test(e.data.text)) c.card.classList.add('err');
     }

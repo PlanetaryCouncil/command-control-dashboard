@@ -208,9 +208,19 @@ CSS = """
   --ground:#0d0f12; --surface:#15181d; --raised:#1c2027; --border:#262b33;
   --ink:#eef1f4; --ink-2:#b6bec9; --muted:#7c8794; --info:#5b93d6;
   --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
-  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+  --sans:ui-monospace,"SF Mono",SFMono-Regular,"JetBrains Mono",
+    "Cascadia Code","IBM Plex Mono",Menlo,Consolas,monospace;
 }
 *{box-sizing:border-box}
+/* Same themed scrollbar as every other view (nav.CSS); these two pages
+   do not pull nav.CSS in, so they carry their own copy. */
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-corner{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;
+  border:2px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box;}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   font-size:15px;line-height:1.55}
 .wrap{max-width:40rem;margin:0 auto;padding:1.4rem 1.2rem 4rem}

@@ -48,6 +48,18 @@ CSS = """
 .fleetnav a:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
 .fleetnav a[aria-current="page"]{border-color:var(--muted);color:var(--muted);
   background:transparent;cursor:default;}
+
+/* Scrollbars. Chrome's default is a pale slab sized for a document, and on a
+   dark panel it reads as a UI element in its own right -- brighter than the
+   text it sits beside. Thin, themed, transparent track: it marks position and
+   stops competing. Firefox gets the same through scrollbar-color. */
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-corner{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px;
+  border:2px solid transparent;background-clip:content-box;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box;}
 """
 
 
@@ -67,7 +79,10 @@ SPECULATION = """<script type="speculationrules">
 # remote render must not advertise them: Marsita clicked /chat from the
 # public URL on 2026-08-04 and met the guard — "how on earth we left a dead
 # URL?" The guard is right; the signpost was wrong.
-CONTROL = {"/chat", "/terminal"}
+# /terminal left this list on 2026-09-17 with the button: the route still
+# 301s for old bookmarks, but PAGES no longer offers it, so there is
+# nothing here to hide from a remote render.
+CONTROL = {"/chat"}
 
 
 def board_name() -> str:
@@ -103,12 +118,13 @@ def title(*suffix: str, remote: bool | None = None) -> str:
     separates the doors.
     """
     import html
+    # The door joins the title with the same " · " as everything else rather
+    # than in brackets -- Marsita, 2026-09-18: "the brackets no longer in the
+    # <title>". A tab strip is narrow and parentheses read as an aside; the
+    # door is not an aside, it is half of which tab this is.
     door = "" if remote is None else ("public" if remote else "local")
-    parts = [board_name(), *(s for s in suffix if s)]
-    text = " · ".join(parts)
-    if door:
-        text += f" ({door})"
-    return html.escape(text, quote=True)
+    parts = [board_name(), *(s for s in suffix if s), *( [door] if door else [] )]
+    return html.escape(" · ".join(parts), quote=True)
 
 
 def html(current: str = "", remote: bool = False) -> str:
