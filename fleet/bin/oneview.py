@@ -765,6 +765,17 @@ canvas.mark:hover{opacity:1;}
   list-style:none;}
 .cvfetch summary::-webkit-details-marker{display:none;}
 .cvfetch summary:hover{color:var(--ink-2);}
+/* Marsita, 2026-09-20: "we will score once we have 100 -- each incoming CV
+   sets a baseline". So the pane counts rather than judges: nothing is
+   ranked, nothing is compared, and the only number anyone sees is how far
+   off the baseline still is. */
+.cvprog{display:flex;align-items:center;gap:8px;margin:0 0 10px;}
+.cvbar{flex:1;height:4px;border-radius:2px;background:var(--raised);
+  overflow:hidden;}
+.cvbar i{display:block;height:100%;width:0;background:var(--accent);
+  transition:width .3s ease;}
+.cvcount{flex:none;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  letter-spacing:.04em;}
 #termpane h2 .ttfb{font-family:var(--mono);font-size:8.5px;color:var(--muted);
   letter-spacing:.06em;}
 /* The second pane. Same machinery as the first, pointed at another project --
@@ -3501,6 +3512,20 @@ async function loadTools(){
     if (sec) sec.style.display = "none";
   }
 }
+// Scoring starts at 100. Until then this counts and does nothing else.
+const CV_BASELINE = 100;
+function setProgress(count){
+  const wrap = document.getElementById("cvprog");
+  const bar = document.getElementById("cvbari");
+  const label = document.getElementById("cvcount");
+  if (!wrap || typeof count !== "number") return;
+  wrap.hidden = false;
+  bar.style.width = Math.min(100, (count / CV_BASELINE) * 100) + "%";
+  label.textContent = count >= CV_BASELINE
+    ? count + " \u2014 baseline reached"
+    : count + " / " + CV_BASELINE;
+}
+
 async function loadCVs(){
   const box = document.getElementById("cvlist");
   const pane = document.getElementById("cvintake");
@@ -3519,10 +3544,12 @@ async function loadCVs(){
     // A remote reader gets a count and nothing else; the operator gets rows.
     if (!Array.isArray(d)){
       if (n) n.textContent = d && d.received ? d.received : "";
+      setProgress(d && d.received);
       pane.dataset.state = "ready";
       return;
     }
     if (n) n.textContent = d.length || "";
+    setProgress(d.length);
     box.innerHTML = d.slice(0, 12).map(c =>
       '<div class="cvrow"><span class="who"></span>'
       + '<span class="kind"></span><span class="when"></span></div>').join("");
@@ -3989,6 +4016,10 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
         <p class="cvlead">We are open, and we are hiring. Send a CV.</p>
         <p class="cvsub">Every one is read twice &mdash; once by a human, once by a machine.
            Agents and humans post to the same door and nothing asks which you are.</p>
+        <div class="cvprog" id="cvprog" hidden>
+          <div class="cvbar"><i id="cvbari"></i></div>
+          <span class="cvcount" id="cvcount"></span>
+        </div>
         <form id="cvform" autocomplete="off">
           <label class="cvlab" for="cvwho">Name <span class="req">*</span></label>
           <input id="cvwho" name="who" maxlength="80" required>
