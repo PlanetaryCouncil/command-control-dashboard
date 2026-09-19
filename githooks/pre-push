@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Always all. The whole suite runs before every push; red means no push.
+#
+# Marsita, 2026-09-19: "'always all' is simpler :) (as opposed to deciding
+# what to run)". 66 s on Gaia, 14 s on the NUC. Deciding which tests a change
+# touches costs more thought than the run and is wrong often enough to matter.
+#
+# GitHub Actions runs the same suite after the push and main requires it green
+# to merge a PR. This hook is the earlier, cheaper copy of that gate: it stops
+# the red commit leaving the machine at all.
+#
+# Escape hatch, on purpose and visible: `git push --no-verify`.
+set -uo pipefail
+REPO="$(git rev-parse --show-toplevel)"
+cd "$REPO" || exit 1
+
+PY=""
+for v in .venv .venv311 .venv312 .venv313; do
+  [[ -x "$REPO/$v/bin/pytest" ]] && { PY="$REPO/$v/bin/pytest"; break; }
+done
+if [[ -z "$PY" ]]; then
+  echo "pre-push: no venv pytest under $REPO — pushing untested" >&2
+  exit 0
+fi
+
+echo "→ pre-push: full test suite (always all)"
+if "$PY" tests -q -x -p no:cacheprovider 2>&1 | tail -3; then
+  exit 0
+fi
+echo "  ✗ red. Nothing was pushed. Fix it, or push --no-verify and own it." >&2
+exit 1
