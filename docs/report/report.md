@@ -1,18 +1,12 @@
 # The fleet — last 24 hours
 
-*2026-09-20T18:00:00+00:00*
+*2026-09-21T18:00:06+00:00*
 
-**5 commits merged in the last 24 hours.**
+**Nothing was merged in the last 24 hours.**
 
 ## Merged
 
-| commit | subject |
-|---|---|
-| `46864879` | cv intake: count toward the baseline, judge nothing |
-| `634bbb19` | cv intake: a form, because a door you can only curl is not open |
-| `3c7e9286` | cv intake: the same door as a selfie, for people and agents alike |
-| `559656b0` | board: the tab says which door again — "GAIA (local)" / "GAIA (public)" |
-| `8588cb02` | fleet: stop guarding a route that no longer exists |
+Nothing.
 
 ## Pipeline
 
@@ -33,8 +27,8 @@ Nothing.
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
 | pressure | warn | disk 91% 21.1G free |
-| quotas | pass | spending hermes unknown · claude unknown · holding grok, openclaw, agy |
-| visitors | pass | 24h: 294 public · 1 homies · Python-urllib/3.11 148 · browser 66 · Baiduspider 19 · ChatGP |
+| quotas | pass | spending hermes unknown · agy spend · holding claude, grok, openclaw |
+| visitors | pass | 24h: 148 public · 2 homies · browser 51 · Python-urllib/3.11 39 · GPTBot 22 · Applebot 15  |
 
 ## The partnership
 
