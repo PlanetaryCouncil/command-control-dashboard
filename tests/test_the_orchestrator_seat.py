@@ -157,8 +157,19 @@ def test_claude_is_actually_in_the_builder_pool():
     assert next_builder.POOL[0] == "claude", "it leads"
 
 
-def test_claude_is_allowed_to_spend():
-    """eligible() reads the spend table. Marked 'rare' while the plan was
-    believed dead, it would be skipped in favour of an exhausted vendor."""
-    cfg = json.loads((BIN.parent / "config.json").read_text())
-    assert cfg["quotas"]["spend"]["claude"] == "plenty"
+# RETIRED 2026-09-22. Marsita changed the architecture -- Fable 5.1 leads the
+# pack now, and the spend table moved with it (claude -> rare, agy -> plenty).
+# This test pinned one vendor's allowance as a constant, so it failed the
+# moment the policy it was describing changed, and blocked every push until
+# someone noticed it was the test that was out of date and not the config.
+#
+# Not deleted, because the thing underneath is still worth asserting: that
+# eligible() reads the spend table at all. Rewrite it that way -- feed
+# eligible() a table and check it honours it -- rather than hard-coding
+# whichever vendor happens to be in favour this month.
+#
+# def test_claude_is_allowed_to_spend():
+#     """eligible() reads the spend table. Marked 'rare' while the plan was
+#     believed dead, it would be skipped in favour of an exhausted vendor."""
+#     cfg = json.loads((BIN.parent / "config.json").read_text())
+#     assert cfg["quotas"]["spend"]["claude"] == "plenty"
