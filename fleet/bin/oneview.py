@@ -3752,6 +3752,12 @@ html,body{{margin:0;height:100%;background:#0d0d0d;color:#c3c2b7;
 }}
 @media (max-width:1100px){{#boot .grid{{grid-template-columns:1fr;}}
   #boot .col:last-child{{display:none;}}}}
+/* Leaving. Between Cmd-R and the next first byte the old board stays on
+   screen, stale and not answering. Marsita, 2026-09-22: "hide the UI
+   because it just looks stale, old, and not functional". The moment the
+   page starts to go, everything under the boot layer fades to the dark. */
+html.leaving body>*:not(#boot){{opacity:0;transition:opacity .12s ease;pointer-events:none;}}
+html.leaving{{background:#0d0d0d;}}
 </style>
 </head><body>
 <div id="boot" role="status" aria-live="polite" aria-label="Loading the board">
@@ -3875,6 +3881,21 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{nav.title(remote=remote)}</title>
 <script src="/static/signature.js?v=2"></script>
+<script>
+// The unloader. Between Cmd-R and the next first byte the old board would
+// stay on screen, stale and not answering. Marsita, 2026-09-22: "hide the
+// UI because it just looks stale, old, and not functional". The moment the
+// page starts to go, everything but the boot layer fades to the dark (the
+// CSS for html.leaving lives in the shell, so it is there before this is).
+(function(){{
+  var h=document.documentElement;
+  function leave(){{h.classList.add('leaving');}}
+  addEventListener('beforeunload',leave);
+  addEventListener('pagehide',leave);
+  // the back-forward cache can restore this very page: undo the fade
+  addEventListener('pageshow',function(e){{if(e.persisted)h.classList.remove('leaving');}});
+}})();
+</script>
 <style>{CSS}\n{nav.CSS}</style></head>
 <body>
 
