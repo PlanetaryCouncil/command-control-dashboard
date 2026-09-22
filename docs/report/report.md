@@ -1,12 +1,18 @@
 # The fleet — last 24 hours
 
-*2026-09-21T18:00:06+00:00*
+*2026-09-22T18:00:00+00:00*
 
-**Nothing was merged in the last 24 hours.**
+**5 commits merged in the last 24 hours.**
 
 ## Merged
 
-Nothing.
+| commit | subject |
+|---|---|
+| `e5fa64d4` | handoff: 2026-09-22, session ending for a restart |
+| `ee8f2d0e` | board: five seconds once, then the panes, then a minute is a stall |
+| `c59a3905` | tests: retire the spend assertion, the architecture moved past it |
+| `8c6030e5` | board: the unloader — the old page fades the moment it starts to go |
+| `774c9f02` | report: 2026-09-21 fleet summary |
 
 ## Pipeline
 
@@ -26,9 +32,9 @@ Nothing.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | disk 91% 21.1G free |
+| pressure | warn | disk 91% 21.8G free |
 | quotas | pass | spending hermes unknown · agy spend · holding claude, grok, openclaw |
-| visitors | pass | 24h: 148 public · 2 homies · browser 51 · Python-urllib/3.11 39 · GPTBot 22 · Applebot 15  |
+| visitors | pass | 24h: 301 public · 2 homies · Python-urllib/3.11 226 · Mozilla/5.0 (compatible; SERankingBa |
 
 ## The partnership
 
