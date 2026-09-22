@@ -23,10 +23,17 @@ import fleet as fleetmod
 
 
 # ------------------------------------------------------------ the server side
-def test_a_bare_project_name_resolves():
-    """Any real project under ~/projects except this repo."""
-    other = next(n for n in fleetmod.workspaces())
-    assert fleetmod.workspace(other) is not None
+def test_a_bare_project_name_resolves(tmp_path, monkeypatch):
+    """Any project under the projects root except this repo. The root is a
+    temp dir here: on this laptop ~/projects has twelve real ones, on CI it
+    has none, and the test must mean the same thing in both places (it
+    failed on CI with StopIteration on 2026-09-22)."""
+    # its own root, not tmp_path itself: the autouse fixture parks FLEET
+    # under tmp_path too, and that dir would read as a project
+    root = tmp_path / "projects"; (root / "other-project").mkdir(parents=True)
+    monkeypatch.setattr(fleetmod, "PROJECTS", root)
+    assert fleetmod.workspaces() == ["other-project"]
+    assert fleetmod.workspace("other-project") == root / "other-project"
 
 
 def test_the_server_refuses_pane_ones_own_repo():
