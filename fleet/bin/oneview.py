@@ -129,7 +129,24 @@ body{margin:0;background:var(--ground);color:var(--ink);
 .load i{width:13px;height:13px;border-radius:50%;flex:none;
   border:1.5px solid var(--border);border-top-color:var(--info);
   animation:spin .7s linear infinite;}
-.load .msg::after{content:"loading";}
+.load .msg::after{content:"activating…";}
+/* The room brightens as panes land: --lit is the fraction that have (set by
+   the head script from the panes' own data-state), and this sheet sits under
+   everything, opacity following it. All landed: a soft breath, once. */
+#lit{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:var(--lit,0);
+  transition:opacity 1.2s ease;
+  background:radial-gradient(120% 90% at 50% 110%,rgba(126,224,184,.10),transparent 60%),
+             radial-gradient(80% 60% at 50% -10%,rgba(255,210,122,.07),transparent 70%);}
+html.alllit #lit{animation:litbreath 2.4s ease-out 1;}
+@keyframes litbreath{30%{opacity:1;filter:brightness(1.6)}100%{opacity:var(--lit,0);filter:none}}
+.pane[data-state="loading"] .load i{border-color:transparent;border-top-color:transparent;
+  background:#ffd27a;box-shadow:0 0 10px #ffd27a;animation:pulse .7s ease-in-out infinite;}
+@keyframes pulse{50%{opacity:.35}}
+/* A minute without landing is not loading; it is stuck, and it says so. */
+.pane[data-state="stalled"] .load{display:flex;color:var(--warning);}
+.pane[data-state="stalled"] .load i{animation:none;background:none;box-shadow:none;
+  border:1.5px solid var(--warning);border-radius:2px;}
+.pane[data-state="stalled"] .load .msg::after{content:"not answering";}
 
 /* Is the machine working hard or chilling? Nothing showed this until load
    reached 20 on four cores and every surface blamed the agents instead. */
@@ -3752,12 +3769,6 @@ html,body{{margin:0;height:100%;background:#0d0d0d;color:#c3c2b7;
 }}
 @media (max-width:1100px){{#boot .grid{{grid-template-columns:1fr;}}
   #boot .col:last-child{{display:none;}}}}
-/* Leaving. Between Cmd-R and the next first byte the old board stays on
-   screen, stale and not answering. Marsita, 2026-09-22: "hide the UI
-   because it just looks stale, old, and not functional". The moment the
-   page starts to go, everything under the boot layer fades to the dark. */
-html.leaving body>*:not(#boot){{opacity:0;transition:opacity .12s ease;pointer-events:none;}}
-html.leaving{{background:#0d0d0d;}}
 </style>
 </head><body>
 <div id="boot" role="status" aria-live="polite" aria-label="Loading the board">
@@ -3772,13 +3783,24 @@ html.leaving{{background:#0d0d0d;}}
       <div class="blk" style="flex:2"></div></div>
   </div>
 </div>
+{intro}
+<style>
+/* Leaving. Between Cmd-R and the next first byte the old board stays on
+   screen, stale and not answering. Marsita, 2026-09-22: "hide the UI
+   because it just looks stale, old, and not functional". The moment the
+   page starts to go, everything under the boot layer fades to the dark.
+   (After the skeleton, not before it: the skeleton must sit in the first
+   2KB, and the intro's CSS is bigger than the skeleton.) */
+html.leaving body>*:not(#boot){{opacity:0;transition:opacity .12s ease;pointer-events:none;}}
+html.leaving{{background:#0d0d0d;}}
+{intro_css}</style>
 """
 
 
 _SHELL_CACHE = {}
 
 
-def shell(remote: bool = False) -> str:
+def shell(remote: bool = False, intro: bool = False) -> str:
     """The first bytes out of the door, before anything expensive is built.
 
     Cached: it is the same string every time, and the only work in it --
@@ -3790,12 +3812,58 @@ def shell(remote: bool = False) -> str:
     # only thing that tells the laptop board from the public URL when both
     # are open; the streamed rest never gets to change it. Losing the door
     # here is exactly how "(local)"/"(public)" vanished (2026-09-19).
-    key = "public" if remote else "local"
+    key = ("public" if remote else "local") + (":intro" if intro else "")
     if key not in _SHELL_CACHE:
         import nav
         _SHELL_CACHE[key] = SHELL.format(title=nav.title(remote=remote),
-                                         name=nav.board_name())
+                                         name=nav.board_name(),
+                                         intro_css=INTRO_CSS if intro else "",
+                                         intro=INTRO if intro else "")
     return _SHELL_CACHE[key]
+
+
+# The five seconds. Once per browser session (the server sets a session
+# cookie the first time and leaves this out after), so a reload goes straight
+# to the panes. CSS only, no script: it starts on the first paint and lifts
+# itself at five seconds whatever the rest of the page is doing. Marsita,
+# 2026-09-22: "5 second generic intro, then per-pane intro as they continue".
+# Drawn like fable-v0.4 in the loader repo: three orbits, a ring that draws
+# itself, a core, the name.
+INTRO_CSS = """
+#intro{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
+  background:#0d0d0d;animation:ilift 1s ease-in 5s forwards;pointer-events:none;}
+#intro svg{width:min(60vmin,440px);height:auto;overflow:visible;}
+#intro .o{fill:none;stroke:#3b4e66;stroke-width:.6;stroke-dasharray:2 5;
+  transform-box:fill-box;transform-origin:center;opacity:0;
+  animation:iorb 20s linear infinite,ifade 1.2s ease .15s forwards;}
+#intro .r{fill:none;stroke:#ffd27a;stroke-width:1.2;stroke-linecap:round;
+  stroke-dasharray:1000;stroke-dashoffset:1000;
+  animation:idraw 3.4s cubic-bezier(.6,0,.2,1) forwards;
+  filter:drop-shadow(0 0 6px rgba(255,210,122,.6));}
+#intro .c{fill:#ffd27a;opacity:0;transform-box:fill-box;transform-origin:center;
+  animation:icore 2.2s ease-out 1.8s forwards;}
+#intro .w{position:absolute;bottom:18vh;left:0;right:0;text-align:center;
+  letter-spacing:.42em;font-size:13px;color:#c3c2b7;opacity:0;
+  animation:ifade 1.2s ease 2.6s forwards;}
+@keyframes idraw{to{stroke-dashoffset:0}}
+@keyframes ifade{to{opacity:1}}
+@keyframes iorb{from{transform:rotate(var(--t,0deg))}to{transform:rotate(calc(var(--t,0deg) + 360deg))}}
+@keyframes icore{0%{opacity:0;transform:scale(.2)}60%{opacity:1;transform:scale(1.15)}100%{opacity:1;transform:scale(1)}}
+@keyframes ilift{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){#intro{display:none}}
+"""
+
+INTRO = """
+<div id="intro" role="img" aria-label="Planetary Council">
+<svg viewBox="0 0 300 300">
+<ellipse class="o" cx="150" cy="150" rx="140" ry="52"/>
+<ellipse class="o" cx="150" cy="150" rx="140" ry="52" style="--t:60deg"/>
+<ellipse class="o" cx="150" cy="150" rx="140" ry="52" style="--t:120deg"/>
+<circle class="r" cx="150" cy="150" r="96"/>
+<circle class="c" cx="150" cy="150" r="7"/>
+</svg>
+<div class="w">PLANETARY COUNCIL</div>
+</div>"""
 
 
 def page_rest(*args, **kw) -> str:
@@ -3894,10 +3962,42 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
   addEventListener('pagehide',leave);
   // the back-forward cache can restore this very page: undo the fade
   addEventListener('pageshow',function(e){{if(e.persisted)h.classList.remove('leaving');}});
+
+  // Per-pane arrival. Each pane already carries data-state (loading, then
+  // ready/ok, or error). This watches those flips and does two things the
+  // loader repo's fable-v0.4 does with fake timers, here on real events:
+  //   1. --lit on <html> is the fraction of panes that have landed; the room
+  //      brightens with it (see #lit in the page CSS).
+  //   2. a pane still "loading" after a minute is not loading, it is stuck:
+  //      data-state="stalled", and its label says so instead of pulsing on.
+  // Marsita, 2026-09-22: "5 second generic intro, then per-pane intro as
+  // they continue? After 1 minute a timeout... Best of all worlds".
+  var STALL_MS=60000, panes=[], seen=new WeakSet();
+  function relit(){{
+    var n=0; for (var i=0;i<panes.length;i++){{ var s=panes[i].dataset.state;
+      if (s && s!=='loading' && s!=='error' && s!=='stalled') n++; }}
+    h.style.setProperty('--lit', panes.length ? (n/panes.length).toFixed(3) : '1');
+    if (panes.length && n===panes.length) h.classList.add('alllit');
+  }}
+  function adopt(p){{
+    if (seen.has(p)) return; seen.add(p); panes.push(p);
+    setTimeout(function(){{ if (p.dataset.state==='loading') {{ p.dataset.state='stalled'; relit(); }} }}, STALL_MS);
+  }}
+  var mo=new MutationObserver(function(muts){{
+    for (var i=0;i<muts.length;i++){{ var m=muts[i];
+      if (m.type==='attributes') relit();
+      else m.addedNodes.forEach(function(n){{ if (n.nodeType!==1) return;
+        if (n.matches && n.matches('.pane[data-state]')) adopt(n);
+        if (n.querySelectorAll) n.querySelectorAll('.pane[data-state]').forEach(adopt); }});
+    }}
+    relit();
+  }});
+  mo.observe(h,{{subtree:true,childList:true,attributes:true,attributeFilter:['data-state']}});
+  document.addEventListener('DOMContentLoaded',function(){{ document.querySelectorAll('.pane[data-state]').forEach(adopt); relit(); }});
 }})();
 </script>
 <style>{CSS}\n{nav.CSS}</style></head>
-<body>
+<body><div id="lit"></div>
 
 <div id="bar">
   <span id="pulse"></span>

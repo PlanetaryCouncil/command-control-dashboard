@@ -173,3 +173,48 @@ def test_reduced_motion_gets_a_still_loader():
     m = re.search(r"@media \(prefers-reduced-motion:reduce\)\{\{([^@]*)\}\}",
                   SRC)
     assert m and "animation:none" in m.group(1)
+
+
+# ── the five seconds, once, then the panes ────────────────────────────────
+# Marsita, 2026-09-22: "5 second generic intro, then per-pane intro as they
+# continue? After 1 minute a timeout... Best of all worlds".
+
+def test_the_intro_is_not_in_the_everyday_shell():
+    """A reload goes straight to the panes; the intro is a first-visit thing.
+    So the default shell stays exactly the small script-free skeleton."""
+    sh = oneview.shell()
+    assert 'id="intro"' not in sh
+    assert len(sh.encode()) < 4096
+
+
+def test_the_intro_shell_lifts_itself_at_five_seconds_without_script():
+    """It has to start on the first paint and end on its own, whatever the
+    rest of the page is doing -- so it is CSS, and it stays in one packet."""
+    sh = oneview.shell(intro=True)
+    assert 'id="intro"' in sh
+    assert "<script" not in sh
+    assert re.search(r"#intro\{[^}]*animation:ilift 1s ease-in 5s forwards", sh)
+    assert len(sh.encode()) < 8192, "still well inside one congestion window"
+    assert "prefers-reduced-motion" in sh
+
+
+def test_the_server_plays_the_intro_once_per_browser_session():
+    """A session cookie, set on the first shell and read on the next: no
+    Max-Age, so it dies with the browser and the next day gets its five
+    seconds again."""
+    assert 'seen = "pc_intro=1" in (self.headers.get("Cookie")' in SERVER
+    assert "intro=not seen" in SERVER
+    assert 'cookie="" if seen else "pc_intro=1; Path=/; SameSite=Lax"' in SERVER
+    assert "Max-Age" not in SERVER.split("pc_intro=1; Path=/")[1][:60]
+
+
+def test_the_panes_light_the_room_and_stall_after_a_minute():
+    """The page watches its own panes' data-state: the fraction landed sets
+    --lit, and a pane still loading after 60 s says "not answering"."""
+    rest = oneview.page_rest("{}", "[]", "tok", remote=False)
+    assert "MutationObserver" in rest and "attributeFilter:['data-state']" in rest
+    assert "STALL_MS=60000" in rest
+    assert "p.dataset.state='stalled'" in rest
+    assert '.pane[data-state="stalled"] .load .msg::after{content:"not answering";}' in rest
+    assert 'id="lit"' in rest and "opacity:var(--lit,0)" in rest
+    assert '.load .msg::after{content:"activating…";}' in rest

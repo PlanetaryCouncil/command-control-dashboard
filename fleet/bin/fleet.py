@@ -1050,7 +1050,7 @@ def serve(port):
             self.end_headers()
             self.wfile.write(body)
 
-        def _send_streamed(self, shell: bytes, rest_fn):
+        def _send_streamed(self, shell: bytes, rest_fn, cookie: str = ""):
             """Flush a small shell, then stream the rest behind it.
 
             The board is ~200KB and was built in full before a single byte
@@ -1074,6 +1074,8 @@ def serve(port):
             # Proxies that buffer would undo the whole point; say so.
             self.send_header("X-Accel-Buffering", "no")
             self.send_header("Access-Control-Allow-Origin", "*")
+            if cookie:
+                self.send_header("Set-Cookie", cookie)
             self.end_headers()
 
             def chunk(b: bytes):
@@ -1458,7 +1460,15 @@ def serve(port):
                                              remote=remote,
                                              build=build_stamp()).encode()
 
-                self._send_streamed(oneview.shell(remote=remote).encode(), rest)
+                # The five-second intro plays once per browser session: a
+                # session cookie (no Max-Age, gone when the browser closes)
+                # says it has been seen, and a reload goes straight to the
+                # panes. Marsita, 2026-09-22: "5 second generic intro, then
+                # per-pane intro as they continue".
+                seen = "pc_intro=1" in (self.headers.get("Cookie") or "")
+                self._send_streamed(
+                    oneview.shell(remote=remote, intro=not seen).encode(), rest,
+                    cookie="" if seen else "pc_intro=1; Path=/; SameSite=Lax")
                 return
 
             if path == "/board":
