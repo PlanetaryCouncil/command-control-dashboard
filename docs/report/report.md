@@ -1,18 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-09-22T18:00:00+00:00*
+*2026-09-23T18:00:05+00:00*
 
-**5 commits merged in the last 24 hours.**
+**1 commit merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `e5fa64d4` | handoff: 2026-09-22, session ending for a restart |
-| `ee8f2d0e` | board: five seconds once, then the panes, then a minute is a stall |
-| `c59a3905` | tests: retire the spend assertion, the architecture moved past it |
-| `8c6030e5` | board: the unloader — the old page fades the moment it starts to go |
-| `774c9f02` | report: 2026-09-21 fleet summary |
+| `54a8739a` | tests: the second-pane resolver test brings its own projects root |
 
 ## Pipeline
 
@@ -32,9 +28,9 @@ Nothing.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | disk 91% 21.8G free |
-| quotas | pass | spending hermes unknown · agy spend · holding claude, grok, openclaw |
-| visitors | pass | 24h: 301 public · 2 homies · Python-urllib/3.11 226 · Mozilla/5.0 (compatible; SERankingBa |
+| pressure | pass | ok · disk 89% 26G free |
+| quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
+| visitors | pass | 24h: 280 public · 0 homies · browser 126 · Python-urllib/3.11 117 · bingbot 22 · Mozilla/5 |
 
 ## The partnership
 
