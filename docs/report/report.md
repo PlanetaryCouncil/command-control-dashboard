@@ -1,6 +1,6 @@
 # The fleet — last 24 hours
 
-*2026-09-23T18:00:05+00:00*
+*2026-09-24T18:00:00+00:00*
 
 **1 commit merged in the last 24 hours.**
 
@@ -8,7 +8,7 @@
 
 | commit | subject |
 |---|---|
-| `54a8739a` | tests: the second-pane resolver test brings its own projects root |
+| `6570b3cd` | report: 2026-09-23 fleet summary |
 
 ## Pipeline
 
@@ -28,9 +28,9 @@ Nothing.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 89% 26G free |
+| pressure | pass | ok · disk 89% 25G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 280 public · 0 homies · browser 126 · Python-urllib/3.11 117 · bingbot 22 · Mozilla/5 |
+| visitors | pass | 24h: 679 public · 1 homies · browser 600 · Python-urllib/3.11 39 · Mozilla/5.0 (compatible |
 
 ## The partnership
 
