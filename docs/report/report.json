@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-24T18:00:00+00:00",
+  "generated_at": "2026-09-25T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-09-23T18:00:00+00:00",
+  "since": "2026-09-24T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "6570b3cd",
+        "sha": "70ebbec3",
         "author": "Marsita the Ultra",
-        "at": "2026-09-23T19:00:05+01:00",
-        "subject": "report: 2026-09-23 fleet summary"
+        "at": "2026-09-24T19:00:00+01:00",
+        "subject": "report: 2026-09-24 fleet summary"
       }
     ]
   },
@@ -39,12 +39,12 @@
     "stages": {}
   },
   "events": {
-    "count": 3,
+    "count": 2,
     "by_level": {
-      "ok": 3
+      "ok": 2
     },
     "by_agent": {
-      "visitors": 3
+      "visitors": 2
     }
   },
   "needs_you": [],
@@ -70,7 +70,7 @@
     {
       "worker": "moltbook",
       "status": "ok",
-      "last_run": "2026-09-24T17:59:45+00:00",
+      "last_run": "2026-09-25T17:58:40+00:00",
       "summary": "quiet"
     },
     {
@@ -88,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "pass",
-      "last_run": "2026-09-24T17:55:19Z",
-      "summary": "ok \u00b7 disk 89% 25G free"
+      "last_run": "2026-09-25T17:56:31Z",
+      "summary": "ok \u00b7 disk 90% 24G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-09-24T17:55:19Z",
+      "last_run": "2026-09-25T17:56:30Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-09-24T16:38:59+00:00",
-      "summary": "24h: 679 public \u00b7 1 homies \u00b7 browser 600 \u00b7 Python-urllib/3.11 39 \u00b7 Mozilla/5.0 (compatible; Barkrowler/0.9; 17 \u00b7 curl 9 \u00b7 Applebot 6 \u00b7 Mozilla/5.0 AppleWebKit/5"
+      "last_run": "2026-09-25T16:57:06+00:00",
+      "summary": "24h: 109 public \u00b7 2 homies \u00b7 Python-urllib/3.11 39 \u00b7 browser 34 \u00b7 bingbot 9 \u00b7 GPTBot 8 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 6 \u00b7 Mozilla/5.0 (compatible; B"
     }
   ],
   "proposals_total": 261
