@@ -102,6 +102,8 @@ fleet/data/solarpunk-estates-intake.jsonl.1
 # committed offset means a fresh clone believes it has read messages it has not.
 fleet/data/telegram-offset
 fleet/data/telegram-session
+fleet/data/cvs.jsonl
+fleet/data/moltbook-state.json
 
 # Build output from pip install .
 *.egg-info/
