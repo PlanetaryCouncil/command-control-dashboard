@@ -1,14 +1,18 @@
 # The fleet — last 24 hours
 
-*2026-09-27T18:00:03+00:00*
+*2026-09-28T18:00:00+00:00*
 
-**1 commit merged in the last 24 hours.**
+**5 commits merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `4ba86f24` | report: 2026-09-26 fleet summary |
+| `a9f7c030` | quotas: hold claude, spend agy |
+| `6c283c9f` | docs: point "what runs" at docs/FLEET.md |
+| `8b5ba336` | gitignore: two runtime-state files the daemons rewrite |
+| `e6c6a6d1` | handoff: 2026-09-28, short session ending in a restart |
+| `dba2c51a` | report: 2026-09-27 fleet summary |
 
 ## Pipeline
 
@@ -28,9 +32,9 @@ Nothing.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | disk 90% 22.6G free |
+| pressure | pass | ok · disk 88% 27G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 2820 public · 1 homies · browser 2788 · Mozilla/5.0 (compatible; Barkrowler/0.9; 20 · |
+| visitors | pass | 24h: 94 public · 0 homies · browser 41 · Python-urllib/3.11 39 · bingbot 4 · Amazonbot 4 · |
 
 ## The partnership
 
