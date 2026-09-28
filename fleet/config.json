@@ -70,9 +70,9 @@
     "harvest_within_hours": 24,
     "spend": {
       "grok": "rare",
-      "agy": "rare",
+      "agy": "plenty",
       "hermes": "plenty",
-      "claude": "plenty",
+      "claude": "rare",
       "openclaw": "rare"
     }
   },
