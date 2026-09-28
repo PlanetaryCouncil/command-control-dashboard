@@ -34,8 +34,10 @@ plist.
 
 ## What runs
 
-Twelve launchd jobs, most configured from `fleet/config.json` — edit it, then
-`bash fleet/bin/apply-config.sh`. Only changed jobs reload.
+> [!NOTE]
+> **Two machines, six roles:** See [`docs/FLEET.md`](docs/FLEET.md) (authoritative). Gaia (MacBook) serves the board and tunnel; background jobs run on the NUC via systemd units. macOS `re.genesis.*` launch agents on Gaia are disabled by design.
+
+Configured from `fleet/config.json` — edit it, then `bash fleet/bin/apply-config-systemd.sh` (NUC) or `bash fleet/bin/apply-config.sh` (macOS board). Only changed jobs reload.
 
 ```
   fleet-server    always on     the board at :8787 — and the legacy cockpit
