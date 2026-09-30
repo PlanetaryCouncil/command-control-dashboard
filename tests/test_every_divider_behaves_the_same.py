@@ -120,3 +120,27 @@ def test_expanding_a_collapsed_column_does_not_jump():
     widths = SRC.split("function dragGrip(grip, which)")[1].split("\n}")[0]
     assert 'parseInt(cs.getPropertyValue("--wL")) || 290' not in widths
     assert "isNaN(n) ? d : n" in widths
+
+
+def test_the_cv_divider_is_wired_not_just_drawn():
+    """It was in the page and lit on hover, bound to nothing."""
+    assert 'id="gripCV"' in PAGE
+    assert 'dragGripV($("#gripCV"), "--hCV", "hCV"' in SRC
+    restore = SRC.split('if (saved.l !== undefined')[1].split("} catch")[0]
+    assert "--hCV" in restore
+
+
+def test_processes_cannot_be_crushed_to_a_sliver():
+    """Marsita, 2026-09-30: "double handle on the right section". The cv form
+    wanted more than the column had and did not shrink, so processes -- the
+    pane that flexes -- was squeezed to its two border lines between two
+    dividers."""
+    assert '#procs:not([data-open="0"]){min-height:160px;}' in SRC
+    assert 'id="cvintake" style="flex:0 1 var(--hCV,auto)"' in PAGE
+
+
+def test_a_divider_does_not_count_panes_it_does_not_trade_between():
+    """Three panes in the right column, two grips; each one's room is the
+    column less whatever the third pane is holding."""
+    assert "!c.contains(pane) && !(other && c.contains(other))" in DRAG
+    assert "getBoundingClientRect().height - rest;" in DRAG

@@ -666,6 +666,13 @@ canvas.mark:hover{opacity:1;}
 #stream h2 .filters{margin-left:auto;}
 /* Whatever is still open in a column takes the slack, whichever pane it is. */
 .col:has(.pane[data-open="0"]) .pane:not([data-open="0"]){flex:1;}
+/* The right column's floor. Processes is the pane that flexes, so it is the
+   one that loses when its neighbours ask for more than the column has: the cv
+   form alone wants ~690px, and on a 1080 panel that crushed processes to its
+   two border lines -- a 2px sliver between two dividers. Marsita, 2026-09-30:
+   "double handle on the right section". The form gives way instead (it is
+   `0 1` and its body scrolls); open, processes never goes under this. */
+#procs:not([data-open="0"]){min-height:160px;}
 /* A collapsed column is a bar you can grab, not a pane squeezed to nothing. */
 .col[data-open="0"]{overflow:hidden;}
 .col[data-open="0"]>*{display:none;}
@@ -3060,7 +3067,7 @@ try {
     // written on every drag and read back on none of them, so the middle and
     // right columns forgot their sizes on reload.
     for (const [key, v] of [["hArt", "--hArt"], ["hTerm", "--hTerm"],
-                            ["hCredit", "--hCredit"]])
+                            ["hCredit", "--hCredit"], ["hCV", "--hCV"]])
       if (saved[key]) document.documentElement.style
         .setProperty(v, saved[key] + "px");
   }
@@ -3224,7 +3231,14 @@ function dragGripV(grip, varName, key, fallback, opts){
     // Measured once. Reading layout inside a pointermove forces a synchronous
     // reflow against a size we are ourselves writing.
     const startY = down.clientY;
-    const col = grip.parentElement.getBoundingClientRect().height;
+    // A column can hold panes this divider has nothing to do with -- the
+    // right one has three, and each grip only trades between its own two.
+    // What the bystanders occupy is not room to drag into.
+    let rest = 0;
+    for (const c of grip.parentElement.children)
+      if (c !== grip && !c.contains(pane) && !(other && c.contains(other)))
+        rest += c.getBoundingClientRect().height;
+    const col = grip.parentElement.getBoundingClientRect().height - rest;
     // The column is not all available to the sized pane. The divider itself
     // takes a few pixels, and a collapsed neighbour still shows its heading.
     // Handing the sized pane the whole column pushed the bottom of it below
@@ -3381,6 +3395,10 @@ dragGripV($("#gripA"), "--hArt", "hArt", 240,
 // This column had no divider at all -- "on the right cannot go up and down".
 dragGripV($("#gripP"), "--hCredit", "hCredit", 220,
           {pane: "#credit", sizes: "above", other: "#procs"});
+// The cv form is sized below its grip; processes flexes above it. This grip
+// was in the page and lit on hover but was bound to nothing.
+dragGripV($("#gripCV"), "--hCV", "hCV", 320,
+          {pane: "#cvintake", sizes: "below", other: "#procs"});
 dragSplit($("#gripSplit"));
 if ($("#gripT")){
   // Middle: the terminal is sized above its grip; the stream flexes below.
@@ -4131,7 +4149,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
 
     <div class="griph" id="gripCV"></div>
 
-    <section class="pane" id="cvintake" style="flex:0 0 var(--hCV,auto)" data-state="loading">
+    <section class="pane" id="cvintake" style="flex:0 1 var(--hCV,auto)" data-state="loading">
       <h2>cv intake <span class="n"></span></h2>
       <div class="body">
         <p class="cvlead">We are open, and we are hiring. Send a CV.</p>
