@@ -1,15 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-09-30T18:00:00+00:00*
+*2026-10-01T18:00:00+00:00*
 
-**2 commits merged in the last 24 hours, and 2 things asked for a person.**
+**1 commit merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `c65c182c` | board: processes pane can't be crushed to a sliver; cv divider drags |
-| `10470c59` | report: 2026-09-29 fleet summary |
+| `9d2c22f0` | report: 2026-09-30 fleet summary |
 
 ## Pipeline
 
@@ -17,8 +16,7 @@ No decisions recorded.
 
 ## Asked for a person
 
-- `2026-09-29T20:00:56` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
-- `2026-09-30T11:38:40` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+Nothing.
 
 ## Workers
 
@@ -30,9 +28,9 @@ No decisions recorded.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 89% 25G free |
+| pressure | pass | ok · disk 90% 24G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 2829 public · 2 homies · browser 2655 · Python-urllib/3.11 117 · Mozilla/5.0 (compati |
+| visitors | pass | 24h: 1506 public · 0 homies · browser 1498 · Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 2 ·  |
 
 ## The partnership
 
