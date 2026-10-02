@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-01T18:00:00+00:00",
+  "generated_at": "2026-10-02T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-09-30T18:00:00+00:00",
+  "since": "2026-10-01T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "9d2c22f0",
+        "sha": "376cc065",
         "author": "Marsita the Ultra",
-        "at": "2026-09-30T19:00:00+01:00",
-        "subject": "report: 2026-09-30 fleet summary"
+        "at": "2026-10-01T19:00:00+01:00",
+        "subject": "report: 2026-10-01 fleet summary"
       }
     ]
   },
@@ -39,12 +39,13 @@
     "stages": {}
   },
   "events": {
-    "count": 2,
+    "count": 4,
     "by_level": {
-      "ok": 2
+      "ok": 2,
+      "info": 2
     },
     "by_agent": {
-      "visitors": 2
+      "visitors": 4
     }
   },
   "needs_you": [],
@@ -70,7 +71,7 @@
     {
       "worker": "moltbook",
       "status": "ok",
-      "last_run": "2026-10-01T17:59:50+00:00",
+      "last_run": "2026-10-02T17:57:11+00:00",
       "summary": "quiet"
     },
     {
@@ -87,21 +88,21 @@
     },
     {
       "worker": "pressure",
-      "status": "pass",
-      "last_run": "2026-10-01T17:54:55Z",
-      "summary": "ok \u00b7 disk 90% 24G free"
+      "status": "warn",
+      "last_run": "2026-10-02T17:55:07Z",
+      "summary": "disk 90% 23.2G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-01T17:54:55Z",
+      "last_run": "2026-10-02T17:55:07Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-01T17:59:19+00:00",
-      "summary": "24h: 1506 public \u00b7 0 homies \u00b7 browser 1498 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 2 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 2 \u00b7 bingbot 2 \u00b7 Meta-External"
+      "last_run": "2026-10-02T17:59:20+00:00",
+      "summary": "24h: 10026 public \u00b7 2 homies \u00b7 browser 9930 \u00b7 Python-urllib/3.11 39 \u00b7 Go-http-client 32 \u00b7 Mozilla/5.0 (compatible; IbouBot/1.0; +b 8 \u00b7 SemrushBot 3 \u00b7 OAI-Search"
     }
   ],
   "proposals_total": 261
