@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-05T18:00:00+00:00",
+  "generated_at": "2026-10-06T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-10-04T18:00:00+00:00",
+  "since": "2026-10-05T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "a0516f60",
+        "sha": "2c0aa2d3",
         "author": "Marsita the Ultra",
-        "at": "2026-10-04T19:00:00+01:00",
-        "subject": "report: 2026-10-04 fleet summary"
+        "at": "2026-10-05T19:00:00+01:00",
+        "subject": "report: 2026-10-05 fleet summary"
       }
     ]
   },
@@ -70,7 +70,7 @@
     {
       "worker": "moltbook",
       "status": "ok",
-      "last_run": "2026-10-05T17:54:50+00:00",
+      "last_run": "2026-10-06T17:58:01+00:00",
       "summary": "quiet"
     },
     {
@@ -88,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-10-05T17:55:07Z",
-      "summary": "disk 90% 23.0G free"
+      "last_run": "2026-10-06T17:55:28Z",
+      "summary": "disk 91% 21.2G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-05T17:55:07Z",
+      "last_run": "2026-10-06T17:55:28Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-05T17:55:28+00:00",
-      "summary": "24h: 506 public \u00b7 0 homies \u00b7 browser 411 \u00b7 Python-urllib/3.11 39 \u00b7 Meta-External 22 \u00b7 bingbot 13 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 8 \u00b7 Amazonbot 4 \u00b7 Mo"
+      "last_run": "2026-10-06T17:18:11+00:00",
+      "summary": "24h: 133 public \u00b7 3 homies \u00b7 browser 59 \u00b7 Python-urllib/3.11 39 \u00b7 Mozilla/5.0 (compatible; IbouBot/1.0; +b 8 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 7 \u00b7 aioh"
     }
   ],
   "proposals_total": 261
