@@ -174,3 +174,55 @@ def test_an_unmapped_repo_still_shows_its_own_name():
     """Falling back to nothing would hide the issue's only label."""
     src = (BIN / "oneview.py").read_text()
     assert 'owner[String(i.repo || "").toLowerCase()] || ""' in src
+
+
+# ---------- /projects: tiles, scored 0-10 ----------
+# Marsita, 2026-10-11: "Not list of rows. Tiles. For my projects. And each
+# project should have a 0-10 scale of importance and 0-10 scale of
+# priority... more projects can live there but only 12 above the fold."
+
+def test_scores_are_read_from_the_file_and_a_blank_stays_blank(tmp_path):
+    p = write(tmp_path, """
+projects:
+  - {name: Scored, url: 'https://a', status: active, importance: 7, priority: 0}
+  - {name: Blank, url: 'https://b', status: active, importance: , priority: }
+""")
+    got = {r["name"]: r for r in portfolio.projects(path=p)}
+    assert (got["Scored"]["importance"], got["Scored"]["priority"]) == (7, 0)
+    assert (got["Blank"]["importance"], got["Blank"]["priority"]) == (None, None)
+
+
+@pytest.mark.parametrize("bad", ["11", "-1", "7.5", "high", "true"])
+def test_a_score_outside_0_to_10_is_not_a_score(tmp_path, bad):
+    p = write(tmp_path, f"""
+projects:
+  - {{name: X, url: 'https://a', status: active, importance: {bad}}}
+""")
+    assert portfolio.projects(path=p)[0]["importance"] is None
+
+
+def test_tiles_go_by_priority_then_importance_and_blanks_last(tmp_path):
+    p = write(tmp_path, """
+projects:
+  - {name: Blank, url: 'https://a', status: active}
+  - {name: Low, url: 'https://b', status: active, priority: 2, importance: 9}
+  - {name: HighLess, url: 'https://c', status: active, priority: 8, importance: 3}
+  - {name: HighMore, url: 'https://d', status: active, priority: 8, importance: 6}
+  - {name: ZeroIsADecision, url: 'https://e', status: active, priority: 0}
+""")
+    names = [r["name"] for r in portfolio.ranked(portfolio.projects(path=p))]
+    assert names == ["HighMore", "HighLess", "Low", "ZeroIsADecision", "Blank"]
+
+
+def test_twelve_above_the_fold():
+    assert portfolio.FOLD == 12
+    snap = portfolio.snapshot()
+    assert snap["fold"] == 12
+    assert sorted(snap["tiles"]) == sorted(r["name"] for r in snap["projects"])
+
+
+def test_the_tiles_page_exists_and_reads_the_portfolio():
+    page = ROOT / "fleet" / "static" / "projects" / "index.html"
+    html = page.read_text()
+    assert 'fetch("api/portfolio"' in html
+    assert "d.fold" in html and "d.tiles" in html

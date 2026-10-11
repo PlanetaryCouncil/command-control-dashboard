@@ -1975,6 +1975,16 @@ def serve(port):
                     self.send_error(404)
                 return
 
+            if path == "/projects":
+                # The portfolio as tiles: twelve above the fold, by priority
+                # then importance, the rest below. Reads /api/portfolio.
+                f = FLEET / "static" / "projects" / "index.html"
+                try:
+                    self._send(f.read_bytes(), "text/html; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
             if path == "/basex":
                 f = FLEET / "static" / "basex" / "index.html"
                 try:

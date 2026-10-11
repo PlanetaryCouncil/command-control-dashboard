@@ -29,6 +29,26 @@ ORDER = {"active": 0, "awaiting-deployment": 1, "for-sale": 3}
 
 _CACHE = {"mtime": 0.0, "rows": []}
 
+# How many tiles sit above the fold on /projects: a 4 x 3 board. The rest are
+# still there, below it.
+FOLD = 12
+
+
+def _score(v) -> int | None:
+    """A 0-10 score from the file, or None when nobody has scored it yet.
+
+    Marsita, 2026-10-11: each project gets importance and priority, 0 to 10.
+    A blank is not a zero -- zero is a decision, blank is the absence of one,
+    and inventing a number would put a project above the fold on a guess.
+    """
+    if isinstance(v, bool) or v is None:
+        return None
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return None
+    return n if 0 <= n <= 10 and n == v else None
+
 
 def _load() -> dict:
     """The YAML file, or {} -- a pane must never take the page down."""
@@ -69,6 +89,8 @@ def projects(*, path: Path | None = None) -> list[dict]:
             # `TODO` is how the file marks a field nobody has filled in. It is
             # honest in the file and noise on a dashboard.
             "live": url.startswith("http"),
+            "importance": _score(raw.get("importance")),
+            "priority": _score(raw.get("priority")),
         })
     # A project with a repo and no url is still a project -- send it to the
     # repo. Only a row with nowhere at all to point gets dropped.
@@ -81,6 +103,21 @@ def projects(*, path: Path | None = None) -> list[dict]:
     if path is None:
         _CACHE.update(mtime=mtime, rows=rows)
     return rows
+
+
+def ranked(rows: list[dict]) -> list[dict]:
+    """The tile order: priority first, importance breaks the tie.
+
+    Priority is what to work on now, importance is how much it matters
+    overall; the board above the fold is for now. Unscored projects come
+    after every scored one, in the file's usual order -- a blank never
+    outranks a decision. Sorted is stable, so ties keep that order too.
+    """
+    def key(r):
+        p, i = r.get("priority"), r.get("importance")
+        return (p is None and i is None, -(p if p is not None else -1),
+                -(i if i is not None else -1))
+    return sorted(rows, key=key)
 
 
 def repo_owner() -> dict[str, str]:
@@ -102,6 +139,8 @@ def repo_owner() -> dict[str, str]:
 def snapshot() -> dict:
     rows = projects()
     return {"projects": rows, "count": len(rows),
+            # Names in tile order for /projects; the first FOLD sit above it.
+            "tiles": [r["name"] for r in ranked(rows)], "fold": FOLD,
             "active": sum(1 for r in rows if r["status"] == "active"),
             "repos": repo_owner()}
 
