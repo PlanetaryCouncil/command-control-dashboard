@@ -43,8 +43,8 @@ projects:
     url: https://planetarycouncil.org
     tagline: Changing the world through art and culture — an upgrade to global governance
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/planetarycouncil.org
       - PlanetaryCouncil/hub
@@ -56,8 +56,8 @@ projects:
     url: /basex
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
     status: awaiting-deployment   # awaiting initial deployment
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - basexhq/basex-demo
       - basexhq/front-end
@@ -71,8 +71,8 @@ projects:
     url: https://moneyfromthefuture.com
     tagline: The best way to make money is to make money
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/moneyfromthefuture.com
     tags: [economics]
@@ -82,8 +82,8 @@ projects:
     url: /network-state-genesis
     tagline: A new model of a state with aligned values
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     socials: { twitter: "@genesisdotre" }
     tags: [governance, network-state]
 
@@ -107,8 +107,8 @@ projects:
     music: https://t.me/MarsitaTheUltra/79
     music_alt: https://open.spotify.com/track/6xHqj6pSYViFns3U764Mt1
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     tags: [futures, prize]
 
   - name: Live Agent Fleet (Command & Control Dashboard)
@@ -116,8 +116,8 @@ projects:
     url: /   # a clean public domain, NOT the tailnet funnel host
     tagline: A transparent, public AI-agent operations dashboard
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/command-control-dashboard
     tags: [ai, infrastructure, transparency]
@@ -127,8 +127,8 @@ projects:
     url: https://poems.planetarycouncil.org
     tagline: Two-line closing poems from the terminal
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/poems
     tags: [art, poetry]
@@ -138,8 +138,8 @@ projects:
     url: https://brainfarts.planetarycouncil.org
     tagline: Logged cases of confidently-wrong AI output, scored on a four-axis scale
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/brainfarts
     tags: [ai, honesty]
@@ -149,8 +149,8 @@ projects:
     url: https://wiki.secondrenaissance.net/wiki/Mars_Robertson
     tagline: Open, contributable wiki
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     tags: [wiki, reference]
 
   - name: Artizen.fund projects
@@ -158,8 +158,8 @@ projects:
     url: /artizen
     tagline: Art funded on Artizen
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     members:
       - Labour Union of Higherdimensional Shapeshifters
       - Marsita the Ultra
@@ -173,8 +173,8 @@ projects:
     url: /solarpunk-estates
     tagline: Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun
     status: awaiting-deployment   # intake is live on the board; domain not pointed
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/solarpunkestates.org
     tags: [solarpunk, real-estate, climate, coliving]
@@ -184,8 +184,8 @@ projects:
     url: /independent-tribunal
     tagline: A body neither party appoints, for disputes existing authorities cannot fairly hear
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - independenttribunal/independenttribunal-www
       - independenttribunal/independenttribunal-app
@@ -199,8 +199,8 @@ projects:
     url: https://datingrelating.com
     tagline: Dating and relating — a fresh take on connection
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/DatingRelating.com
     tags: [relationships, community]
@@ -210,8 +210,8 @@ projects:
     url: https://legalscreenshot.com
     tagline: Timestamped, legally-defensible screenshots (domain for sale, with legalprintscreen.com)
     status: for-sale
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     tags: [legal, evidence, tools]
 
   - name: Ultra Magic Hands
@@ -219,8 +219,8 @@ projects:
     url: https://ultramagichands.com
     tagline: Massage
     status: active   # not verified in-browser (extension dropped) — confirm
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     tags: [massage, wellbeing, bodywork]
 
   - name: Ministry of Memes and Better Propaganda
@@ -228,8 +228,8 @@ projects:
     url: /ministry-of-memes
     tagline: The good guys need better propaganda than the bad guys — memes to end the war through awareness and education
     status: active
-    importance:   # 0-10, how much it matters overall. Blank = not scored yet
-    priority:     # 0-10, how much it needs you now. Top 12 go above the fold on /projects
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     repos:
       - PlanetaryCouncil/ministry-of-memes-and-better-propaganda
     part_of: Planetary Council
