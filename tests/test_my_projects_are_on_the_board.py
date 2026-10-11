@@ -184,12 +184,13 @@ def test_an_unmapped_repo_still_shows_its_own_name():
 def test_scores_are_read_from_the_file_and_a_blank_stays_blank(tmp_path):
     p = write(tmp_path, """
 projects:
-  - {name: Scored, url: 'https://a', status: active, importance: 7, priority: 0}
-  - {name: Blank, url: 'https://b', status: active, importance: , priority: }
+  - {name: Scored, url: 'https://a', status: active, importance: 7, urgency: 0, vibes: 4}
+  - {name: Blank, url: 'https://b', status: active, importance: , urgency: , vibes: }
 """)
     got = {r["name"]: r for r in portfolio.projects(path=p)}
-    assert (got["Scored"]["importance"], got["Scored"]["priority"]) == (7, 0)
-    assert (got["Blank"]["importance"], got["Blank"]["priority"]) == (None, None)
+    s, b = got["Scored"], got["Blank"]
+    assert (s["importance"], s["urgency"], s["vibes"]) == (7, 0, 4)
+    assert (b["importance"], b["urgency"], b["vibes"]) == (None, None, None)
 
 
 @pytest.mark.parametrize("bad", ["11", "-1", "7.5", "high", "true"])
@@ -201,17 +202,39 @@ projects:
     assert portfolio.projects(path=p)[0]["importance"] is None
 
 
-def test_tiles_go_by_priority_then_importance_and_blanks_last(tmp_path):
-    p = write(tmp_path, """
+RANKED = """
 projects:
   - {name: Blank, url: 'https://a', status: active}
-  - {name: Low, url: 'https://b', status: active, priority: 2, importance: 9}
-  - {name: HighLess, url: 'https://c', status: active, priority: 8, importance: 3}
-  - {name: HighMore, url: 'https://d', status: active, priority: 8, importance: 6}
-  - {name: ZeroIsADecision, url: 'https://e', status: active, priority: 0}
-""")
-    names = [r["name"] for r in portfolio.ranked(portfolio.projects(path=p))]
-    assert names == ["HighMore", "HighLess", "Low", "ZeroIsADecision", "Blank"]
+  - {name: Low, url: 'https://b', status: active, urgency: 2, importance: 9, vibes: 9}
+  - {name: HighLess, url: 'https://c', status: active, urgency: 8, importance: 3, vibes: 5}
+  - {name: HighMore, url: 'https://d', status: active, urgency: 8, importance: 6, vibes: 8}
+  - {name: HighMoreDull, url: 'https://f', status: active, urgency: 8, importance: 6, vibes: 1}
+  - {name: ZeroIsADecision, url: 'https://e', status: active, urgency: 0}
+"""
+
+
+def test_tiles_go_by_urgency_then_importance_then_vibes_and_blanks_last(tmp_path):
+    rows = portfolio.projects(path=write(tmp_path, RANKED))
+    assert [r["name"] for r in portfolio.ranked(rows)] == [
+        "HighMore", "HighMoreDull", "HighLess", "Low", "ZeroIsADecision", "Blank"]
+
+
+def test_on_flip_day_the_least_fun_work_leads(tmp_path):
+    rows = portfolio.projects(path=write(tmp_path, RANKED))
+    names = [r["name"] for r in portfolio.ranked(rows, flipped=True)]
+    assert names[0] == "HighMoreDull"
+    assert names[-1] == "Blank"
+
+
+@pytest.mark.parametrize("when, flipped", [
+    ("2026-10-12 13:00", True),    # Monday afternoon
+    ("2026-10-13 03:30", True),    # Monday night, before her day ends at 4
+    ("2026-10-12 02:00", False),   # still Sunday night
+    ("2026-10-16 15:00", False),   # Friday: we don't like Fridays
+])
+def test_flip_day_is_monday_on_her_clock(when, flipped):
+    from datetime import datetime
+    assert portfolio.flip_day(datetime.strptime(when, "%Y-%m-%d %H:%M")) is flipped
 
 
 def test_twelve_above_the_fold():
@@ -219,10 +242,11 @@ def test_twelve_above_the_fold():
     snap = portfolio.snapshot()
     assert snap["fold"] == 12
     assert sorted(snap["tiles"]) == sorted(r["name"] for r in snap["projects"])
+    assert isinstance(snap["flipped"], bool)
 
 
 def test_the_tiles_page_exists_and_reads_the_portfolio():
     page = ROOT / "fleet" / "static" / "projects" / "index.html"
     html = page.read_text()
     assert 'fetch("api/portfolio"' in html
-    assert "d.fold" in html and "d.tiles" in html
+    assert "d.fold" in html and "d.tiles" in html and "d.flipped" in html

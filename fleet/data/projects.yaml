@@ -44,7 +44,8 @@ projects:
     tagline: Changing the world through art and culture — an upgrade to global governance
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/planetarycouncil.org
       - PlanetaryCouncil/hub
@@ -57,7 +58,8 @@ projects:
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
     status: awaiting-deployment   # awaiting initial deployment
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - basexhq/basex-demo
       - basexhq/front-end
@@ -72,7 +74,8 @@ projects:
     tagline: The best way to make money is to make money
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/moneyfromthefuture.com
     tags: [economics]
@@ -83,7 +86,8 @@ projects:
     tagline: A new model of a state with aligned values
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     socials: { twitter: "@genesisdotre" }
     tags: [governance, network-state]
 
@@ -108,7 +112,8 @@ projects:
     music_alt: https://open.spotify.com/track/6xHqj6pSYViFns3U764Mt1
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     tags: [futures, prize]
 
   - name: Live Agent Fleet (Command & Control Dashboard)
@@ -117,7 +122,8 @@ projects:
     tagline: A transparent, public AI-agent operations dashboard
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/command-control-dashboard
     tags: [ai, infrastructure, transparency]
@@ -128,7 +134,8 @@ projects:
     tagline: Two-line closing poems from the terminal
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/poems
     tags: [art, poetry]
@@ -139,7 +146,8 @@ projects:
     tagline: Logged cases of confidently-wrong AI output, scored on a four-axis scale
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/brainfarts
     tags: [ai, honesty]
@@ -150,7 +158,8 @@ projects:
     tagline: Open, contributable wiki
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     tags: [wiki, reference]
 
   - name: Artizen.fund projects
@@ -159,7 +168,8 @@ projects:
     tagline: Art funded on Artizen
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     members:
       - Labour Union of Higherdimensional Shapeshifters
       - Marsita the Ultra
@@ -174,7 +184,8 @@ projects:
     tagline: Building one billion regenerative homes — coliving, rent-to-own, rooted in nature, powered by the sun
     status: awaiting-deployment   # intake is live on the board; domain not pointed
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/solarpunkestates.org
     tags: [solarpunk, real-estate, climate, coliving]
@@ -185,7 +196,8 @@ projects:
     tagline: A body neither party appoints, for disputes existing authorities cannot fairly hear
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - independenttribunal/independenttribunal-www
       - independenttribunal/independenttribunal-app
@@ -200,7 +212,8 @@ projects:
     tagline: Dating and relating — a fresh take on connection
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/DatingRelating.com
     tags: [relationships, community]
@@ -211,7 +224,8 @@ projects:
     tagline: Timestamped, legally-defensible screenshots (domain for sale, with legalprintscreen.com)
     status: for-sale
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     tags: [legal, evidence, tools]
 
   - name: Ultra Magic Hands
@@ -220,7 +234,8 @@ projects:
     tagline: Massage
     status: active   # not verified in-browser (extension dropped) — confirm
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     tags: [massage, wellbeing, bodywork]
 
   - name: Ministry of Memes and Better Propaganda
@@ -229,7 +244,8 @@ projects:
     tagline: The good guys need better propaganda than the bad guys — memes to end the war through awareness and education
     status: active
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    priority:     # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/ministry-of-memes-and-better-propaganda
     part_of: Planetary Council

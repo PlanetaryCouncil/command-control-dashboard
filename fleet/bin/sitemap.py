@@ -49,7 +49,7 @@ MAP = [
         ("Projects", "/", "/api/projects",
          "one entry each, with the next action and what is blocking it."),
         ("The portfolio", "/projects", "/api/portfolio",
-         "every project as a tile, by priority then importance, 0 to 10."),
+         "every project as a tile: urgency, importance, vibes, 0 to 10."),
         ("Waiting on a human", "", "/api/approvals",
          "actions an agent may not take alone: send, publish, spend, delete."),
         ("Handoffs", "", "/api/handoffs",

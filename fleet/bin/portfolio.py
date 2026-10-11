@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 
 FLEET = Path(__file__).resolve().parent.parent
@@ -33,11 +34,27 @@ _CACHE = {"mtime": 0.0, "rows": []}
 # still there, below it.
 FOLD = 12
 
+# Vibe flip: one day a week the least fun projects become the most fun, so
+# the ones nobody wants to touch get their turn at the top. Marsita,
+# 2026-10-11: "one day of the week we switch vibes, less vibes become the
+# most vibes... Fridays? we don't like fridays... Or maybe mondays to sync
+# with population?" Monday: the week starts for everyone else, so the chores
+# that need other people meet them on the day they are reachable.
+FLIP_DAY = 0            # datetime.weekday(): Monday
+# Her day runs ~13:00-04:00, so 02:00 on Monday is still Sunday night.
+DAY_STARTS_AT = 4
+
+
+def flip_day(now: datetime | None = None) -> bool:
+    now = now or datetime.now()
+    return (now - timedelta(hours=DAY_STARTS_AT)).weekday() == FLIP_DAY
+
 
 def _score(v) -> int | None:
     """A 0-10 score from the file, or None when nobody has scored it yet.
 
-    Marsita, 2026-10-11: each project gets importance and priority, 0 to 10.
+    Marsita, 2026-10-11: each project gets importance (in general),
+    urgency (now) and vibes (how nice it is to work on), 0 to 10.
     A blank is not a zero -- zero is a decision, blank is the absence of one,
     and inventing a number would put a project above the fold on a guess.
     """
@@ -90,7 +107,8 @@ def projects(*, path: Path | None = None) -> list[dict]:
             # honest in the file and noise on a dashboard.
             "live": url.startswith("http"),
             "importance": _score(raw.get("importance")),
-            "priority": _score(raw.get("priority")),
+            "urgency": _score(raw.get("urgency")),
+            "vibes": _score(raw.get("vibes")),
         })
     # A project with a repo and no url is still a project -- send it to the
     # repo. Only a row with nowhere at all to point gets dropped.
@@ -105,18 +123,26 @@ def projects(*, path: Path | None = None) -> list[dict]:
     return rows
 
 
-def ranked(rows: list[dict]) -> list[dict]:
-    """The tile order: priority first, importance breaks the tie.
+def ranked(rows: list[dict], *, flipped: bool = False) -> list[dict]:
+    """The tile order: urgency first, then importance, then vibes.
 
-    Priority is what to work on now, importance is how much it matters
-    overall; the board above the fold is for now. Unscored projects come
-    after every scored one, in the file's usual order -- a blank never
-    outranks a decision. Sorted is stable, so ties keep that order too.
+    Urgency is how important it is now, importance how important in
+    general; above the fold is for now. Vibes only break ties -- except on
+    flip day, when inverted vibes (10 - vibes) go first, so the least fun
+    work leads. Unscored projects come after every scored one, in the
+    file's usual order -- a blank never outranks a decision. Sorted is
+    stable, so ties keep that order too.
     """
+    def n(v):
+        return -(v if v is not None else -1)
+
     def key(r):
-        p, i = r.get("priority"), r.get("importance")
-        return (p is None and i is None, -(p if p is not None else -1),
-                -(i if i is not None else -1))
+        u, i, v = r.get("urgency"), r.get("importance"), r.get("vibes")
+        blank = u is None and i is None and v is None
+        if flipped:
+            fv = None if v is None else 10 - v
+            return (blank, n(fv), n(u), n(i))
+        return (blank, n(u), n(i), n(v))
     return sorted(rows, key=key)
 
 
@@ -136,11 +162,13 @@ def repo_owner() -> dict[str, str]:
     return out
 
 
-def snapshot() -> dict:
+def snapshot(now: datetime | None = None) -> dict:
     rows = projects()
+    flipped = flip_day(now)
     return {"projects": rows, "count": len(rows),
             # Names in tile order for /projects; the first FOLD sit above it.
-            "tiles": [r["name"] for r in ranked(rows)], "fold": FOLD,
+            "tiles": [r["name"] for r in ranked(rows, flipped=flipped)],
+            "fold": FOLD, "flipped": flipped,
             "active": sum(1 for r in rows if r["status"] == "active"),
             "repos": repo_owner()}
 

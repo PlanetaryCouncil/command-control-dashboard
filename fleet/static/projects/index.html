@@ -58,7 +58,7 @@ a.tile:hover,a.tile:focus-visible{border-color:var(--accent);outline:none;}
 .tag{color:var(--muted);font-size:12px;overflow:hidden;display:-webkit-box;
   -webkit-line-clamp:3;-webkit-box-orient:vertical;}
 .scores{margin-top:auto;display:grid;gap:5px;}
-.sc{display:grid;grid-template-columns:76px 1fr 20px;align-items:center;gap:8px;
+.sc{display:grid;grid-template-columns:80px 1fr 20px;align-items:center;gap:8px;
   font-size:10.5px;color:var(--muted);}
 .sc .v{text-align:right;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;}
 .bar{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;height:8px;}
@@ -99,10 +99,15 @@ function meter(label, v){
     `<span class="v">${v}</span></div>`;
 }
 
-function tile(p, n){
-  const scored = p.importance !== null || p.priority !== null;
-  const scores = scored
-    ? `<div class="scores">${meter("priority", p.priority ?? 0)}${meter("importance", p.importance ?? 0)}</div>`
+const isScored = p => p.urgency !== null || p.importance !== null || p.vibes !== null;
+
+function tile(p, n, flipped){
+  // On flip day the vibes bar shows what the order uses: 10 - vibes.
+  const v = p.vibes === null ? 0 : (flipped ? 10 - p.vibes : p.vibes);
+  const scores = isScored(p)
+    ? `<div class="scores">${meter("urgency", p.urgency ?? 0)}` +
+      `${meter("importance", p.importance ?? 0)}` +
+      `${meter(flipped ? "vibes ↺" : "vibes", v)}</div>`
     : `<div class="unscored">not scored yet</div>`;
   const ext = p.live ? ' target="_blank" rel="noopener"' : "";
   return `<a class="tile" href="${esc(p.url)}"${ext}>` +
@@ -119,14 +124,16 @@ function tile(p, n){
     const order = (d.tiles || []).map(n => by[n]).filter(Boolean);
     const fold = d.fold || 12;
     const top = order.slice(0, fold), rest = order.slice(fold);
-    document.getElementById("above").innerHTML = top.map((p, i) => tile(p, i + 1)).join("");
-    document.getElementById("below").innerHTML = rest.map((p, i) => tile(p, fold + i + 1)).join("");
+    document.getElementById("above").innerHTML = top.map((p, i) => tile(p, i + 1, d.flipped)).join("");
+    document.getElementById("below").innerHTML = rest.map((p, i) => tile(p, fold + i + 1, d.flipped)).join("");
     const f = document.getElementById("fold");
     f.textContent = `below the fold · ${rest.length} more`;
     f.hidden = rest.length === 0;
-    const scored = order.filter(p => p.importance !== null || p.priority !== null).length;
+    const scored = order.filter(isScored).length;
     document.getElementById("sub").innerHTML =
-      `${scored} of ${order.length} scored · by priority, then importance · ` +
+      `${scored} of ${order.length} scored · ` +
+      (d.flipped ? "Monday: vibes flipped, least fun first · "
+                 : "by urgency, importance, vibes · ") +
       `<a href="projects.yaml">projects.yaml</a>`;
   } catch (e) {
     document.getElementById("above").innerHTML =
