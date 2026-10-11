@@ -250,3 +250,17 @@ def test_the_tiles_page_exists_and_reads_the_portfolio():
     html = page.read_text()
     assert 'fetch("api/portfolio"' in html
     assert "d.fold" in html and "d.tiles" in html and "d.flipped" in html
+
+
+@pytest.mark.parametrize("doc, want", [
+    ({"title": "Mission Control", "owner": {"alias": "Marsita the Ultra"}}, "Mission Control"),
+    ({"title": None, "owner": {"alias": "Marsita the Ultra"}}, "Marsita the Ultra"),
+    ({"title": "TODO", "owner": {"alias": "Marsita the Ultra"}}, "Marsita the Ultra"),
+    ({}, "Projects"),
+])
+def test_the_file_names_the_dashboard(doc, want):
+    assert portfolio.title(doc) == want
+
+
+def test_the_snapshot_carries_the_title():
+    assert portfolio.snapshot()["title"] == "Marsita the Ultra"

@@ -7,6 +7,9 @@
 # can have several; a project with none simply has none yet, and that is
 # left empty rather than guessed at. The board groups open issues by this.
 
+# The name at the top of /projects. Blank = owner.alias below.
+title:
+
 owner:
   name: Mars Robertson
   alias: Marsita the Ultra

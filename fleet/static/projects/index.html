@@ -49,7 +49,6 @@ h1{font-size:18px;font-weight:600;margin:0;}
 a.tile:hover,a.tile:focus-visible{border-color:var(--accent);outline:none;}
 .head{display:flex;justify-content:space-between;align-items:center;gap:8px;
   font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
-.rank{font-variant-numeric:tabular-nums;}
 .st::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
   margin-right:6px;background:var(--gone);vertical-align:0;}
 .st.active::before{background:var(--good);}
@@ -78,7 +77,7 @@ a.tile:hover,a.tile:focus-visible{border-color:var(--accent);outline:none;}
 </style></head>
 <body><div class="wrap">
 <div class="top">
-  <h1>Projects</h1>
+  <h1 id="title">Projects</h1>
   <span class="sub" id="sub">loading</span>
 </div>
 <main>
@@ -111,8 +110,7 @@ function tile(p, n, flipped){
     : `<div class="unscored">not scored yet</div>`;
   const ext = p.live ? ' target="_blank" rel="noopener"' : "";
   return `<a class="tile" href="${esc(p.url)}"${ext}>` +
-    `<div class="head"><span class="st ${esc(p.status)}">${esc(p.status)}</span>` +
-    `<span class="rank">${String(n).padStart(2, "0")}</span></div>` +
+    `<div class="head"><span class="st ${esc(p.status)}">${esc(p.status)}</span></div>` +
     `<div class="name">${esc(p.name)}</div>` +
     `<div class="tag">${esc(p.tagline)}</div>${scores}</a>`;
 }
@@ -120,6 +118,10 @@ function tile(p, n, flipped){
 (async () => {
   try {
     const d = await (await fetch("api/portfolio", {cache:"no-store"})).json();
+    if (d.title) {
+      document.getElementById("title").textContent = d.title;
+      document.title = d.title;
+    }
     const by = Object.fromEntries((d.projects || []).map(p => [p.name, p]));
     const order = (d.tiles || []).map(n => by[n]).filter(Boolean);
     const fold = d.fold || 12;

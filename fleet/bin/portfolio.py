@@ -146,6 +146,18 @@ def ranked(rows: list[dict], *, flipped: bool = False) -> list[dict]:
     return sorted(rows, key=key)
 
 
+def title(doc: dict | None = None) -> str:
+    """The name at the top of /projects: `title` in the file, else the
+    owner's alias. Marsita, 2026-10-11: the YAML names it, and "that can
+    become my dashboard"."""
+    doc = _load() if doc is None else doc
+    owner = doc.get("owner") or {}
+    for v in (doc.get("title"), owner.get("alias"), owner.get("name")):
+        if isinstance(v, str) and v.strip() and v.strip().upper() != "TODO":
+            return v.strip()
+    return "Projects"
+
+
 def repo_owner() -> dict[str, str]:
     """repo (lowercased) -> project name. For grouping issues by project.
 
@@ -165,7 +177,7 @@ def repo_owner() -> dict[str, str]:
 def snapshot(now: datetime | None = None) -> dict:
     rows = projects()
     flipped = flip_day(now)
-    return {"projects": rows, "count": len(rows),
+    return {"title": title(), "projects": rows, "count": len(rows),
             # Names in tile order for /projects; the first FOLD sit above it.
             "tiles": [r["name"] for r in ranked(rows, flipped=flipped)],
             "fold": FOLD, "flipped": flipped,
