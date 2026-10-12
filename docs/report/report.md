@@ -1,6 +1,6 @@
 # The fleet — last 24 hours
 
-*2026-10-11T18:00:00+00:00*
+*2026-10-12T18:00:00+00:00*
 
 **1 commit merged in the last 24 hours.**
 
@@ -8,7 +8,7 @@
 
 | commit | subject |
 |---|---|
-| `b5e367e2` | report: 2026-10-10 fleet summary |
+| `c7159064` | report: 2026-10-11 fleet summary |
 
 ## Pipeline
 
@@ -25,12 +25,12 @@ Nothing.
 | agent-comms | busy | deferred — load 9.0 over 4 on 4 cores; a timeout now would measure the machine, not the ag |
 | command-control-dashboard | pass | 446 passed, 1 warning in 310.58s (0:05:10) (StarletteDeprecationWarning:) |
 | localvoice | pass | llama3.2:1b answered in 72.8s — the offline fallback is alive |
-| moltbook | ok | upvoted 1; commented on 276f3c0e |
+| moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 89% 25G free |
+| pressure | warn | compressor 1.9G |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 2862 public · 2 homies · browser 2778 · Python-urllib/3.11 39 · Mozilla/5.0 (compatib |
+| visitors | pass | 24h: 3564 public · 0 homies · browser 3559 · DotBot 2 · aiohttp 1 · Hello from Palo Alto N |
 
 ## The partnership
 
