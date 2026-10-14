@@ -1434,7 +1434,7 @@ def serve(port):
             # The dashboard. It was `/` until 2026-10-14, when the projects
             # took the front door (see "/projects" below); both stay first
             # class, a toggle top right moves between them.
-            if path in ("/fleet", "/one", "/index.html"):
+            if path in ("/one", "/index.html"):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import oneview
                 remote = self._remote()
@@ -1978,7 +1978,11 @@ def serve(port):
                     self.send_error(404)
                 return
 
-            if path in ("/", "/projects"):
+            # /fleet is the same page showing the dashboard: both views live in one
+            # document, the dashboard preloaded in a frame (/one), so switching
+            # is instant. Marsita, 2026-10-14: "Can it just make this smooth
+            # without a reload".
+            if path in ("/", "/projects", "/fleet"):
                 # The front door. Marsita, 2026-10-14: "It's like an intro to
                 # my world... Previously it was a dashboard... Maybe both can
                 # be 1st class citizens. By default my dashboard with projects

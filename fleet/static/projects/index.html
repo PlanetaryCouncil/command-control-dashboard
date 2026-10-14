@@ -87,6 +87,15 @@ h1{font-size:18px;font-weight:600;margin:0;}
 .fold::before,.fold::after{content:"";flex:1;border-top:1px dashed var(--border);}
 .below .tile{min-height:150px;}
 .msg{color:var(--muted);padding:24px 0;}
+/* Two views, one document. The dashboard waits in a frame, loaded in the
+   background, so the toggle swaps instantly and neither side reloads. */
+/* Hidden by visibility, not display: it stays laid out and painted behind
+   the tiles, so showing it costs a frame, not a layout of the whole board. */
+#fleet{position:fixed;inset:0;width:100%;height:100%;border:0;
+  background:var(--ground);visibility:hidden;pointer-events:none;}
+body[data-view="fleet"]{overflow:hidden;}
+body[data-view="fleet"] .wrap{visibility:hidden;}
+body[data-view="fleet"] #fleet{visibility:visible;pointer-events:auto;}
 @media (max-width:1000px){
   .grid{grid-template-columns:repeat(2,minmax(0,1fr));}
   .above{grid-auto-rows:auto;} .above .tile{min-height:170px;}
@@ -176,6 +185,55 @@ function gh(g){
       '<p class="msg">Could not load the projects. The board reads them from /api/portfolio.</p>';
     document.getElementById("sub").textContent = "";
   }
+})();
+
+// The toggle. Marsita, 2026-10-14: "Can it just make this smooth without a
+// reload... I prefer if it is loaded in the background so it doesn't do it
+// every time." The dashboard (/one) loads into a hidden frame once the tiles
+// are up; projects <-> fleet only flips which one is visible. The URL follows
+// (/ or /fleet), so back/forward and a reload land on the same view.
+(() => {
+  const home = document.title;
+  let frame = null;
+  function ensure() {
+    if (frame) return;
+    frame = document.createElement("iframe");
+    frame.id = "fleet"; frame.title = "fleet";
+    frame.src = "/one";
+    frame.addEventListener("load", () => {
+      // The dashboard's own nav has projects / fleet too: inside the frame
+      // those become the same instant swap instead of a page load.
+      try {
+        frame.contentDocument.addEventListener("click", e => {
+          const a = e.target.closest && e.target.closest("a[href]");
+          const v = a && route(a.getAttribute("href"));
+          if (v) { e.preventDefault(); show(v, true); }
+        }, true);
+        if (document.body.dataset.view === "fleet") document.title = frame.contentDocument.title;
+      } catch (_) {}
+    });
+    document.body.appendChild(frame);
+  }
+  const route = h => (h === "/" || h === "/projects") ? "projects"
+                   : (h === "/fleet" || h === "/one") ? "fleet" : null;
+  function show(v, push) {
+    if (v === "fleet") ensure();
+    document.body.dataset.view = v;
+    let t = home;
+    try { if (v === "fleet") t = frame.contentDocument.title || "fleet"; } catch (_) {}
+    document.title = v === "fleet" ? t : (document.getElementById("title").textContent || home);
+    if (push) history.pushState({v}, "", v === "fleet" ? "/fleet" : "/");
+  }
+  document.querySelector(".toggle").addEventListener("click", e => {
+    const a = e.target.closest("a[href]");
+    const v = a && route(a.getAttribute("href"));
+    if (v) { e.preventDefault(); show(v, true); }
+  });
+  addEventListener("popstate", () => show(route(location.pathname) || "projects", false));
+  show(route(location.pathname) || "projects", false);
+  // Preload once the tiles have had their turn.
+  const idle = window.requestIdleCallback || (f => setTimeout(f, 1500));
+  addEventListener("load", () => idle(ensure, {timeout: 3000}));
 })();
 </script>
 </body></html>
