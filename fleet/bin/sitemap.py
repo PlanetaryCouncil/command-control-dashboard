@@ -42,12 +42,15 @@ MAP = [
          "outward, and which rungs are still empty."),
     ]),
     ("A LIFE", [
-        ("What needs attention", "/", "/api/dashboard",
+        ("What needs attention", "/fleet", "/api/dashboard",
          "projects ranked by a score that treats being blocked as urgent."),
-        ("The goal chain", "/#chain", "/api/horizons",
+        ("The goal chain", "/fleet#chain", "/api/horizons",
          "ten years down to right now, and whether the chain is intact."),
-        ("Projects", "/", "/api/projects",
+        ("Projects", "/fleet", "/api/projects",
          "one entry each, with the next action and what is blocking it."),
+        ("The portfolio", "/", "/api/portfolio",
+         "every project as a tile: urgency, importance, vibes, 0 to 10, its\n"
+         "         GitHub repos and open issues. Pick one up, humans and agents."),
         ("Waiting on a human", "", "/api/approvals",
          "actions an agent may not take alone: send, publish, spend, delete."),
         ("Handoffs", "", "/api/handoffs",

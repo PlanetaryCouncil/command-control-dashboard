@@ -20,6 +20,13 @@ sys.path.insert(0, str(BIN))
 import portfolio            # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def no_github(monkeypatch):
+    """Never ask GitHub from a test: canned stats, fresh cache each time."""
+    monkeypatch.setattr(portfolio, "_GH", {"at": 0.0, "stats": {}})
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: {})
+
+
 def write(tmp_path, body):
     p = tmp_path / "projects.yaml"
     p.write_text(body)
@@ -174,3 +181,155 @@ def test_an_unmapped_repo_still_shows_its_own_name():
     """Falling back to nothing would hide the issue's only label."""
     src = (BIN / "oneview.py").read_text()
     assert 'owner[String(i.repo || "").toLowerCase()] || ""' in src
+
+
+# ---------- /projects: tiles, scored 0-10 ----------
+# Marsita, 2026-10-11: "Not list of rows. Tiles. For my projects. And each
+# project should have a 0-10 scale of importance and 0-10 scale of
+# priority... more projects can live there but only 12 above the fold."
+
+def test_scores_are_read_from_the_file_and_a_blank_stays_blank(tmp_path):
+    p = write(tmp_path, """
+projects:
+  - {name: Scored, url: 'https://a', status: active, importance: 7, urgency: 0, vibes: 4}
+  - {name: Blank, url: 'https://b', status: active, importance: , urgency: , vibes: }
+""")
+    got = {r["name"]: r for r in portfolio.projects(path=p)}
+    s, b = got["Scored"], got["Blank"]
+    assert (s["importance"], s["urgency"], s["vibes"]) == (7, 0, 4)
+    assert (b["importance"], b["urgency"], b["vibes"]) == (None, None, None)
+
+
+@pytest.mark.parametrize("bad", ["11", "-1", "7.5", "high", "true"])
+def test_a_score_outside_0_to_10_is_not_a_score(tmp_path, bad):
+    p = write(tmp_path, f"""
+projects:
+  - {{name: X, url: 'https://a', status: active, importance: {bad}}}
+""")
+    assert portfolio.projects(path=p)[0]["importance"] is None
+
+
+RANKED = """
+projects:
+  - {name: Blank, url: 'https://a', status: active}
+  - {name: Low, url: 'https://b', status: active, urgency: 2, importance: 9, vibes: 9}
+  - {name: HighLess, url: 'https://c', status: active, urgency: 8, importance: 3, vibes: 5}
+  - {name: HighMore, url: 'https://d', status: active, urgency: 8, importance: 6, vibes: 8}
+  - {name: HighMoreDull, url: 'https://f', status: active, urgency: 8, importance: 6, vibes: 1}
+  - {name: ZeroIsADecision, url: 'https://e', status: active, urgency: 0}
+"""
+
+
+def test_tiles_go_by_urgency_then_importance_then_vibes_and_blanks_last(tmp_path):
+    rows = portfolio.projects(path=write(tmp_path, RANKED))
+    assert [r["name"] for r in portfolio.ranked(rows)] == [
+        "HighMore", "HighMoreDull", "HighLess", "Low", "ZeroIsADecision", "Blank"]
+
+
+def test_on_flip_day_the_least_fun_work_leads(tmp_path):
+    rows = portfolio.projects(path=write(tmp_path, RANKED))
+    names = [r["name"] for r in portfolio.ranked(rows, flipped=True)]
+    assert names[0] == "HighMoreDull"
+    assert names[-1] == "Blank"
+
+
+@pytest.mark.parametrize("when, flipped", [
+    ("2026-10-12 13:00", True),    # Monday afternoon
+    ("2026-10-13 03:30", True),    # Monday night, before her day ends at 4
+    ("2026-10-12 02:00", False),   # still Sunday night
+    ("2026-10-16 15:00", False),   # Friday: we don't like Fridays
+])
+def test_flip_day_is_monday_on_her_clock(when, flipped):
+    from datetime import datetime
+    assert portfolio.flip_day(datetime.strptime(when, "%Y-%m-%d %H:%M")) is flipped
+
+
+def test_twelve_above_the_fold():
+    assert portfolio.FOLD == 12
+    snap = portfolio.snapshot()
+    assert snap["fold"] == 12
+    assert sorted(snap["tiles"]) == sorted(r["name"] for r in snap["projects"])
+    assert isinstance(snap["flipped"], bool)
+
+
+def test_the_tiles_page_exists_and_reads_the_portfolio():
+    page = ROOT / "fleet" / "static" / "projects" / "index.html"
+    html = page.read_text()
+    assert 'fetch("api/portfolio"' in html
+    assert "d.fold" in html and "d.tiles" in html and "d.flipped" in html
+
+
+@pytest.mark.parametrize("doc, want", [
+    ({"title": "Mission Control", "owner": {"alias": "Marsita the Ultra"}}, "Mission Control"),
+    ({"title": None, "owner": {"alias": "Marsita the Ultra"}}, "Marsita the Ultra"),
+    ({"title": "TODO", "owner": {"alias": "Marsita the Ultra"}}, "Marsita the Ultra"),
+    ({}, "Projects"),
+])
+def test_the_file_names_the_dashboard(doc, want):
+    assert portfolio.title(doc) == want
+
+
+def test_the_snapshot_carries_the_title():
+    assert portfolio.snapshot()["title"] == "Marsita the Ultra"
+
+
+# GitHub on every tile. Marsita, 2026-10-14: "Each tile should have links to
+# GitHub... So that anyone can participate... Humans and AI."
+
+def test_a_public_repo_gets_its_link_and_its_open_issues():
+    g = portfolio.github(["Org/site"], {"org/site": {"private": False, "open": 4}})
+    assert g["url"] == "https://github.com/Org/site"
+    assert g["issues_url"] == "https://github.com/Org/site/issues"
+    assert g["new_issue_url"] == "https://github.com/Org/site/issues/new"
+    assert g["open"] == 4
+
+
+def test_a_private_repo_shows_nothing():
+    stats = {"org/secret": {"private": True, "open": 9}}
+    assert portfolio.github(["Org/secret"], stats) is None
+    g = portfolio.github(["Org/secret", "Org/site"],
+                         {**stats, "org/site": {"private": False, "open": 1}})
+    assert [r["repo"] for r in g["repos"]] == ["Org/site"]
+    assert g["open"] == 1
+
+
+def test_no_answer_from_github_is_a_link_without_a_number():
+    g = portfolio.github(["Org/site"], {})
+    assert g["url"] == "https://github.com/Org/site" and g["open"] is None
+
+
+def test_no_repo_no_github_corner():
+    assert portfolio.github([], {}) is None
+
+
+def test_several_repos_add_up_and_search_together():
+    stats = {"org/a": {"private": False, "open": 2},
+             "org/b": {"private": False, "open": 3}}
+    g = portfolio.github(["Org/a", "Org/b"], stats)
+    assert g["open"] == 5
+    assert g["url"] == "https://github.com/Org"
+    assert "repo%3AOrg%2Fa" in g["issues_url"] and "repo%3AOrg%2Fb" in g["issues_url"]
+
+
+def test_a_failed_fetch_keeps_the_last_good_counts(monkeypatch):
+    good = {"org/a": {"private": False, "open": 2}}
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: good)
+    assert portfolio.repo_stats(["Org/a"]) == good
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: {})
+    monkeypatch.setattr(portfolio, "GH_TTL", -1)
+    assert portfolio.repo_stats(["Org/a"]) == good
+
+
+def test_every_tile_in_the_snapshot_carries_its_github(monkeypatch):
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: {
+        r.lower(): {"private": False, "open": 1} for r in repos})
+    for row in portfolio.snapshot()["projects"]:
+        if row["repos"]:
+            assert row["github"]["open"] == len(row["repos"])
+        else:
+            assert row["github"] is None
+
+
+def test_the_tiles_page_shows_the_github_corner():
+    html = (ROOT / "fleet" / "static" / "projects" / "index.html").read_text()
+    assert "p.github" in html and "new_issue_url" in html and "issues_url" in html

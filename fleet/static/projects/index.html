@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projects</title>
+<style>
+/* The portfolio as tiles. Marsita, 2026-10-11: "Not list of rows. Tiles. For
+   my projects ... only 12 above the fold." Twelve tiles, 4 x 3, sized so the
+   three rows fill the first screen; everything else waits below the line.
+   All data comes from /api/portfolio, which reads fleet/data/projects.yaml. */
+:root{
+  --ground:#F4F6F8; --surface:#FFFFFF; --raised:#EDF0F3;
+  --border:#DCE1E7; --ink:#171B21; --muted:#5C6674;
+  --accent:#2F6FB0; --off:#D5DAE1;
+  --good:#2F7A63; --hold:#8A5B12; --gone:#8A93A0;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0F1216; --surface:#161A20; --raised:#1C222A;
+    --border:#272E38; --ink:#E6E9EC; --muted:#828C99;
+    --accent:#6FA8E6; --off:#2B323C;
+    --good:#4EA88F; --hold:#D89B45; --gone:#6B7480;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0F1216; --surface:#161A20; --raised:#1C222A;
+  --border:#272E38; --ink:#E6E9EC; --muted:#828C99;
+  --accent:#6FA8E6; --off:#2B323C;
+  --good:#4EA88F; --hold:#D89B45; --gone:#6B7480;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:var(--mono);font-size:13px;line-height:1.45;}
+.wrap{max-width:1400px;margin:0 auto;padding:0 16px;padding-block:16px 48px;}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  flex-wrap:wrap;height:44px;}
+h1{font-size:18px;font-weight:600;margin:0;}
+/* Projects / fleet, top right: the two front pages, one click apart.
+   Marsita, 2026-10-14: "a little toggle in the upper right section". */
+.top h1{margin-right:auto;}
+.toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.toggle a{font-size:10.5px;padding:5px 10px;color:var(--muted);text-decoration:none;}
+.toggle a+a{border-left:1px solid var(--border);}
+.toggle a[aria-current="page"]{background:var(--raised);color:var(--ink);
+  font-weight:600;cursor:default;}
+.toggle a:hover:not([aria-current]){color:var(--ink);}
+.sub{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
+.sub a{color:var(--muted);}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
+/* Three rows that fill what is left of the first screen, never smaller than
+   a tile can hold. */
+.above{grid-auto-rows:max(170px, calc((100vh - 16px - 44px - 12px * 2 - 30px) / 3));}
+.tile{position:relative;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;
+  min-width:0;}
+.tile:hover,.tile:focus-within{border-color:var(--accent);}
+/* The name is the tile's link, stretched over all of it; the GitHub links
+   sit on top so they still take their own clicks. */
+.name a{color:inherit;text-decoration:none;outline:none;}
+.name a::after{content:"";position:absolute;inset:0;border-radius:10px;}
+.gh{position:relative;z-index:1;display:flex;gap:6px 14px;flex-wrap:wrap;
+  font-size:10.5px;padding-top:8px;border-top:1px solid var(--border);}
+.gh a{color:var(--accent);text-decoration:none;}
+.gh a:hover,.gh a:focus-visible{text-decoration:underline;}
+.gh .n{font-weight:600;font-variant-numeric:tabular-nums;}
+.head{display:flex;justify-content:space-between;align-items:center;gap:8px;
+  font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+.st::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
+  margin-right:6px;background:var(--gone);vertical-align:0;}
+.st.active::before{background:var(--good);}
+.st.awaiting-deployment::before{background:var(--hold);}
+.name{font-size:15px;font-weight:600;line-height:1.25;overflow-wrap:anywhere;}
+.tag{color:var(--muted);font-size:12px;overflow:hidden;display:-webkit-box;
+  -webkit-line-clamp:3;-webkit-box-orient:vertical;}
+.scores{margin-top:auto;display:grid;gap:5px;}
+.sc{display:grid;grid-template-columns:80px 1fr 20px;align-items:center;gap:8px;
+  font-size:10.5px;color:var(--muted);}
+.sc .v{text-align:right;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums;}
+.bar{display:grid;grid-template-columns:repeat(10,1fr);gap:2px;height:8px;}
+.bar i{background:var(--off);border-radius:1px;}
+.bar i.on{background:var(--accent);}
+.unscored{font-size:10.5px;color:var(--muted);margin-top:auto;}
+.fold{display:flex;align-items:center;gap:10px;margin:22px 0 12px;
+  font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+.fold::before,.fold::after{content:"";flex:1;border-top:1px dashed var(--border);}
+.below .tile{min-height:150px;}
+.msg{color:var(--muted);padding:24px 0;}
+@media (max-width:1000px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .above{grid-auto-rows:auto;} .above .tile{min-height:170px;}
+}
+@media (max-width:520px){ .grid{grid-template-columns:minmax(0,1fr);} }
+</style></head>
+<body><div class="wrap">
+<div class="top">
+  <h1 id="title">Projects</h1>
+  <span class="sub" id="sub">loading</span>
+  <nav class="toggle" aria-label="View">
+    <a href="/" aria-current="page">projects</a><a href="/fleet">fleet</a>
+  </nav>
+</div>
+<main>
+  <section class="grid above" id="above" aria-label="Above the fold"></section>
+  <div class="fold" id="fold" hidden></div>
+  <section class="grid below" id="below" aria-label="Below the fold"></section>
+</main>
+</div>
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function meter(label, v){
+  const cells = Array.from({length:10}, (_, i) =>
+    `<i class="${v !== null && i < v ? "on" : ""}"></i>`).join("");
+  return `<div class="sc"><span>${label}</span>` +
+    `<span class="bar" role="img" aria-label="${label} ${v} of 10">${cells}</span>` +
+    `<span class="v">${v}</span></div>`;
+}
+
+const isScored = p => p.urgency !== null || p.importance !== null || p.vibes !== null;
+
+function tile(p, n, flipped){
+  // On flip day the vibes bar shows what the order uses: 10 - vibes.
+  const v = p.vibes === null ? 0 : (flipped ? 10 - p.vibes : p.vibes);
+  const scores = isScored(p)
+    ? `<div class="scores">${meter("urgency", p.urgency ?? 0)}` +
+      `${meter("importance", p.importance ?? 0)}` +
+      `${meter(flipped ? "vibes ↺" : "vibes", v)}</div>`
+    : `<div class="unscored">not scored yet</div>`;
+  const ext = p.live ? ' target="_blank" rel="noopener"' : "";
+  return `<article class="tile">` +
+    `<div class="head"><span class="st ${esc(p.status)}">${esc(p.status)}</span></div>` +
+    `<div class="name"><a href="${esc(p.url)}"${ext}>${esc(p.name)}</a></div>` +
+    `<div class="tag">${esc(p.tagline)}</div>${scores}${gh(p.github)}</article>`;
+}
+
+// Where anyone, human or agent, can pick up the work. Marsita, 2026-10-14:
+// "Each tile should have links to GitHub... So that anyone can participate."
+function gh(g){
+  if (!g) return "";
+  const out = ' target="_blank" rel="noopener"';
+  const n = g.repos.length;
+  const code = `<a href="${esc(g.url)}"${out}>github${n > 1 ? ` · ${n} repos` : ""} ↗</a>`;
+  const issues = g.open === null ? `<a href="${esc(g.issues_url)}"${out}>issues ↗</a>`
+    : g.open > 0 ? `<a href="${esc(g.issues_url)}"${out}><span class="n">${g.open}</span> open ${g.open === 1 ? "issue" : "issues"} ↗</a>`
+    : `<a href="${esc(g.new_issue_url)}"${out}>no open issues · file one ↗</a>`;
+  return `<div class="gh">${code}${issues}</div>`;
+}
+
+(async () => {
+  try {
+    const d = await (await fetch("api/portfolio", {cache:"no-store"})).json();
+    if (d.title) {
+      document.getElementById("title").textContent = d.title;
+      document.title = d.title;
+    }
+    const by = Object.fromEntries((d.projects || []).map(p => [p.name, p]));
+    const order = (d.tiles || []).map(n => by[n]).filter(Boolean);
+    const fold = d.fold || 12;
+    const top = order.slice(0, fold), rest = order.slice(fold);
+    document.getElementById("above").innerHTML = top.map((p, i) => tile(p, i + 1, d.flipped)).join("");
+    document.getElementById("below").innerHTML = rest.map((p, i) => tile(p, fold + i + 1, d.flipped)).join("");
+    const f = document.getElementById("fold");
+    f.textContent = `below the fold · ${rest.length} more`;
+    f.hidden = rest.length === 0;
+    const scored = order.filter(isScored).length;
+    document.getElementById("sub").innerHTML =
+      `${scored} of ${order.length} scored · ` +
+      (d.flipped ? "Monday: vibes flipped, least fun first · "
+                 : "by urgency, importance, vibes · ") +
+      `<a href="projects.yaml">projects.yaml</a>`;
+  } catch (e) {
+    document.getElementById("above").innerHTML =
+      '<p class="msg">Could not load the projects. The board reads them from /api/portfolio.</p>';
+    document.getElementById("sub").textContent = "";
+  }
+})();
+</script>
+</body></html>

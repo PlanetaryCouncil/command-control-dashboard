@@ -1431,7 +1431,10 @@ def serve(port):
                 return
 
 
-            if path in ("/", "/fleet", "/one", "/index.html"):
+            # The dashboard. It was `/` until 2026-10-14, when the projects
+            # took the front door (see "/projects" below); both stay first
+            # class, a toggle top right moves between them.
+            if path in ("/fleet", "/one", "/index.html"):
                 sys.path.insert(0, str(Path(__file__).resolve().parent))
                 import oneview
                 remote = self._remote()
@@ -1969,6 +1972,20 @@ def serve(port):
 
             if path == "/future-vision-xprize":
                 f = FLEET / "static" / "future-vision-xprize" / "index.html"
+                try:
+                    self._send(f.read_bytes(), "text/html; charset=utf-8")
+                except OSError:
+                    self.send_error(404)
+                return
+
+            if path in ("/", "/projects"):
+                # The front door. Marsita, 2026-10-14: "It's like an intro to
+                # my world... Previously it was a dashboard... Maybe both can
+                # be 1st class citizens. By default my dashboard with projects
+                # and a little toggle in the upper right section."
+                # The portfolio as tiles: twelve above the fold, by urgency
+                # then importance, the rest below. Reads /api/portfolio.
+                f = FLEET / "static" / "projects" / "index.html"
                 try:
                     self._send(f.read_bytes(), "text/html; charset=utf-8")
                 except OSError:

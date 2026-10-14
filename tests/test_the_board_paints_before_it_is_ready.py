@@ -122,7 +122,7 @@ def test_nothing_expensive_happens_before_the_flush():
     """Reading 200 events and building the agent table took ~1.5s. Doing it
     before the flush meant the loader arrived after the wait it was meant to
     cover."""
-    i = SERVER.index('if path in ("/", "/fleet", "/one", "/index.html"):')
+    i = SERVER.index('if path in ("/fleet", "/one", "/index.html"):')
     route = SERVER[i:SERVER.index('if path == "/board"', i)]
     before = route[:route.index("def rest():")]
     for expensive in ("ev.tail(", "av.AGENTS", "json.dumps("):
