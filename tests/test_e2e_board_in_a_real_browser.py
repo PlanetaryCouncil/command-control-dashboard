@@ -52,7 +52,8 @@ def board():
     else:
         proc.kill()
         pytest.skip("the board did not come up")
-    yield url
+    # The dashboard, which left `/` for /fleet on 2026-10-14.
+    yield url + "/fleet"
     proc.terminate()
     try:
         proc.wait(timeout=5)

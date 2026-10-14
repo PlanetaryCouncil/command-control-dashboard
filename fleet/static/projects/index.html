@@ -37,6 +37,15 @@ body{margin:0;background:var(--ground);color:var(--ink);
 .top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
   flex-wrap:wrap;height:44px;}
 h1{font-size:18px;font-weight:600;margin:0;}
+/* Projects / fleet, top right: the two front pages, one click apart.
+   Marsita, 2026-10-14: "a little toggle in the upper right section". */
+.top h1{margin-right:auto;}
+.toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.toggle a{font-size:10.5px;padding:5px 10px;color:var(--muted);text-decoration:none;}
+.toggle a+a{border-left:1px solid var(--border);}
+.toggle a[aria-current="page"]{background:var(--raised);color:var(--ink);
+  font-weight:600;cursor:default;}
+.toggle a:hover:not([aria-current]){color:var(--ink);}
 .sub{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
 .sub a{color:var(--muted);}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
@@ -88,6 +97,9 @@ h1{font-size:18px;font-weight:600;margin:0;}
 <div class="top">
   <h1 id="title">Projects</h1>
   <span class="sub" id="sub">loading</span>
+  <nav class="toggle" aria-label="View">
+    <a href="/" aria-current="page">projects</a><a href="/fleet">fleet</a>
+  </nav>
 </div>
 <main>
   <section class="grid above" id="above" aria-label="Above the fold"></section>

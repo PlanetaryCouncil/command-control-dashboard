@@ -238,7 +238,7 @@ def page(nav_html: str = "", nav_css: str = "") -> str:
       if (!r.ok) {{ state.textContent = "refused (" + r.status + ")"; return; }}
       state.className = "hint " + (out.status === "triaged" ? "ok" : "warn");
       state.innerHTML = out.status === "triaged"
-        ? 'on <a href="/">the board</a>'
+        ? 'on <a href="/fleet">the board</a>'
         : out.status === "quarantined"
           ? 'held by <a href="/moderation">the rules</a>'
           : "in the queue";

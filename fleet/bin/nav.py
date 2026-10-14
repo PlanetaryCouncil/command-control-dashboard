@@ -20,8 +20,11 @@ stay where they belong on their own page — this is navigation only.
 # and was derived from charge alone, so two projects sitting near each other
 # said nothing about each other. A replacement that lays projects out by how
 # they actually relate is parked in the freezer-of-ideas repo.
+# 2026-10-14: the projects took `/`, the dashboard moved to /fleet, and the
+# two lead the bar as a pair so switching between them is one click.
 PAGES = [
-    ("/", "fleet"),
+    ("/", "projects"),
+    ("/fleet", "fleet"),
     ("/hi", "send a message"),
     ("https://planetarycouncil.github.io/selfie-gallery/", "send a selfie"),
     ("/chat", "chat"),

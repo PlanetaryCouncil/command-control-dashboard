@@ -4024,7 +4024,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
   <span class="grp" id="machine" title="1-minute load average per core"></span>
   <span class="sp">
     {'' if remote else '<button id="convenebtn" title="Summon the council now instead of waiting for the schedule">&#128483; convene</button>'}
-    {nav.html("/", remote=remote)}
+    {nav.html("/fleet", remote=remote)}
     <span id="clock"></span>
   </span>
 </div>
@@ -4203,7 +4203,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
   <div class="foottoggle" id="foottoggle">footer</div>
   <section>
     <h3>this board</h3>
-    <a href="/" title="This page. Agents, goals, the shared stream, processes, and a box to post from.">dashboard</a>
+    <a href="/fleet" title="This page. Agents, goals, the shared stream, processes, and a box to post from.">dashboard</a>
     <a href="/board" title="The older card view: one card per worker, with its metrics and last run. Easier to read, no live stream.">cards</a>
     <a href="/agents" title="Agent wall — one rectangle per agent, plus the channel they post into. Built before this page existed.">agents</a>
     <a href="/procs" title="Live process list and the kill switch, on its own page. Same data as the right-hand pane here.">processes</a>
@@ -4244,7 +4244,7 @@ def page(seed_json: str, agents_json: str, token: str, remote: bool = False,
   </section>
   <section>
     <h3>public</h3>
-    <a href="/" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
+    <a href="/fleet" title="This board, from the open internet. Reads are public; anything that steers the system is refused.">fleet</a>
     <a href="/legacy-green-cockpit" title="The green cockpit from outside. Same page, same gates.">green cockpit</a>
     <a href="/signatures" title="The signature wall, public. What a stranger sees of your agents.">signatures</a>
     <a href="/poems" title="Two-line poems that close each agent turn, newest first.">poems</a>

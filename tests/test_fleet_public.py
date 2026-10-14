@@ -113,8 +113,8 @@ def test_the_board_does_not_leak_the_kill_token(server):
     The board moved to /fleet on 2026-08-05 when a human-facing focus page
     took over `/` — the token lives with the controls, so this follows it.
     """
-    _, local = fetch("/")
-    _, remote = fetch("/", forwarded="203.0.113.7")
+    _, local = fetch("/fleet")
+    _, remote = fetch("/fleet", forwarded="203.0.113.7")
 
     status, body = fetch("/api/kill-token")
     assert status == 200
@@ -234,3 +234,13 @@ def test_processes_redact_machine_paths_for_a_remote_caller(server):
     assert status == 200
     remote = json.loads(body)
     assert "path" not in remote.get("machine", {}).get("disk", {})
+
+
+def test_projects_are_the_front_door_and_the_fleet_is_one_click_away(server):
+    """Marsita, 2026-10-14: both first class, projects by default, a toggle
+    top right to switch."""
+    _, front = fetch("/")
+    assert 'fetch("api/portfolio"' in front
+    assert 'href="/fleet"' in front, "no way from the projects to the fleet"
+    _, fleet = fetch("/fleet")
+    assert 'href="/"' in fleet and ">projects<" in fleet, "no way back"
