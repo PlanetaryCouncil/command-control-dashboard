@@ -43,10 +43,19 @@ h1{font-size:18px;font-weight:600;margin:0;}
 /* Three rows that fill what is left of the first screen, never smaller than
    a tile can hold. */
 .above{grid-auto-rows:max(170px, calc((100vh - 16px - 44px - 12px * 2 - 30px) / 3));}
-.tile{background:var(--surface);border:1px solid var(--border);border-radius:10px;
-  padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0;
-  color:inherit;text-decoration:none;}
-a.tile:hover,a.tile:focus-visible{border-color:var(--accent);outline:none;}
+.tile{position:relative;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;
+  min-width:0;}
+.tile:hover,.tile:focus-within{border-color:var(--accent);}
+/* The name is the tile's link, stretched over all of it; the GitHub links
+   sit on top so they still take their own clicks. */
+.name a{color:inherit;text-decoration:none;outline:none;}
+.name a::after{content:"";position:absolute;inset:0;border-radius:10px;}
+.gh{position:relative;z-index:1;display:flex;gap:6px 14px;flex-wrap:wrap;
+  font-size:10.5px;padding-top:8px;border-top:1px solid var(--border);}
+.gh a{color:var(--accent);text-decoration:none;}
+.gh a:hover,.gh a:focus-visible{text-decoration:underline;}
+.gh .n{font-weight:600;font-variant-numeric:tabular-nums;}
 .head{display:flex;justify-content:space-between;align-items:center;gap:8px;
   font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
 .st::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;
@@ -109,10 +118,23 @@ function tile(p, n, flipped){
       `${meter(flipped ? "vibes ↺" : "vibes", v)}</div>`
     : `<div class="unscored">not scored yet</div>`;
   const ext = p.live ? ' target="_blank" rel="noopener"' : "";
-  return `<a class="tile" href="${esc(p.url)}"${ext}>` +
+  return `<article class="tile">` +
     `<div class="head"><span class="st ${esc(p.status)}">${esc(p.status)}</span></div>` +
-    `<div class="name">${esc(p.name)}</div>` +
-    `<div class="tag">${esc(p.tagline)}</div>${scores}</a>`;
+    `<div class="name"><a href="${esc(p.url)}"${ext}>${esc(p.name)}</a></div>` +
+    `<div class="tag">${esc(p.tagline)}</div>${scores}${gh(p.github)}</article>`;
+}
+
+// Where anyone, human or agent, can pick up the work. Marsita, 2026-10-14:
+// "Each tile should have links to GitHub... So that anyone can participate."
+function gh(g){
+  if (!g) return "";
+  const out = ' target="_blank" rel="noopener"';
+  const n = g.repos.length;
+  const code = `<a href="${esc(g.url)}"${out}>github${n > 1 ? ` · ${n} repos` : ""} ↗</a>`;
+  const issues = g.open === null ? `<a href="${esc(g.issues_url)}"${out}>issues ↗</a>`
+    : g.open > 0 ? `<a href="${esc(g.issues_url)}"${out}><span class="n">${g.open}</span> open ${g.open === 1 ? "issue" : "issues"} ↗</a>`
+    : `<a href="${esc(g.new_issue_url)}"${out}>no open issues · file one ↗</a>`;
+  return `<div class="gh">${code}${issues}</div>`;
 }
 
 (async () => {

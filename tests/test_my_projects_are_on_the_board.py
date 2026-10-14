@@ -20,6 +20,13 @@ sys.path.insert(0, str(BIN))
 import portfolio            # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def no_github(monkeypatch):
+    """Never ask GitHub from a test: canned stats, fresh cache each time."""
+    monkeypatch.setattr(portfolio, "_GH", {"at": 0.0, "stats": {}})
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: {})
+
+
 def write(tmp_path, body):
     p = tmp_path / "projects.yaml"
     p.write_text(body)
@@ -264,3 +271,65 @@ def test_the_file_names_the_dashboard(doc, want):
 
 def test_the_snapshot_carries_the_title():
     assert portfolio.snapshot()["title"] == "Marsita the Ultra"
+
+
+# GitHub on every tile. Marsita, 2026-10-14: "Each tile should have links to
+# GitHub... So that anyone can participate... Humans and AI."
+
+def test_a_public_repo_gets_its_link_and_its_open_issues():
+    g = portfolio.github(["Org/site"], {"org/site": {"private": False, "open": 4}})
+    assert g["url"] == "https://github.com/Org/site"
+    assert g["issues_url"] == "https://github.com/Org/site/issues"
+    assert g["new_issue_url"] == "https://github.com/Org/site/issues/new"
+    assert g["open"] == 4
+
+
+def test_a_private_repo_shows_nothing():
+    stats = {"org/secret": {"private": True, "open": 9}}
+    assert portfolio.github(["Org/secret"], stats) is None
+    g = portfolio.github(["Org/secret", "Org/site"],
+                         {**stats, "org/site": {"private": False, "open": 1}})
+    assert [r["repo"] for r in g["repos"]] == ["Org/site"]
+    assert g["open"] == 1
+
+
+def test_no_answer_from_github_is_a_link_without_a_number():
+    g = portfolio.github(["Org/site"], {})
+    assert g["url"] == "https://github.com/Org/site" and g["open"] is None
+
+
+def test_no_repo_no_github_corner():
+    assert portfolio.github([], {}) is None
+
+
+def test_several_repos_add_up_and_search_together():
+    stats = {"org/a": {"private": False, "open": 2},
+             "org/b": {"private": False, "open": 3}}
+    g = portfolio.github(["Org/a", "Org/b"], stats)
+    assert g["open"] == 5
+    assert g["url"] == "https://github.com/Org"
+    assert "repo%3AOrg%2Fa" in g["issues_url"] and "repo%3AOrg%2Fb" in g["issues_url"]
+
+
+def test_a_failed_fetch_keeps_the_last_good_counts(monkeypatch):
+    good = {"org/a": {"private": False, "open": 2}}
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: good)
+    assert portfolio.repo_stats(["Org/a"]) == good
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: {})
+    monkeypatch.setattr(portfolio, "GH_TTL", -1)
+    assert portfolio.repo_stats(["Org/a"]) == good
+
+
+def test_every_tile_in_the_snapshot_carries_its_github(monkeypatch):
+    monkeypatch.setattr(portfolio, "_fetch_stats", lambda repos: {
+        r.lower(): {"private": False, "open": 1} for r in repos})
+    for row in portfolio.snapshot()["projects"]:
+        if row["repos"]:
+            assert row["github"]["open"] == len(row["repos"])
+        else:
+            assert row["github"] is None
+
+
+def test_the_tiles_page_shows_the_github_corner():
+    html = (ROOT / "fleet" / "static" / "projects" / "index.html").read_text()
+    assert "p.github" in html and "new_issue_url" in html and "issues_url" in html

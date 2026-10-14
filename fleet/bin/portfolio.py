@@ -19,6 +19,7 @@ import subprocess
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlencode
 
 FLEET = Path(__file__).resolve().parent.parent
 YAML = FLEET / "data" / "projects.yaml"
@@ -43,6 +44,87 @@ FOLD = 12
 FLIP_DAY = 0            # datetime.weekday(): Monday
 # Her day runs ~13:00-04:00, so 02:00 on Monday is still Sunday night.
 DAY_STARTS_AT = 4
+
+
+# GitHub on every tile. Marsita, 2026-10-14: "Each tile should have links to
+# GitHub... So that anyone can participate... Humans and AI... Building
+# civilisations infrastructure." This reverses the old rule that open issues
+# stay local (bin/issues.py): on /projects the to-do list IS the invitation.
+# Only for repos GitHub confirms are public -- a private repo's name is
+# already in projects.yaml, but its issues and a link that 404s are not.
+GH_TTL = 300            # five minutes, same as bin/issues.py
+_GH = {"at": 0.0, "stats": {}}
+
+
+def _fetch_stats(repos: list[str]) -> dict[str, dict]:
+    """repo (lowercased) -> {"private", "open"}, in one GraphQL call.
+
+    One call for every repo rather than one each: the page polls and GitHub
+    rate-limits. A repo that is gone or renamed comes back null and is left
+    out. Any failure is {} -- a pane must never take the page down.
+    """
+    parts = []
+    for i, r in enumerate(repos):
+        owner, _, name = r.partition("/")
+        parts.append(f'r{i}: repository(owner: {json.dumps(owner)}, '
+                     f'name: {json.dumps(name)}) {{ nameWithOwner isPrivate '
+                     f'issues(states: OPEN) {{ totalCount }} }}')
+    if not parts:
+        return {}
+    try:
+        out = subprocess.run(
+            ("gh", "api", "graphql", "-f", "query={ " + " ".join(parts) + " }"),
+            capture_output=True, text=True, timeout=30).stdout
+        data = json.loads(out).get("data") or {}
+    except (OSError, subprocess.SubprocessError, ValueError, AttributeError):
+        return {}
+    stats = {}
+    for i, r in enumerate(repos):
+        node = data.get(f"r{i}")
+        if node:
+            stats[r.lower()] = {"private": bool(node["isPrivate"]),
+                                "open": int(node["issues"]["totalCount"])}
+    return stats
+
+
+def repo_stats(repos: list[str]) -> dict[str, dict]:
+    """_fetch_stats, cached. A failed fetch keeps the last good answer."""
+    if time.time() - _GH["at"] > GH_TTL:
+        fresh = _fetch_stats(repos)
+        if fresh:
+            _GH["stats"] = fresh
+        _GH["at"] = time.time()
+    return _GH["stats"]
+
+
+def github(repos: list[str], stats: dict[str, dict]) -> dict | None:
+    """The GitHub corner of one tile: where the code is, what is open.
+
+    A repo GitHub says is private is dropped. One it has not answered for
+    keeps its link and has no count: the name is public in projects.yaml
+    already, and a missing number is better than a made-up zero.
+    """
+    shown = [r for r in repos if not stats.get(r.lower(), {}).get("private")]
+    if not shown:
+        return None
+    counts = [stats[r.lower()]["open"] for r in shown if r.lower() in stats]
+    owners = {r.split("/")[0] for r in shown}
+    if len(shown) == 1:
+        home = f"https://github.com/{shown[0]}"
+        issues = f"{home}/issues"
+    else:
+        # Several repos under one owner: the owner's page. Across owners
+        # there is no single page, so the first repo stands for them.
+        home = (f"https://github.com/{shown[0].split('/')[0]}"
+                if len(owners) == 1 else f"https://github.com/{shown[0]}")
+        q = " ".join(["is:issue", "is:open"] + [f"repo:{r}" for r in shown])
+        issues = "https://github.com/search?" + urlencode({"q": q, "type": "issues"})
+    return {"repos": [{"repo": r, "url": f"https://github.com/{r}",
+                       "open": stats.get(r.lower(), {}).get("open")}
+                      for r in shown],
+            "url": home, "issues_url": issues,
+            "new_issue_url": f"https://github.com/{shown[0]}/issues/new",
+            "open": sum(counts) if counts else None}
 
 
 def flip_day(now: datetime | None = None) -> bool:
@@ -177,6 +259,10 @@ def repo_owner() -> dict[str, str]:
 def snapshot(now: datetime | None = None) -> dict:
     rows = projects()
     flipped = flip_day(now)
+    stats = repo_stats([r for row in rows for r in row["repos"]])
+    # Copies: rows is the mtime cache, and counts go stale long before the
+    # file changes.
+    rows = [{**row, "github": github(row["repos"], stats)} for row in rows]
     return {"title": title(), "projects": rows, "count": len(rows),
             # Names in tile order for /projects; the first FOLD sit above it.
             "tiles": [r["name"] for r in ranked(rows, flipped=flipped)],
