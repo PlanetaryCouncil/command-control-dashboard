@@ -113,8 +113,8 @@ def test_the_board_does_not_leak_the_kill_token(server):
     The board moved to /fleet on 2026-08-05 when a human-facing focus page
     took over `/` — the token lives with the controls, so this follows it.
     """
-    _, local = fetch("/fleet")
-    _, remote = fetch("/fleet", forwarded="203.0.113.7")
+    _, local = fetch("/one")
+    _, remote = fetch("/one", forwarded="203.0.113.7")
 
     status, body = fetch("/api/kill-token")
     assert status == 200
@@ -243,4 +243,7 @@ def test_projects_are_the_front_door_and_the_fleet_is_one_click_away(server):
     assert 'fetch("api/portfolio"' in front
     assert 'href="/fleet"' in front, "no way from the projects to the fleet"
     _, fleet = fetch("/fleet")
-    assert 'href="/"' in fleet and ">projects<" in fleet, "no way back"
+    assert fleet == front, "/fleet is the same page, showing the other view"
+    assert 'src = "/one"' in front, "the dashboard is not preloaded"
+    _, board = fetch("/one")
+    assert 'href="/"' in board and ">projects<" in board, "no way back"
