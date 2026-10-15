@@ -165,21 +165,6 @@ projects:
     vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     tags: [wiki, reference]
 
-  - name: Artizen.fund projects
-    scope: mars
-    url: /artizen
-    tagline: Art funded on Artizen
-    status: active
-    importance:   # 0-10, how important it is in general. Blank = not scored yet
-    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
-    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
-    members:
-      - Labour Union of Higherdimensional Shapeshifters
-      - Marsita the Ultra
-      - Planetary Council
-      - Money from the Future
-    tags: [art, funding]
-
   # --- added off the top of Mars's head 2026-08-06; verified in-browser ---
   - name: Solarpunk Estates
     scope: mars
