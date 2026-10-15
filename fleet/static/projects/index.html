@@ -40,7 +40,14 @@ h1{font-size:18px;font-weight:600;margin:0;}
 /* Projects / fleet, top right: the two front pages, one click apart.
    Marsita, 2026-10-14: "a little toggle in the upper right section". */
 .top h1{margin-right:auto;}
-.toggle{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+/* One toggle, pinned to the corner above both views, so it never moves.
+   Marsita, 2026-10-15: "project / fleet to be the same spot on both screens". */
+.toggle{position:fixed;top:12px;right:16px;z-index:10;visibility:visible;display:flex;background:var(--surface);
+  border:1px solid var(--border);border-radius:6px;overflow:hidden;}
+.top{padding-right:150px;}
+/* The dashboard is always dark, so over it the toggle is too. */
+body[data-view="fleet"] .toggle{--surface:#161A20;--raised:#1C222A;--border:#272E38;
+  --ink:#E6E9EC;--muted:#828C99;}
 .toggle a{font-size:10.5px;padding:5px 10px;color:var(--muted);text-decoration:none;}
 .toggle a+a{border-left:1px solid var(--border);}
 .toggle a[aria-current="page"]{background:var(--raised);color:var(--ink);
@@ -209,6 +216,12 @@ function gh(g){
           const v = a && route(a.getAttribute("href"));
           if (v) { e.preventDefault(); show(v, true); }
         }, true);
+        // Its own projects / fleet pair would be a second toggle in a
+        // different spot: hidden, and its nav kept clear of the corner one.
+        const st = frame.contentDocument.createElement("style");
+        st.textContent = '.fleetnav a[href="/"],.fleetnav a[href="/fleet"]{display:none}' +
+          "span.sp:has(> .fleetnav){padding-right:150px}";
+        frame.contentDocument.head.appendChild(st);
         if (document.body.dataset.view === "fleet") document.title = frame.contentDocument.title;
       } catch (_) {}
     });
@@ -219,6 +232,9 @@ function gh(g){
   function show(v, push) {
     if (v === "fleet") ensure();
     document.body.dataset.view = v;
+    for (const a of document.querySelectorAll(".toggle a"))
+      route(a.getAttribute("href")) === v ? a.setAttribute("aria-current", "page")
+                                         : a.removeAttribute("aria-current");
     let t = home;
     try { if (v === "fleet") t = frame.contentDocument.title || "fleet"; } catch (_) {}
     document.title = v === "fleet" ? t : (document.getElementById("title").textContent || home);
