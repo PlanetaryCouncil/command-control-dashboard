@@ -1,14 +1,17 @@
 # The fleet — last 24 hours
 
-*2026-10-14T18:00:00+00:00*
+*2026-10-15T18:00:03+00:00*
 
-**1 commit merged in the last 24 hours.**
+**4 commits merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `7d70d008` | report: 2026-10-13 fleet summary |
+| `9ed3b252` | Merge smooth-toggle |
+| `94cf42e2` | Projects <-> fleet without a reload |
+| `fd92b9dc` | Merge projects-tiles: projects on the front door, GitHub on every tile |
+| `ad11a8c8` | Projects take the front door, the dashboard moves to /fleet |
 
 ## Pipeline
 
@@ -28,9 +31,9 @@ Nothing.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 90% 24G free |
+| pressure | warn | load 4.8 over 4 on 4 cores |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 369 public · 3 homies · browser 288 · Python-urllib/3.11 39 · FusionDiscoverBot/0.3 ( |
+| visitors | pass | 24h: 322 public · 0 homies · Python-urllib/3.11 195 · browser 65 · aiohttp 19 · curl 13 ·  |
 
 ## The partnership
 
