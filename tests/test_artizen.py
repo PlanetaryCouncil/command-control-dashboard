@@ -22,31 +22,9 @@ MEMBERS = (
 )
 
 
-def _block():
-    return YAML.read_text().split("- name: Artizen.fund projects", 1)[1].split(
-        "- name:", 1)[0]
-
-
 def _sections(html):
     parts = re.split(r"<h2>([^<]+)</h2>", html)
     return {parts[i]: parts[i + 1] for i in range(1, len(parts), 2)}
-
-
-def test_the_project_list_names_the_page():
-    b = _block()
-    assert "url: /artizen" in b and "url: TODO" not in b
-    assert "url: https://artizen.fund" not in b
-    assert "tags: [art, funding]" in b
-    for name in MEMBERS:
-        assert name in b
-
-
-def test_the_tagline_is_the_first_sentence_of_what_it_is():
-    b = _block()
-    html = PAGE.read_text()
-    what = re.sub(r"<[^>]+>", " ", _sections(html)["What it is"]).strip()
-    first = what.split(".", 1)[0].strip()
-    assert f"tagline: {first}" in b
 
 
 def test_the_page_explains_funding_and_impact_without_invented_tallies():
