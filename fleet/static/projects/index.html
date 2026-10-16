@@ -89,9 +89,8 @@ body[data-view="fleet"] .toggle{--surface:#161A20;--raised:#1C222A;--border:#272
 .bar i{background:var(--off);border-radius:1px;}
 .bar i.on{background:var(--accent);}
 .unscored{font-size:10.5px;color:var(--muted);margin-top:auto;}
-.fold{display:flex;align-items:center;gap:10px;margin:22px 0 12px;
+.fold{display:flex;align-items:center;gap:10px;margin:12px 0 0;
   font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
-.fold::before,.fold::after{content:"";flex:1;border-top:1px dashed var(--border);}
 .below .tile{min-height:150px;}
 .msg{color:var(--muted);padding:24px 0;}
 /* Two views, one document. The dashboard waits in a frame, loaded in the
@@ -179,7 +178,7 @@ function gh(g){
     document.getElementById("above").innerHTML = top.map((p, i) => tile(p, i + 1, d.flipped)).join("");
     document.getElementById("below").innerHTML = rest.map((p, i) => tile(p, fold + i + 1, d.flipped)).join("");
     const f = document.getElementById("fold");
-    f.textContent = `below the fold · ${rest.length} more`;
+    f.textContent = "";
     f.hidden = rest.length === 0;
     const scored = order.filter(isScored).length;
     document.getElementById("sub").innerHTML =
