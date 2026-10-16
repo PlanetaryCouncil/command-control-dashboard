@@ -222,6 +222,8 @@ projects:
     tags: [legal, evidence, tools]
 
   - name: Ultra Magic Hands
+    repos:
+      - marsrobertson/ultramagichands.com
     scope: mars
     url: https://ultramagichands.com
     tagline: Massage
