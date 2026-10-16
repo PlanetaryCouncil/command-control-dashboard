@@ -2012,14 +2012,6 @@ def serve(port):
                     self.send_error(404)
                 return
 
-            if path == "/artizen":
-                f = FLEET / "static" / "artizen" / "index.html"
-                try:
-                    self._send(f.read_bytes(), "text/html; charset=utf-8")
-                except OSError:
-                    self.send_error(404)
-                return
-
             if path == "/solarpunk-estates":
                 f = FLEET / "static" / "solarpunk-estates" / "index.html"
                 try:
