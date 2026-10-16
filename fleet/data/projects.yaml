@@ -222,6 +222,7 @@ projects:
     tags: [legal, evidence, tools]
 
   - name: Ultra Magic Hands
+    label: "Mars says priority for tomorrow"
     repos:
       - marsrobertson/ultramagichands.com
     scope: mars
@@ -229,7 +230,7 @@ projects:
     tagline: Massage
     status: active   # not verified in-browser (extension dropped) — confirm
     importance:   # 0-10, how important it is in general. Blank = not scored yet
-    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    urgency: 10   # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     tags: [massage, wellbeing, bodywork]
 
