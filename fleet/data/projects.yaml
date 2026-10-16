@@ -47,8 +47,8 @@ projects:
     url: https://planetarycouncil.org
     tagline: Changing the world through art and culture — an upgrade to global governance
     status: active
-    importance:   # 0-10, how important it is in general. Blank = not scored yet
-    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    importance: 10   # 0-10, how important it is in general. Blank = not scored yet
+    urgency: 8   # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - PlanetaryCouncil/planetarycouncil.org
@@ -62,8 +62,8 @@ projects:
     url: /basex
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
     status: awaiting-deployment   # awaiting initial deployment
-    importance:   # 0-10, how important it is in general. Blank = not scored yet
-    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    importance: 10   # 0-10, how important it is in general. Blank = not scored yet
+    urgency: 9   # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - basexhq/basex-demo
@@ -188,8 +188,8 @@ projects:
     url: /independent-tribunal
     tagline: A body neither party appoints, for disputes existing authorities cannot fairly hear
     status: active
-    importance:   # 0-10, how important it is in general. Blank = not scored yet
-    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    importance: 9   # 0-10, how important it is in general. Blank = not scored yet
+    urgency: 7   # 0-10, how important it is NOW. Top 12 go above the fold on /projects
     vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
     repos:
       - independenttribunal/independenttribunal-www
