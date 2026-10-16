@@ -184,6 +184,9 @@ def projects(*, path: Path | None = None) -> list[dict]:
             # board is where it is being read, so it works as written.
             "url": url,
             "status": status,
+            # The pill on its tile, set by hand in the file (ART, META, CORE).
+            # Blank = no pill. Marsita, 2026-10-16: "Skip the active pill."
+            "label": str(raw.get("label") or "").strip(),
             "tagline": str(raw.get("tagline") or "").strip(),
             # `TODO` is how the file marks a field nobody has filled in. It is
             # honest in the file and noise on a dashboard.
