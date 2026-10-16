@@ -53,7 +53,6 @@ def public_files():
         "fleet/static/future-vision-xprize/index.html",
         "fleet/static/basex/index.html",
         "fleet/static/independent-tribunal/index.html",
-        "fleet/static/artizen/index.html",
         "fleet/static/solarpunk-estates/index.html",
         "fleet/static/network-state-genesis/index.html",
         "fleet/static/ministry-of-memes/index.html",

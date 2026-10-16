@@ -60,8 +60,6 @@ fleet/projects.txt
 !fleet/static/basex/*
 !fleet/static/independent-tribunal/
 !fleet/static/independent-tribunal/*
-!fleet/static/artizen/
-!fleet/static/artizen/*
 !fleet/static/solarpunk-estates/
 !fleet/static/solarpunk-estates/*
 !fleet/static/network-state-genesis/

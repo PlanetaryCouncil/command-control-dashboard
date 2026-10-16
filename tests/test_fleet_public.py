@@ -33,7 +33,7 @@ CONTROL = ["/chat", "/api/kill-token", "/api/ask"]
 # asserting on it here would hang the suite rather than test anything.
 PUBLIC = ["/", "/board", "/workers.json", "/agents", "/procs",
           "/future-vision-xprize", "/basex", "/independent-tribunal",
-          "/artizen", "/solarpunk-estates", "/api/solarpunk-estates/demand",
+          "/solarpunk-estates", "/api/solarpunk-estates/demand",
           "/network-state-genesis", "/ministry-of-memes", "/poems", "/poems.json"]
 
 

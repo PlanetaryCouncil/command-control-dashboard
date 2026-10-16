@@ -42,6 +42,7 @@ scopes:
 
 projects:
   - name: Planetary Council
+    label: CORE
     scope: mars
     url: https://planetarycouncil.org
     tagline: Changing the world through art and culture — an upgrade to global governance
@@ -56,6 +57,7 @@ projects:
     tags: [governance, art, memes]
 
   - name: BaseX
+    label: CORE
     scope: mars
     url: /basex
     tagline: A new definition of value — triple bottom line (people, planet, prosperity)
