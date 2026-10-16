@@ -120,6 +120,7 @@ projects:
     tags: [futures, prize]
 
   - name: Live Agent Fleet (Command & Control Dashboard)
+    label: META
     scope: mars
     url: /   # a clean public domain, NOT the tailnet funnel host
     tagline: A transparent, public AI-agent operations dashboard
@@ -132,6 +133,7 @@ projects:
     tags: [ai, infrastructure, transparency]
 
   - name: Haiku Command-Line Poems
+    label: ART
     scope: mars
     url: https://poems.planetarycouncil.org
     tagline: Two-line closing poems from the terminal
@@ -179,6 +181,7 @@ projects:
     tags: [solarpunk, real-estate, climate, coliving]
 
   - name: Independent Tribunal
+    label: CORE   # optional pill on its tile, e.g. ART / META / CORE
     scope: mars
     url: /independent-tribunal
     tagline: A body neither party appoints, for disputes existing authorities cannot fairly hear

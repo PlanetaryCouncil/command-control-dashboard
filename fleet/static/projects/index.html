@@ -147,7 +147,7 @@ function tile(p, n, flipped){
     : `<div class="unscored">not scored yet</div>`;
   const ext = p.live ? ' target="_blank" rel="noopener"' : "";
   return `<article class="tile">` +
-    `<div class="head"><span class="st ${esc(p.status)}">${esc(p.status)}</span></div>` +
+    `${p.label ? `<div class="head"><span>${esc(p.label)}</span></div>` : ""}` +
     `<div class="name"><a href="${esc(p.url)}"${ext}>${esc(p.name)}</a></div>` +
     `<div class="tag">${esc(p.tagline)}</div>${scores}${gh(p.github)}</article>`;
 }

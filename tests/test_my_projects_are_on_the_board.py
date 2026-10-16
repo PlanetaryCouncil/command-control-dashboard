@@ -333,3 +333,13 @@ def test_every_tile_in_the_snapshot_carries_its_github(monkeypatch):
 def test_the_tiles_page_shows_the_github_corner():
     html = (ROOT / "fleet" / "static" / "projects" / "index.html").read_text()
     assert "p.github" in html and "new_issue_url" in html and "issues_url" in html
+
+
+def test_the_pill_is_a_label_from_the_file_not_the_status(tmp_path):
+    """Marsita, 2026-10-16: "Skip the active pill." ART, META, CORE instead."""
+    p = write(tmp_path, "projects:\n  - name: A\n    url: https://a.example\n    status: active\n    label: ART\n"
+                        "  - name: B\n    url: https://b.example\n    status: active\n")
+    labels = {r["name"]: r["label"] for r in portfolio.projects(path=p)}
+    assert labels == {"A": "ART", "B": ""}
+    html = (ROOT / "fleet" / "static" / "projects" / "index.html").read_text()
+    assert "p.label" in html and "p.status" not in html
