@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-15T18:00:03+00:00",
+  "generated_at": "2026-10-17T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-10-14T18:00:02+00:00",
+  "since": "2026-10-16T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,31 +24,55 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 4,
+    "count": 8,
     "list": [
       {
-        "sha": "9ed3b252",
+        "sha": "23360772",
         "author": "Marsita the Ultra",
-        "at": "2026-10-14T21:30:21+01:00",
-        "subject": "Merge smooth-toggle"
+        "at": "2026-10-17T00:03:05+01:00",
+        "subject": "Merge umh-top"
       },
       {
-        "sha": "94cf42e2",
+        "sha": "45c0f060",
         "author": "Marsita the Ultra",
-        "at": "2026-10-14T21:30:05+01:00",
-        "subject": "Projects <-> fleet without a reload"
+        "at": "2026-10-17T00:03:03+01:00",
+        "subject": "Ultra Magic Hands to the top: urgency 10, 'Mars says priority for tomorrow'"
       },
       {
-        "sha": "fd92b9dc",
+        "sha": "d0b06ff3",
         "author": "Marsita the Ultra",
-        "at": "2026-10-14T20:26:17+01:00",
-        "subject": "Merge projects-tiles: projects on the front door, GitHub on every tile"
+        "at": "2026-10-16T23:51:28+01:00",
+        "subject": "Merge umh-repo"
       },
       {
-        "sha": "ad11a8c8",
+        "sha": "6d5f0437",
         "author": "Marsita the Ultra",
-        "at": "2026-10-14T19:45:18+01:00",
-        "subject": "Projects take the front door, the dashboard moves to /fleet"
+        "at": "2026-10-16T23:51:26+01:00",
+        "subject": "Ultra Magic Hands: link its repo"
+      },
+      {
+        "sha": "e152b3ba",
+        "author": "Marsita the Ultra",
+        "at": "2026-10-16T22:57:11+01:00",
+        "subject": "Merge score-core"
+      },
+      {
+        "sha": "8b500187",
+        "author": "Marsita the Ultra",
+        "at": "2026-10-16T22:57:09+01:00",
+        "subject": "Score the CORE trio: BaseX 9/10, Planetary Council 8/10, Tribunal 7/9"
+      },
+      {
+        "sha": "f6d86295",
+        "author": "Marsita the Ultra",
+        "at": "2026-10-16T22:44:01+01:00",
+        "subject": "Merge no-fold-label"
+      },
+      {
+        "sha": "a3f1895f",
+        "author": "Marsita the Ultra",
+        "at": "2026-10-16T22:42:18+01:00",
+        "subject": "Projects: no 'below the fold' line, the tiles just continue"
       }
     ]
   },
@@ -57,15 +81,15 @@
     "stages": {}
   },
   "events": {
-    "count": 20,
+    "count": 31,
     "by_level": {
-      "ok": 14,
-      "info": 4,
-      "warn": 2
+      "ok": 18,
+      "info": 9,
+      "warn": 4
     },
     "by_agent": {
-      "visitors": 14,
-      "fleet": 6
+      "visitors": 19,
+      "fleet": 12
     }
   },
   "needs_you": [],
@@ -91,7 +115,7 @@
     {
       "worker": "moltbook",
       "status": "ok",
-      "last_run": "2026-10-15T17:48:51+00:00",
+      "last_run": "2026-10-17T17:58:50+00:00",
       "summary": "quiet"
     },
     {
@@ -109,20 +133,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-10-15T17:56:20Z",
-      "summary": "load 4.8 over 4 on 4 cores"
+      "last_run": "2026-10-17T17:57:47Z",
+      "summary": "load 4.1 over 4 on 4 cores"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-15T17:56:18Z",
+      "last_run": "2026-10-17T17:57:47Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-15T17:53:57+00:00",
-      "summary": "24h: 322 public \u00b7 0 homies \u00b7 Python-urllib/3.11 195 \u00b7 browser 65 \u00b7 aiohttp 19 \u00b7 curl 13 \u00b7 CCBot 7 \u00b7 Python-urllib/3.14 4 \u00b7 Hello from Palo Alto Networks, find o"
+      "last_run": "2026-10-17T17:19:37+00:00",
+      "summary": "24h: 363 public \u00b7 0 homies \u00b7 Python-urllib/3.11 190 \u00b7 browser 136 \u00b7 Python-urllib/3.14 8 \u00b7 DataForSeoBot 7 \u00b7 aiohttp 4 \u00b7 bingbot 4 \u00b7 GPTBot 2 \u00b7 Twitterbot/1.0 2"
     }
   ],
   "proposals_total": 261
