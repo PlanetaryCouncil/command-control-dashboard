@@ -1,21 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-10-17T18:00:00+00:00*
+*2026-10-18T18:00:00+00:00*
 
-**8 commits merged in the last 24 hours.**
+**1 commit merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `23360772` | Merge umh-top |
-| `45c0f060` | Ultra Magic Hands to the top: urgency 10, 'Mars says priority for tomorrow' |
-| `d0b06ff3` | Merge umh-repo |
-| `6d5f0437` | Ultra Magic Hands: link its repo |
-| `e152b3ba` | Merge score-core |
-| `8b500187` | Score the CORE trio: BaseX 9/10, Planetary Council 8/10, Tribunal 7/9 |
-| `f6d86295` | Merge no-fold-label |
-| `a3f1895f` | Projects: no 'below the fold' line, the tiles just continue |
+| `99dc7c87` | report: 2026-10-17 fleet summary |
 
 ## Pipeline
 
@@ -35,9 +28,9 @@ Nothing.
 | moltbook | ok | quiet |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | load 4.1 over 4 on 4 cores |
+| pressure | warn | disk 90% 23.0G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 363 public · 0 homies · Python-urllib/3.11 190 · browser 136 · Python-urllib/3.14 8 · |
+| visitors | pass | 24h: 114 public · 1 homies · browser 42 · Python-urllib/3.11 38 · bingbot 9 · aiohttp 7 ·  |
 
 ## The partnership
 
