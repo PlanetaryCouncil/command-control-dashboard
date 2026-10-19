@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-18T18:00:00+00:00",
+  "generated_at": "2026-10-19T18:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-10-17T18:00:00+00:00",
+  "since": "2026-10-18T18:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "99dc7c87",
+        "sha": "8a1a7915",
         "author": "Marsita the Ultra",
-        "at": "2026-10-17T19:00:00+01:00",
-        "subject": "report: 2026-10-17 fleet summary"
+        "at": "2026-10-18T19:00:00+01:00",
+        "subject": "report: 2026-10-18 fleet summary"
       }
     ]
   },
@@ -39,12 +39,12 @@
     "stages": {}
   },
   "events": {
-    "count": 3,
+    "count": 5,
     "by_level": {
-      "ok": 3
+      "ok": 5
     },
     "by_agent": {
-      "visitors": 3
+      "visitors": 5
     }
   },
   "needs_you": [],
@@ -70,7 +70,7 @@
     {
       "worker": "moltbook",
       "status": "ok",
-      "last_run": "2026-10-18T17:55:55+00:00",
+      "last_run": "2026-10-19T17:59:15+00:00",
       "summary": "quiet"
     },
     {
@@ -88,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-10-18T17:59:52Z",
-      "summary": "disk 90% 23.0G free"
+      "last_run": "2026-10-19T17:56:49Z",
+      "summary": "compressor 1.7G"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-18T17:59:52Z",
+      "last_run": "2026-10-19T17:56:48Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-18T15:44:12+00:00",
-      "summary": "24h: 114 public \u00b7 1 homies \u00b7 browser 42 \u00b7 Python-urllib/3.11 38 \u00b7 bingbot 9 \u00b7 aiohttp 7 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 4 \u00b7 Amazonbot 3 \u00b7 Mozilla/5.0"
+      "last_run": "2026-10-19T17:59:26+00:00",
+      "summary": "24h: 8857 public \u00b7 0 homies \u00b7 browser 8845 \u00b7 Mozilla/5.0 (Macintosh; Intel Mac OS X 1 4 \u00b7 aiohttp 3 \u00b7 Mozilla/5.0 (compatible; ibou-search/2.0 2 \u00b7 Amazonbot 1 \u00b7"
     }
   ],
   "proposals_total": 261
