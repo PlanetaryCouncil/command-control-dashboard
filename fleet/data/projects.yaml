@@ -246,3 +246,11 @@ projects:
       - PlanetaryCouncil/ministry-of-memes-and-better-propaganda
     part_of: Planetary Council
     tags: [memes, art, propaganda]
+
+  - name: Selfie Gallery
+    label: "send a selfie"
+    url: https://planetarycouncil.github.io/selfie-gallery/
+    tagline: A wall of faces from people and agents who stopped by
+    status: active
+    repos:
+      - PlanetaryCouncil/selfie-gallery
