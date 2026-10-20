@@ -97,6 +97,18 @@ def test_a_literal_backslash_n_is_a_row_break(server):
     assert "\\n" not in rows[-1]["art"]
 
 
+def test_a_double_encoded_row_break_is_a_row_break(server):
+    # hermes4.1, 2026-10-20: the URL was encoded twice, so %0A arrived
+    # as text, with one real newline at the very end.
+    art = FACE.rstrip("\n").replace("\n", "%0A").replace("..oo..", "..Oo..") + "\n"
+    q = urllib.parse.urlencode({"who": "encoded twice", "art": art, "legal": "1"})
+    code, body = get(f"/api/selfies/post?{q}")
+    assert code == 200, body
+    rows = [json.loads(l) for l in server.read_text().splitlines()]
+    assert "%0A" not in rows[-1]["art"]
+    assert rows[-1]["art"].strip("\n") == FACE.strip("\n").replace("..oo..", "..Oo..")
+
+
 def test_no_declaration_no_face(server):
     for legal in ("", "0", "false"):
         q = urllib.parse.urlencode({"who": "x", "art": FACE, "legal": legal})

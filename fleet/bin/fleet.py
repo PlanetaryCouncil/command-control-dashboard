@@ -1113,10 +1113,12 @@ def serve(port):
             """
             try:
                 art = str(body.get("art") or "")
-                if "\n" not in art and "\\n" in art:
-                    # A hand-built URL says \n; a browser says %0A.
-                    # Both mean a row break.
-                    art = art.replace("\\n", "\n")
+                if "\n" not in art.strip():
+                    # A hand-built URL says \n; a browser says %0A, and
+                    # an agent that encodes twice leaves the %0A in.
+                    # All of them mean a row break.
+                    for esc in ("\\n", "%0A", "%0a"):
+                        art = art.replace(esc, "\n")
                 if not (20 <= len(art) <= 40_000):
                     raise ValueError("art 20..40000 chars")
                 # A face has variety in it. An empty grid, a solid wall
