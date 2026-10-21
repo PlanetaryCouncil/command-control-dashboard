@@ -1,4 +1,4 @@
-"""The image gate must survive direct requests and concurrent replay."""
+"""Public GitHub originals with a one-use PoW reveal flow."""
 import hashlib
 import importlib.util
 import json
@@ -77,33 +77,38 @@ class Handler:
         return False
 
 
-def test_direct_image_denied_metadata_safe_and_storage_escape(tmp_path, monkeypatch):
+URL = "https://raw.githubusercontent.com/PlanetaryCouncil/selfie-gallery/main/generated/codex-cursor.png"
+
+
+def test_original_url_public_but_reveal_endpoint_needs_work(tmp_path, monkeypatch):
     monkeypatch.setenv("FLEET_PORTRAITS", str(tmp_path))
     (tmp_path / "catalog.json").write_text(json.dumps([
-        {"id": "codex", "who": "Codex", "file": "/secret/location"}]))
-    image = b"private image bytes"
-    (tmp_path / "codex.png").write_bytes(image)
+        {"id": "codex", "who": "Codex", "url": URL, "file": "/secret/location"}]))
     handler = Handler("/api/portraits/codex/image")
     assert p.handle(handler, handler.path)
-    assert handler.code == 403 and image not in handler.body
+    assert handler.code == 403
     handler = Handler("/api/portraits")
     p.handle(handler, handler.path)
-    assert b"secret" not in handler.body and image not in handler.body
+    assert b"secret" not in handler.body
+    assert json.loads(handler.body)[0]["url"] == URL
     assert handler.cache == "no-store"
-    (tmp_path / "codex.png").unlink()
-    (tmp_path / "codex.png").symlink_to(SRC)
-    with pytest.raises(FileNotFoundError):
-        p.image_path("codex")
-    monkeypatch.setenv("FLEET_PORTRAITS", str(p.ROOT / "fleet/static"))
-    monkeypatch.setattr(p, "catalog", lambda: [{"id": "codex"}])
-    with pytest.raises(FileNotFoundError):
-        p.image_path("codex")
 
 
-def test_valid_work_releases_image_then_denies_replay(tmp_path, monkeypatch):
+@pytest.mark.parametrize("url", [
+    "javascript:alert(1)", "http://raw.githubusercontent.com/a/b/main/x.png",
+    "https://raw.githubusercontent.com.evil.example/x.png",
+    "https://user:password@raw.githubusercontent.com/a/b/main/x.png",
+    "https://example.com/x.png", "file:///tmp/x.png", None, 42,
+])
+def test_catalog_omits_non_github_urls(tmp_path, monkeypatch, url):
     monkeypatch.setenv("FLEET_PORTRAITS", str(tmp_path))
-    (tmp_path / "catalog.json").write_text('[{"id":"codex"}]')
-    (tmp_path / "codex.png").write_bytes(b"image bytes")
+    (tmp_path / "catalog.json").write_text(json.dumps([{"id": "bad", "url": url}]))
+    assert p.catalog() == []
+
+
+def test_valid_work_returns_github_url_then_denies_replay(tmp_path, monkeypatch):
+    monkeypatch.setenv("FLEET_PORTRAITS", str(tmp_path))
+    (tmp_path / "catalog.json").write_text(json.dumps([{"id": "codex", "url": URL}]))
     now = [0.0]
     gate = p.Gate(clock=lambda: now[0])
     monkeypatch.setattr(p, "GATE", gate)
@@ -114,7 +119,14 @@ def test_valid_work_releases_image_then_denies_replay(tmp_path, monkeypatch):
     now[0] = 1.1
     handler = Handler(f"/api/portraits/codex/image?challenge={token}&nonce={nonce}")
     p.handle(handler, "/api/portraits/codex/image")
-    assert handler.code == 200 and handler.body == b"image bytes"
+    assert handler.code == 200 and json.loads(handler.body) == {"url": URL}
     assert handler.cache == "no-store"
     p.handle(handler, "/api/portraits/codex/image")
     assert handler.code == 403
+
+
+def test_unknown_portrait_is_not_a_challenge(tmp_path, monkeypatch):
+    monkeypatch.setenv("FLEET_PORTRAITS", str(tmp_path))
+    handler = Handler("/api/portraits/missing/challenge")
+    p.handle(handler, handler.path)
+    assert handler.code == 404

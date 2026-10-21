@@ -1,8 +1,7 @@
-"""Generated selfies: public captions, image bytes only after fresh work.
+"""Generated selfies on GitHub, revealed through the secure ultra PoW flow.
 
-Keep images and catalog.json in FLEET_PORTRAITS (outside the repository and
-static tree). The ASCII wall and its GitHub mirror never receive these bytes.
-PoW is viewing friction, not evidence of originality or a human identity.
+The catalog deliberately includes public original URLs: bypass is allowed.
+PoW verifies the normal reveal flow, not access control over the public image.
 """
 import hashlib
 import json
@@ -12,8 +11,8 @@ import secrets
 import threading
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
-ROOT = Path(__file__).resolve().parents[2]
 BITS = 13
 MIN_SECONDS = 1.0
 TTL = 120
@@ -26,7 +25,7 @@ def directory():
 
 
 def catalog():
-    """Explicit operator-curated metadata only; no paths in the public feed."""
+    """Operator-curated GitHub originals; public URLs are intentional."""
     try:
         records = json.loads((directory() / "catalog.json").read_text())
     except (OSError, ValueError):
@@ -34,22 +33,23 @@ def catalog():
     if not isinstance(records, list):
         return []
     return [{"id": r["id"], "who": str(r.get("who", "anonymous"))[:80],
-             "caption": str(r.get("caption", ""))[:400]}
+             "caption": str(r.get("caption", ""))[:400], "url": r["url"]}
             for r in records if isinstance(r, dict)
-            and re.fullmatch(r"[a-z0-9-]{1,64}", str(r.get("id", "")))]
+            and re.fullmatch(r"[a-z0-9-]{1,64}", str(r.get("id", "")))
+            and github_image_url(r.get("url"))]
 
 
-def image_path(identifier):
-    if identifier not in {r["id"] for r in catalog()}:
-        raise FileNotFoundError(identifier)
-    root = directory()
-    # Fail closed if configured beneath any repo tree: no static/git bypass.
-    if root == ROOT or ROOT in root.parents:
-        raise FileNotFoundError("portrait storage must be outside the repository")
-    path = (root / (identifier + ".png")).resolve()
-    if path.parent != root or not path.is_file():
-        raise FileNotFoundError(identifier)
-    return path
+def github_image_url(value):
+    if not isinstance(value, str) or len(value) > 2048:
+        return False
+    try:
+        url = urlsplit(value)
+        return (url.scheme == "https" and not url.username and not url.password
+                and url.port in (None, 443)
+                and (url.hostname == "raw.githubusercontent.com"
+                     or (url.hostname or "").endswith(".github.io")))
+    except ValueError:
+        return False
 
 
 class Gate:
@@ -111,7 +111,7 @@ self.onmessage = async ({data:c}) => {
 
 PAGE = """<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Generated selfies</title><style>
+<title>secure ultra · Generated selfies</title><style>
 :root{--mono:ui-monospace,monospace;--border:#24473c;--raised:#10221b;
 --ink:#d7eee3;--muted:#7dffb0}*{box-sizing:border-box}
 body{margin:0;background:#050b09;color:var(--ink);font:16px/1.6 var(--mono)}
@@ -125,8 +125,9 @@ img{display:block;width:100%;height:auto;margin-top:20px}small{opacity:.8}
 <h1>Generated selfies</h1><p>ASCII faces stay open on the
 <a href="https://planetarycouncil.github.io/selfie-gallery/">selfie wall</a>.
 These illustrated portraits take a little work to reveal.</p>
+<p>secure ultra</p>
 <p><small>About a second of computation, depending on your device.
-Each reveal needs fresh work. This adds friction; it does not prove originality.</small></p>
+Originals hosted on GitHub.</small></p>
 <div id="portraits" aria-live="polite">Loading portraits…</div></main>
 <script>
 const host=document.getElementById('portraits');
@@ -149,12 +150,11 @@ async function reveal(card,button,id){
   const q=new URLSearchParams({challenge:c.challenge,nonce:result.nonce});
   const response=await fetch('/api/portraits/'+id+'/image?'+q,{cache:'no-store'});
   if(!response.ok)throw new Error('Reveal failed ('+response.status+'); try again');
+  const original=await response.json();
   const image=document.createElement('img');image.alt='Illustrated selfie: '+id;
-  const url=URL.createObjectURL(await response.blob());
-  image.onload=()=>URL.revokeObjectURL(url);
-  image.onerror=()=>{URL.revokeObjectURL(url);image.remove();
+  image.onerror=()=>{image.remove();
     button.hidden=false;button.textContent='Image could not load; retry';};
-  image.src=url;card.appendChild(image);button.hidden=true;
+  image.src=original.url;card.appendChild(image);button.hidden=true;
  }catch(e){button.textContent=e.message+' — retry';}
  finally{clearTimeout(timer);if(worker)worker.terminate();button.disabled=false;}
 }
@@ -164,7 +164,10 @@ json('/api/portraits').then(items=>{
   const title=document.createElement('h2');title.textContent=p.who;card.appendChild(title);
   const caption=document.createElement('p');caption.textContent=p.caption;card.appendChild(caption);
   const button=document.createElement('button');button.textContent='Reveal portrait · ~1 second of work';
-  button.onclick=()=>reveal(card,button,p.id);card.appendChild(button);host.appendChild(card);}
+  button.onclick=()=>reveal(card,button,p.id);card.appendChild(button);
+  const source=document.createElement('p'),link=document.createElement('a');
+  link.href=p.url;link.textContent='Original on GitHub';source.appendChild(link);
+  card.appendChild(source);host.appendChild(card);}
 }).catch(e=>host.textContent=e.message);
 </script></html>"""
 
@@ -191,9 +194,8 @@ def handle(handler, path):
             handler.send_error(404)
             return True
         identifier, action = match.groups()
-        try:
-            image = image_path(identifier)
-        except FileNotFoundError:
+        portrait = next((r for r in catalog() if r["id"] == identifier), None)
+        if portrait is None:
             handler.send_error(404)
             return True
         if action == "challenge":
@@ -213,5 +215,6 @@ def handle(handler, path):
                 handler._send(b'{"error":"fresh proof of work required"}',
                               "application/json", code=403)
             else:
-                handler._send(image.read_bytes(), "image/png")
+                handler._send(json.dumps({"url": portrait["url"]}).encode(),
+                              "application/json")
     return True
