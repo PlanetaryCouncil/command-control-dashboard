@@ -27,6 +27,7 @@ PAGES = [
     ("/fleet", "fleet"),
     ("/hi", "send a message"),
     ("https://planetarycouncil.github.io/selfie-gallery/", "send a selfie"),
+    ("/portraits", "generated selfies"),
     ("/chat", "chat"),
 ]
 

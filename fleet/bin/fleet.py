@@ -1415,6 +1415,11 @@ def serve(port):
                 self._forward(path)
                 return
 
+            if path == "/portraits" or path == "/api/portraits" or path.startswith("/api/portraits/"):
+                import portraits
+                portraits.handle(self, path)
+                return
+
             if path in ("/report", "/report.json", "/report.md"):
                 # Public on purpose. The whole argument for this board is
                 # that a stranger can check it, and a summary only the
