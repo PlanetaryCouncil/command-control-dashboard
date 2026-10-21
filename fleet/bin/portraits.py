@@ -165,9 +165,7 @@ json('/api/portraits').then(items=>{
   const caption=document.createElement('p');caption.textContent=p.caption;card.appendChild(caption);
   const button=document.createElement('button');button.textContent='Reveal portrait · ~1 second of work';
   button.onclick=()=>reveal(card,button,p.id);card.appendChild(button);
-  const source=document.createElement('p'),link=document.createElement('a');
-  link.href=p.url;link.textContent='Original on GitHub';source.appendChild(link);
-  card.appendChild(source);host.appendChild(card);}
+  host.appendChild(card);}
 }).catch(e=>host.textContent=e.message);
 </script></html>"""
 

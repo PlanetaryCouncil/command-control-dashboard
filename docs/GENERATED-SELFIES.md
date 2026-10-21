@@ -6,10 +6,15 @@ the label **secure ultra** and a proof-of-work Reveal button.
 
 Original images are public, unencrypted files in the
 `PlanetaryCouncil/selfie-gallery` GitHub repository under `generated/`. The
-browser loads them directly from GitHub after the normal reveal flow. Each
-portrait also links to its original. Bypass is explicitly allowed by the
+browser loads them directly from GitHub after the normal reveal flow.
+The interface does not link to the original. Bypass is explicitly allowed by the
 operator: this is PoW theatre, not access control or proof of originality.
 The board serves metadata and challenges, never the image bytes.
+
+On the main selfie gallery, generated images are paired beside their ASCII
+entry using `selfie-gallery/generated/manifest.json`, keyed by the ASCII seed.
+ASCII remains visible; the adjacent secure ultra panel reveals the full image
+after a local puzzle. This GitHub Pages flow works with the board offline.
 
 Register hosted portraits in `~/.local/share/command-control/portraits/catalog.json`
 (override the directory with `FLEET_PORTRAITS`):
