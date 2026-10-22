@@ -1,12 +1,16 @@
 # The fleet — last 24 hours
 
-*2026-10-21T18:00:04+00:00*
+*2026-10-22T18:00:05+00:00*
 
-**Nothing was merged in the last 24 hours.**
+**3 commits merged in the last 24 hours.**
 
 ## Merged
 
-Nothing.
+| commit | subject |
+|---|---|
+| `251f66b3` | Remove original-image links from secure ultra portraits |
+| `851f9413` | Load GitHub-hosted portraits through secure ultra reveal |
+| `cd6cd04c` | Gate generated selfie portraits behind fresh proof of work |
 
 ## Pipeline
 
@@ -26,9 +30,9 @@ Nothing.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 89% 26G free |
+| pressure | warn | compressor 1.6G |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 11590 public · 0 homies · browser 11580 · Mozilla/5.0 (compatible; BitMoversBot/1. 3  |
+| visitors | pass | 24h: 10445 public · 1 homies · browser 10272 · Python-urllib/3.11 148 · MJ12bot 4 · Mozill |
 
 ## The partnership
 
