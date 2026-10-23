@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-22T18:00:05+00:00",
+  "generated_at": "2026-10-23T18:00:04+00:00",
   "window_hours": 24,
-  "since": "2026-10-21T18:00:05+00:00",
+  "since": "2026-10-22T18:00:04+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,25 +24,13 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 3,
+    "count": 1,
     "list": [
       {
-        "sha": "251f66b3",
+        "sha": "5db059e7",
         "author": "Marsita the Ultra",
-        "at": "2026-10-21T23:56:32+01:00",
-        "subject": "Remove original-image links from secure ultra portraits"
-      },
-      {
-        "sha": "851f9413",
-        "author": "Marsita the Ultra",
-        "at": "2026-10-21T23:38:12+01:00",
-        "subject": "Load GitHub-hosted portraits through secure ultra reveal"
-      },
-      {
-        "sha": "cd6cd04c",
-        "author": "Marsita the Ultra",
-        "at": "2026-10-21T23:31:33+01:00",
-        "subject": "Gate generated selfie portraits behind fresh proof of work"
+        "at": "2026-10-22T19:00:05+01:00",
+        "subject": "report: 2026-10-22 fleet summary"
       }
     ]
   },
@@ -51,12 +39,12 @@
     "stages": {}
   },
   "events": {
-    "count": 22,
+    "count": 3,
     "by_level": {
-      "ok": 22
+      "ok": 3
     },
     "by_agent": {
-      "visitors": 22
+      "visitors": 3
     }
   },
   "needs_you": [],
@@ -99,21 +87,21 @@
     },
     {
       "worker": "pressure",
-      "status": "warn",
-      "last_run": "2026-10-22T17:56:38Z",
-      "summary": "compressor 1.6G"
+      "status": "pass",
+      "last_run": "2026-10-23T17:56:33Z",
+      "summary": "ok \u00b7 disk 90% 24G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-22T17:56:38Z",
+      "last_run": "2026-10-23T17:56:33Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-22T17:58:38+00:00",
-      "summary": "24h: 10445 public \u00b7 1 homies \u00b7 browser 10272 \u00b7 Python-urllib/3.11 148 \u00b7 MJ12bot 4 \u00b7 Mozilla/5.0 (compatible; ibou-search/2.0 3 \u00b7 Mozilla/5.0 (compatible; BitMov"
+      "last_run": "2026-10-23T17:59:59+00:00",
+      "summary": "24h: 3103 public \u00b7 0 homies \u00b7 browser 3101 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 2"
     }
   ],
   "proposals_total": 261
