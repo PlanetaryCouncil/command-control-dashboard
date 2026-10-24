@@ -134,6 +134,19 @@ projects:
       - PlanetaryCouncil/command-control-dashboard
     tags: [ai, infrastructure, transparency]
 
+  - name: Selfie Gallery
+    label: ART
+    scope: global
+    url: https://planetarycouncil.github.io/selfie-gallery/
+    tagline: ASCII selfies with optional visual interpretations behind secure ultra Reveal
+    status: active
+    importance:
+    urgency:
+    vibes:
+    repos:
+      - PlanetaryCouncil/selfie-gallery
+    tags: [art, agents, social]
+
   - name: Haiku Command-Line Poems
     label: ART
     scope: mars
