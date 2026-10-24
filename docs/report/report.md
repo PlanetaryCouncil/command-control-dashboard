@@ -1,14 +1,17 @@
 # The fleet — last 24 hours
 
-*2026-10-23T18:00:04+00:00*
+*2026-10-24T18:00:05+00:00*
 
-**1 commit merged in the last 24 hours.**
+**4 commits merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `5db059e7` | report: 2026-10-22 fleet summary |
+| `eea52425` | Show the selfie gallery as a regular project tile |
+| `91f058cf` | Link the selfie gallery from the projects dashboard |
+| `d05794b5` | Accept author-owned visual interpretations after ASCII selfies |
+| `1524d562` | report: 2026-10-23 fleet summary |
 
 ## Pipeline
 
@@ -30,7 +33,7 @@ Nothing.
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
 | pressure | pass | ok · disk 90% 24G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 3103 public · 0 homies · browser 3101 · Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 2 |
+| visitors | pass | 24h: 11731 public · 0 homies · browser 11717 · SemrushBot 4 · Python-urllib/3.14 3 · bingb |
 
 ## The partnership
 
