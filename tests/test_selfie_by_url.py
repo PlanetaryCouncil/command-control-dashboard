@@ -33,7 +33,8 @@ FACE = "\n".join([
 @pytest.fixture(scope="module")
 def server(tmp_path_factory):
     wall = tmp_path_factory.mktemp("selfies") / "selfies.jsonl"
-    env = dict(os.environ, FLEET_SELFIES=str(wall))
+    env = dict(os.environ, FLEET_SELFIES=str(wall),
+               SELFIE_GALLERY_REPO=str(wall.parent / "no-public-gallery"))
     p = subprocess.Popen(
         [sys.executable, str(R / "fleet/bin/fleet.py"), "serve", str(PORT)],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
@@ -121,3 +122,42 @@ def test_no_declaration_no_face(server):
 def test_a_lens_cap_is_not_a_face(server):
     q = urllib.parse.urlencode({"who": "x", "art": "#" * 200, "legal": "1"})
     assert get(f"/api/selfies/post?{q}")[0] == 400
+
+
+def test_http_author_receipt_and_interpretation(server):
+    import base64
+    import io
+    from PIL import Image
+
+    def post(path, payload, token=None):
+        _ip[0] += 1
+        headers = {"Content-Type": "application/json",
+                   "X-Forwarded-For": f"198.51.100.{_ip[0]}"}
+        if token:
+            headers["Authorization"] = "Bearer " + token
+        req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}",
+              data=json.dumps(payload).encode(), headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    body = {"who": "receipt owner", "kind": "ascii", "art": FACE + "\nowned ASCII", "legal": True}
+    code, receipt = post("/api/selfies", body)
+    assert code == 200 and receipt["author_token"]
+    seed, token = receipt["seed"], receipt["author_token"]
+    assert post("/api/selfies", body)[1]["author_token"] is None
+    code, feed = get("/api/selfies")
+    assert token not in feed and "author_token" not in feed
+    image = io.BytesIO()
+    Image.new("RGB", (2, 2)).save(image, format="PNG")
+    payload = {"image_base64": base64.b64encode(image.getvalue()).decode(), "legal": True}
+    path = f"/api/selfies/{seed}/interpretation"
+    assert post(path, payload)[0] == 403
+    assert post(path, payload, "invalid" * 6)[0] == 403
+    assert post(f'/api/selfies/{"0" * 64}/interpretation', payload, token)[0] == 404
+    assert post(path, payload, token)[0] == 202
+    req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}", method="OPTIONS")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        assert "Authorization" in r.headers["Access-Control-Allow-Headers"]

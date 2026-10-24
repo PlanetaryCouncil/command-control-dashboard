@@ -118,3 +118,44 @@ def test_local_edits_in_the_gallery_checkout_are_never_overwritten(
     r = _run(wall, g, "--now")
     assert r.returncode == 1 and "local edits" in r.stderr, r
     assert "someone is editing this" in (g / "gallery/manifest.json").read_text()
+
+
+def test_visual_published_without_credentials_and_failed_push_retried(
+        tmp_path, gallery_with_remote, monkeypatch):
+    import base64
+    import hashlib
+    import io
+    import selfieuploads
+    from PIL import Image
+
+    g, bare = gallery_with_remote
+    wall = tmp_path / "selfies.jsonl"
+    monkeypatch.setenv("FLEET_SELFIES", str(wall))
+    monkeypatch.setenv("FLEET_SELFIE_PRIVATE", str(tmp_path / "private"))
+    monkeypatch.setenv("SELFIE_GALLERY_REPO", str(g))
+    record = json.loads(_wall_line("visual author", FACE_A))
+    token = selfieuploads.append_face(record, wall)
+    output = io.BytesIO()
+    Image.new("RGB", (3, 3), "blue").save(output, format="PNG")
+    selfieuploads.stage(record["seed"], {
+        "image_base64": base64.b64encode(output.getvalue()).decode(),
+        "alt": "A visual interpretation", "legal": True})
+    # Pull still succeeds, but this first push deliberately fails.
+    subprocess.run(["git", "-C", str(g), "config", "remote.origin.pushurl",
+                    str(tmp_path / "missing.git")], check=True)
+    result = _run(wall, g, "--now")
+    assert result.returncode == 1 and "push failed" in result.stderr
+    pair = json.loads((g / "generated/manifest.json").read_text())[record["seed"]]
+    assert (g / pair["src"]).read_bytes().startswith(b"\x89PNG")
+    assert pair["alt"] == "A visual interpretation"
+    files = subprocess.run(["git", "-C", str(g), "ls-files"],
+                           capture_output=True, text=True, check=True).stdout
+    assert "sqlite" not in files and "private" not in files
+    for path in (g / "gallery/manifest.json", g / "generated/manifest.json"):
+        assert token not in path.read_text()
+    subprocess.run(["git", "-C", str(g), "config", "--unset", "remote.origin.pushurl"], check=True)
+    result = _run(wall, g, "--now")
+    assert result.returncode == 0, result.stderr
+    remote = subprocess.run(["git", "-C", str(bare), "show", "HEAD:generated/manifest.json"],
+                            capture_output=True, text=True, check=True)
+    assert record["seed"] in json.loads(remote.stdout)

@@ -28,6 +28,7 @@ import fcntl
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -118,6 +119,40 @@ def git(*args, check=True):
                           capture_output=True, text=True, check=check)
 
 
+def generated_changes(wall, damned):
+    """Publish only normalized raster files and their seed/alt pairing."""
+    import selfieuploads
+    manifest = GALLERY / "generated/manifest.json"
+    try:
+        pairs = json.loads(manifest.read_text())
+        if not isinstance(pairs, dict):
+            raise ValueError("generated manifest must be an object")
+    except FileNotFoundError:
+        pairs = {}
+    visible = {r["seed"] for r in wall if r.get("kind") == "ascii"}
+    held = {r.get("seed") for r in selfieuploads.read_records(WALL)
+            if r.get("status") == "purgatory"}
+    for seed in damned | held:
+        pairs.pop(seed, None)
+    changes = {}
+    for record in selfieuploads.publications():
+        seed, filename = record["seed"], record["filename"]
+        if seed not in visible or seed in damned or seed in held:
+            continue
+        if not re.fullmatch(r"[0-9a-f]{64}-[0-9a-f]{64}\.png", filename):
+            raise ValueError("invalid staged image filename")
+        data = (selfieuploads.private_directory() / filename).read_bytes()
+        target = GALLERY / "generated" / filename
+        if not target.exists() or target.read_bytes() != data:
+            changes[target] = data
+        pairs[seed] = {"src": "generated/" + filename, "alt": record["alt"]}
+    new = (json.dumps(pairs, ensure_ascii=False, indent=2) + "\n").encode()
+    if pairs or manifest.exists():
+        if not manifest.exists() or manifest.read_bytes() != new:
+            changes[manifest] = new
+    return changes
+
+
 def main():
     if not (GALLERY / ".git").is_dir():
         print(f"no gallery checkout at {GALLERY}", file=sys.stderr)
@@ -125,7 +160,9 @@ def main():
     LOCK.parent.mkdir(parents=True, exist_ok=True)
     with LOCK.open("a+") as lk:
         try:
-            fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            # A queued visual must not miss publication just because an ASCII
+            # sync is already in flight. Forced workers wait, then reread state.
+            fcntl.flock(lk, fcntl.LOCK_EX | (0 if "--now" in sys.argv else fcntl.LOCK_NB))
         except OSError:
             print("another sync is running")
             return 0
@@ -138,25 +175,50 @@ def main():
             print("debounced")
             return 0
 
-        merged = merge(read_wall(), read_mirror(), read_damned())
+        # Refresh before merging so another writer's remote additions survive.
+        dirty = git("status", "--porcelain", "--", "gallery/manifest.json",
+                    "generated/manifest.json").stdout.strip()
+        if dirty:
+            print("manifest has local edits; not touching it", file=sys.stderr)
+            return 1
+        pulled = git("pull", "-q", "--ff-only", check=False)
+        if pulled.returncode:
+            print("gallery pull failed; not overwriting the mirror", file=sys.stderr)
+            return 1
+        wall, damned = read_wall(), read_damned()
+        merged = merge(wall, read_mirror(), damned)
         new = json.dumps(merged, ensure_ascii=False, indent=2) + "\n"
         old = MANIFEST.read_text() if MANIFEST.exists() else ""
-        if new == old:
+        changes = generated_changes(wall, damned)
+        if new != old:
+            changes[MANIFEST] = new.encode()
+        if not changes:
+            # Retry our own unpublished sync commits after a transient push failure.
+            pending = git("log", "--format=%s", "@{u}..HEAD", check=False)
+            subjects = pending.stdout.splitlines() if pending.returncode == 0 else []
+            if subjects and all(s.startswith("mirror:") for s in subjects):
+                pushed = git("push", "-q", check=False)
+                if pushed.returncode:
+                    print("mirror push retry failed", file=sys.stderr)
+                    return 1
             print(f"mirror current ({len(merged)} faces)")
             return 0
 
         # Never write over someone's uncommitted edits in that checkout.
-        dirty = git("status", "--porcelain", "--", "gallery/manifest.json").stdout.strip()
+        paths = [str(p.relative_to(GALLERY)) for p in changes]
+        dirty = git("status", "--porcelain", "--", *paths).stdout.strip()
         if dirty:
             print("manifest has local edits; not touching it", file=sys.stderr)
             return 1
-        git("pull", "-q", "--ff-only", check=False)
-        MANIFEST.write_text(new)
-        git("add", "gallery/manifest.json")
-        git("commit", "-q", "-m",
+        for path, data in changes.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        git("add", "--", *paths)
+        git("commit", "--only", "-q", "-m",
             f"mirror: {len(merged)} faces on the wall\n\n"
             "Pushed by fleet/bin/selfiesync.py in command-control-dashboard. "
-            "The wall on the laptop is the source; this file is its echo.")
+            "The wall on the laptop is the source; this file is its echo.",
+            "--", *paths)
         r = git("push", "-q", check=False)
         if r.returncode:
             print(f"push failed: {r.stderr.strip()}", file=sys.stderr)

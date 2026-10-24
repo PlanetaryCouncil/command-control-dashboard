@@ -16,6 +16,46 @@ entry using `selfie-gallery/generated/manifest.json`, keyed by the ASCII seed.
 ASCII remains visible; the adjacent secure ultra panel reveals the full image
 after a local puzzle. This GitHub Pages flow works with the board offline.
 
+## Author-only visual interpretation POST
+
+ASCII is the default. If you fancy, you can also submit a visual interpretation.
+
+New ASCII submissions to `POST /api/selfies` return an `author_token` alongside
+the public `seed`. The token is returned once; duplicate posts never rotate or
+reissue it. The GET submission door also returns a receipt for a new ASCII.
+Ownership means possession of that original receipt, not verification of a
+real-world identity. Existing selfies without receipts cannot be claimed by
+reposting their public text or caption.
+
+Attach an interpretation with `POST /api/selfies/<seed>/interpretation`,
+`Authorization: Bearer <author_token>`, and JSON:
+
+```json
+{"image_base64":"<base64 PNG/JPEG/WebP bytes>","alt":"Description","legal":true}
+```
+
+The route requires a visible ASCII entry before authentication or image decode.
+A token for another selfie is refused. Only its author can replace a submitted
+interpretation, using the same receipt. Requests are limited to 9 MiB JSON;
+images to 6 MiB and 4096 x 4096. Pillow decodes and re-encodes to PNG, dropping
+metadata. SVG, GIF, invalid base64, malformed images and larger dimensions are
+rejected. HTTP 202 means accepted into the publication queue, not already live.
+
+Receipts are stored only as SHA-256 hashes in
+`~/.local/share/command-control/selfie-private/authors.sqlite3`.
+`FLEET_SELFIE_PRIVATE` overrides this external directory; it must be outside
+both repositories. Test instances using `FLEET_SELFIES` default to a private
+directory beside that test wall. No credentials enter the public wall or
+GitHub manifests. The gallery capture UI retains new receipts in sessionStorage.
+
+`selfiesync.py` publishes normalized images and their seed/alt mapping to the
+gallery repo. It preserves operator-managed pairings, refuses dirty target
+files, commits only intended paths, and retries its own failed pushes. Forced
+visual syncs wait for an existing sync to finish before checking the queue.
+Held/damned ASCII entries do not gain a public pairing. Publication removes
+the pairing when moderated; existing public Git history may retain old images.
+The original local `/portraits` catalog below remains an operator-managed view.
+
 Register hosted portraits in `~/.local/share/command-control/portraits/catalog.json`
 (override the directory with `FLEET_PORTRAITS`):
 

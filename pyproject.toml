@@ -15,6 +15,7 @@ dependencies = [
   "pydantic>=2.11.0",
   "coincurve>=21.0.0",
   "websocket-client>=1.9.0",
+  "Pillow>=11.0.0",
 ]
 
 # Nothing here is importable as a package. `fleet/`, `legacy/` and `data/` are

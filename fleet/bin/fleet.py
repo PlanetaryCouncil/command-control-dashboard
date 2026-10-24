@@ -988,7 +988,7 @@ def start_legacy_cockpit(port=8770):
         print(f"legacy cockpit failed to start: {e}", flush=True)
 
 
-def _mirror_wall():
+def _mirror_wall(force=False):
     """Push the selfie wall to its GitHub Pages mirror, in the background.
 
     Fire and forget: the visitor already has their 200, and a git push
@@ -998,7 +998,8 @@ def _mirror_wall():
     """
     import subprocess
     try:
-        subprocess.Popen([sys.executable, str(Path(__file__).with_name("selfiesync.py"))],
+        subprocess.Popen([sys.executable, str(Path(__file__).with_name("selfiesync.py"))]
+                         + (["--now"] if force else []),
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError:
@@ -1154,12 +1155,9 @@ def serve(port):
             f = Path(os.environ.get(
                 "FLEET_SELFIES", FLEET / "data" / "selfies.jsonl"))
             try:
-                f.parent.mkdir(parents=True, exist_ok=True)
-                if f.exists() and f.stat().st_size > 8_000_000:
-                    f.rename(f.with_suffix(".jsonl.1"))
-                with f.open("a") as fh:
-                    fh.write(json.dumps(rec) + "\n")
-            except OSError:
+                import selfieuploads
+                author_token = selfieuploads.append_face(rec, f)
+            except Exception:
                 self.send_error(500)
                 return
             sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -1169,7 +1167,7 @@ def serve(port):
                     origin="visitor" if self._remote() else "operator",
                     layer=4 if self._remote() else 0)
             self._send(json.dumps({"ok": True, "who": who,
-                                   "seed": seed}).encode(),
+                                   "seed": seed, "author_token": author_token}).encode(),
                        "application/json")
             _mirror_wall()
 
@@ -1251,7 +1249,7 @@ def serve(port):
             self.send_response(204)
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
             self.send_header("Access-Control-Max-Age", "86400")
             self.end_headers()
 
@@ -2202,6 +2200,12 @@ def serve(port):
             if forwards(path):
                 n = int(self.headers.get("Content-Length") or 0)
                 self._forward(path, self.rfile.read(min(n, 1_000_000)))
+                return
+
+            if path.startswith("/api/selfies/") and path.endswith("/interpretation"):
+                import selfieuploads
+                if selfieuploads.handle_post(self, path):
+                    _mirror_wall(force=True)
                 return
 
             if path == "/api/charge":
