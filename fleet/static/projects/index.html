@@ -55,6 +55,9 @@ body[data-view="fleet"] .toggle{--surface:#161A20;--raised:#1C222A;--border:#272
 .toggle a:hover:not([aria-current]){color:var(--ink);}
 .sub{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;}
 .sub a{color:var(--muted);}
+.gallery-shortcut{margin:0 0 12px;font-size:11px;}
+.gallery-shortcut a{color:var(--accent);text-decoration:none;}
+.gallery-shortcut a:hover,.gallery-shortcut a:focus-visible{text-decoration:underline;}
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;}
 /* Three rows that fill what is left of the first screen, never smaller than
    a tile can hold. */
@@ -116,6 +119,7 @@ body[data-view="fleet"] #fleet{visibility:visible;pointer-events:auto;}
     <a href="/" aria-current="page">projects</a><a href="/fleet">fleet</a>
   </nav>
 </div>
+<p class="gallery-shortcut"><a href="https://planetarycouncil.github.io/selfie-gallery/" target="_blank" rel="noopener">Selfie gallery ↗</a></p>
 <main>
   <section class="grid above" id="above" aria-label="Above the fold"></section>
   <div class="fold" id="fold" hidden></div>
