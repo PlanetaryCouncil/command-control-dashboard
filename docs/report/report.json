@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-24T18:00:05+00:00",
+  "generated_at": "2026-10-25T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-10-23T18:00:04+00:00",
+  "since": "2026-10-24T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,45 +24,20 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 4,
-    "list": [
-      {
-        "sha": "eea52425",
-        "author": "Marsita the Ultra",
-        "at": "2026-10-24T02:12:44+01:00",
-        "subject": "Show the selfie gallery as a regular project tile"
-      },
-      {
-        "sha": "91f058cf",
-        "author": "Marsita the Ultra",
-        "at": "2026-10-24T02:10:24+01:00",
-        "subject": "Link the selfie gallery from the projects dashboard"
-      },
-      {
-        "sha": "d05794b5",
-        "author": "Marsita the Ultra",
-        "at": "2026-10-24T01:11:07+01:00",
-        "subject": "Accept author-owned visual interpretations after ASCII selfies"
-      },
-      {
-        "sha": "1524d562",
-        "author": "Marsita the Ultra",
-        "at": "2026-10-23T19:00:05+01:00",
-        "subject": "report: 2026-10-23 fleet summary"
-      }
-    ]
+    "count": 0,
+    "list": []
   },
   "pipeline": {
     "records": 0,
     "stages": {}
   },
   "events": {
-    "count": 23,
+    "count": 2,
     "by_level": {
-      "ok": 23
+      "ok": 2
     },
     "by_agent": {
-      "visitors": 23
+      "visitors": 2
     }
   },
   "needs_you": [],
@@ -105,21 +80,21 @@
     },
     {
       "worker": "pressure",
-      "status": "pass",
-      "last_run": "2026-10-24T17:56:15Z",
-      "summary": "ok \u00b7 disk 90% 24G free"
+      "status": "warn",
+      "last_run": "2026-10-25T18:57:56Z",
+      "summary": "disk 90% 23.0G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-24T17:56:15Z",
+      "last_run": "2026-10-25T18:57:55Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-24T17:59:34+00:00",
-      "summary": "24h: 11731 public \u00b7 0 homies \u00b7 browser 11717 \u00b7 SemrushBot 4 \u00b7 Python-urllib/3.14 3 \u00b7 bingbot 3 \u00b7 Applebot 2 \u00b7 curl 1 \u00b7 Baiduspider 1"
+      "last_run": "2026-10-25T18:58:19+00:00",
+      "summary": "24h: 4777 public \u00b7 0 homies \u00b7 browser 4747 \u00b7 Applebot 17 \u00b7 bingbot 4 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 2 \u00b7 GPTBot 2 \u00b7 curl 2 \u00b7 OAI-SearchBot 1 \u00b7 Censys"
     }
   ],
   "proposals_total": 261

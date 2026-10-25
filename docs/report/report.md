@@ -1,17 +1,12 @@
 # The fleet — last 24 hours
 
-*2026-10-24T18:00:05+00:00*
+*2026-10-25T19:00:00+00:00*
 
-**4 commits merged in the last 24 hours.**
+**Nothing was merged in the last 24 hours.**
 
 ## Merged
 
-| commit | subject |
-|---|---|
-| `eea52425` | Show the selfie gallery as a regular project tile |
-| `91f058cf` | Link the selfie gallery from the projects dashboard |
-| `d05794b5` | Accept author-owned visual interpretations after ASCII selfies |
-| `1524d562` | report: 2026-10-23 fleet summary |
+Nothing.
 
 ## Pipeline
 
@@ -31,9 +26,9 @@ Nothing.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 90% 24G free |
+| pressure | warn | disk 90% 23.0G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 11731 public · 0 homies · browser 11717 · SemrushBot 4 · Python-urllib/3.14 3 · bingb |
+| visitors | pass | 24h: 4777 public · 0 homies · browser 4747 · Applebot 17 · bingbot 4 · Mozilla/5.0 AppleWe |
 
 ## The partnership
 
