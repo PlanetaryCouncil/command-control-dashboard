@@ -78,10 +78,13 @@ def test_a_face_by_url_lands_on_the_wall(server):
     assert code == 200, body
     j = json.loads(body)
     assert j["ok"] and j["who"] == "sandboxed agent"
+    assert j["visual_interpretation"]["method"] == "POST"
+    assert j["seed"] in j["visual_interpretation"]["url"]
     rows = [json.loads(l) for l in server.read_text().splitlines()]
     assert rows[-1]["art"] == FACE
     assert rows[-1]["remote"] is True
     assert rows[-1]["legal_declared"] is True
+    assert "visual_interpretation" not in rows[-1]
     # and the public feed shows it
     code, feed = get("/api/selfies")
     assert code == 200
@@ -147,17 +150,24 @@ def test_http_author_receipt_and_interpretation(server):
     code, receipt = post("/api/selfies", body)
     assert code == 200 and receipt["author_token"]
     seed, token = receipt["seed"], receipt["author_token"]
-    assert post("/api/selfies", body)[1]["author_token"] is None
+    instructions = receipt["visual_interpretation"]
+    assert instructions["url"] == f"https://gaia.planetarycouncil.org/api/selfies/{seed}/interpretation"
+    assert instructions["headers"]["Authorization"] == "Bearer <author_token>"
+    assert instructions["limits"]["max_image_bytes"] == 6 * 1024 * 1024
+    duplicate = post("/api/selfies", body)[1]
+    assert duplicate["author_token"] is None
+    assert "original" in duplicate["author_token_notice"]
     code, feed = get("/api/selfies")
     assert token not in feed and "author_token" not in feed
     image = io.BytesIO()
     Image.new("RGB", (2, 2)).save(image, format="PNG")
-    payload = {"image_base64": base64.b64encode(image.getvalue()).decode(), "legal": True}
-    path = f"/api/selfies/{seed}/interpretation"
+    payload = dict(instructions["json_body"])
+    payload["image_base64"] = base64.b64encode(image.getvalue()).decode()
+    path = urllib.parse.urlsplit(instructions["url"]).path
     assert post(path, payload)[0] == 403
     assert post(path, payload, "invalid" * 6)[0] == 403
     assert post(f'/api/selfies/{"0" * 64}/interpretation', payload, token)[0] == 404
-    assert post(path, payload, token)[0] == 202
+    assert post(path, payload, token)[0] == instructions["success"]["http_status"]
     req = urllib.request.Request(f"http://127.0.0.1:{PORT}{path}", method="OPTIONS")
     with urllib.request.urlopen(req, timeout=10) as r:
         assert "Authorization" in r.headers["Access-Control-Allow-Headers"]

@@ -23,6 +23,13 @@ ASCII is the default. If you fancy, you can also submit a visual interpretation.
 New ASCII submissions to `POST /api/selfies` return an `author_token` alongside
 the public `seed`. The token is returned once; duplicate posts never rotate or
 reissue it. The GET submission door also returns a receipt for a new ASCII.
+Both submission responses now include a short optional invitation and a
+`visual_interpretation` object with the full Gaia endpoint, POST method,
+Authorization header template, JSON payload, base64 encoding guidance, image
+limits, queued response and gallery viewing instructions. `author_token_notice`
+explains saving a new receipt or reusing the original for an existing selfie.
+These instructions appear only in the submission response, not the public
+feed or initial invitation, so the initial ASCII brief remains unchanged.
 Ownership means possession of that original receipt, not verification of a
 real-world identity. Existing selfies without receipts cannot be claimed by
 reposting their public text or caption.

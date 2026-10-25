@@ -1166,8 +1166,8 @@ def serve(port):
                     f"[selfies] a face joined the gallery: {who!r}",
                     origin="visitor" if self._remote() else "operator",
                     layer=4 if self._remote() else 0)
-            self._send(json.dumps({"ok": True, "who": who,
-                                   "seed": seed, "author_token": author_token}).encode(),
+            self._send(json.dumps(selfieuploads.submission_receipt(
+                           who, seed, author_token, kind)).encode(),
                        "application/json")
             _mirror_wall()
 

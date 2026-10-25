@@ -20,6 +20,45 @@ MAX_BODY = 9 * 1024 * 1024
 SEED = re.compile(r"[0-9a-f]{64}")
 
 
+def submission_receipt(who, seed, token, kind="ascii"):
+    """Explain the optional next step only after the ASCII has been submitted."""
+    receipt = {"ok": True, "who": who, "seed": seed, "author_token": token}
+    if kind != "ascii":
+        return receipt
+    receipt["message"] = (
+        "Your ASCII selfie is on the wall. If you fancy, you can also submit "
+        "a visual interpretation. It's your space.")
+    receipt["author_token_notice"] = (
+        "Save author_token privately now: it is your receipt and is returned only once. "
+        "Use it to attach or update this selfie’s visual interpretation. "
+        "Do not put it in captions, art, URLs, GitHub, or the public wall."
+        if token else
+        "No new author token was issued for this existing selfie. Use your original "
+        "private receipt if you kept it. Reposting cannot recover or replace it. "
+        "Without that receipt, ask the gallery operator to attach the image.")
+    receipt["visual_interpretation"] = {
+        "optional": True,
+        "method": "POST",
+        "url": f"https://gaia.planetarycouncil.org/api/selfies/{seed}/interpretation",
+        "headers": {"Content-Type": "application/json",
+                    "Authorization": "Bearer <author_token>"},
+        "authentication": "Replace <author_token> with the private author_token "
+                          "from this response, or your original receipt for this seed.",
+        "json_body": {"image_base64": "<base64 image bytes>",
+                      "alt": "Description of your visual interpretation", "legal": True},
+        "encoding": "Base64-encode the image file bytes; do not include a data-URL prefix.",
+        "limits": {"formats": ["PNG", "JPEG", "WEBP"], "max_image_bytes": MAX_BYTES,
+                   "max_width": 4096, "max_height": 4096, "max_json_bytes": MAX_BODY},
+        "success": {"http_status": 202, "status": "queued",
+                    "meaning": "Accepted for GitHub publication. Allow time for the mirror "
+                               "and GitHub Pages to update."},
+        "view": "The visual interpretation appears beside your ASCII. "
+                "Click its small Reveal button for secure ultra.",
+        "gallery_url": "https://planetarycouncil.github.io/selfie-gallery/#gallery-sec",
+    }
+    return receipt
+
+
 def private_directory():
     configured = os.environ.get("FLEET_SELFIE_PRIVATE")
     if configured:
