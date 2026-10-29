@@ -1,12 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-10-28T19:00:05+00:00*
+*2026-10-29T19:00:00+00:00*
 
-**Nothing was merged in the last 24 hours.**
+**1 commit merged in the last 24 hours.**
 
 ## Merged
 
-Nothing.
+| commit | subject |
+|---|---|
+| `46068292` | report: 2026-10-28 fleet summary |
 
 ## Pipeline
 
@@ -26,9 +28,9 @@ Nothing.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | compressor 1.8G; disk 90% 22.6G free |
+| pressure | warn | compressor 1.7G; disk 91% 21.4G free |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 45 public · 0 homies · browser 24 · Mozilla/5.0 (compatible; ibou-search/2.0 5 · bing |
+| visitors | pass | 24h: 77 public · 1 homies · Python-urllib/3.11 46 · browser 14 · bingbot 4 · Mozilla/5.0 ( |
 
 ## The partnership
 

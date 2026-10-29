@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-28T19:00:05+00:00",
+  "generated_at": "2026-10-29T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-10-27T19:00:05+00:00",
+  "since": "2026-10-28T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,20 +24,27 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 0,
-    "list": []
+    "count": 1,
+    "list": [
+      {
+        "sha": "46068292",
+        "author": "Marsita the Ultra",
+        "at": "2026-10-28T19:00:06+00:00",
+        "subject": "report: 2026-10-28 fleet summary"
+      }
+    ]
   },
   "pipeline": {
     "records": 0,
     "stages": {}
   },
   "events": {
-    "count": 1,
+    "count": 5,
     "by_level": {
-      "ok": 1
+      "ok": 5
     },
     "by_agent": {
-      "visitors": 1
+      "visitors": 5
     }
   },
   "needs_you": [],
@@ -81,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-10-28T18:57:02Z",
-      "summary": "compressor 1.8G; disk 90% 22.6G free"
+      "last_run": "2026-10-29T18:58:14Z",
+      "summary": "compressor 1.7G; disk 91% 21.4G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-10-28T18:57:01Z",
+      "last_run": "2026-10-29T18:58:14Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-10-28T17:56:00+00:00",
-      "summary": "24h: 45 public \u00b7 0 homies \u00b7 browser 24 \u00b7 Mozilla/5.0 (compatible; ibou-search/2.0 5 \u00b7 bingbot 3 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 2 \u00b7 Yandex 2 \u00b7 Mozill"
+      "last_run": "2026-10-29T18:53:21+00:00",
+      "summary": "24h: 77 public \u00b7 1 homies \u00b7 Python-urllib/3.11 46 \u00b7 browser 14 \u00b7 bingbot 4 \u00b7 Mozilla/5.0 (compatible; ElevenlabsCrawl 3 \u00b7 Mozilla/5.0 (compatible; ibou-search/2"
     }
   ],
   "proposals_total": 261
