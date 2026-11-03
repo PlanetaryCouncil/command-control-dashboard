@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-02T19:00:00+00:00",
+  "generated_at": "2026-11-03T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-01T19:00:00+00:00",
+  "since": "2026-11-02T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "70a128dd",
+        "sha": "e26d6cdf",
         "author": "Marsita the Ultra",
-        "at": "2026-11-01T19:00:03+00:00",
-        "subject": "report: 2026-11-01 fleet summary"
+        "at": "2026-11-02T19:00:00+00:00",
+        "subject": "report: 2026-11-02 fleet summary"
       }
     ]
   },
@@ -39,9 +39,13 @@
     "stages": {}
   },
   "events": {
-    "count": 0,
-    "by_level": {},
-    "by_agent": {}
+    "count": 5,
+    "by_level": {
+      "ok": 5
+    },
+    "by_agent": {
+      "visitors": 5
+    }
   },
   "needs_you": [],
   "workers": [
@@ -84,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-11-02T18:55:08Z",
-      "summary": "compressor 2.2G; disk 90% 22.5G free"
+      "last_run": "2026-11-03T18:58:13Z",
+      "summary": "compressor 1.6G; disk 91% 21.3G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-11-02T18:55:07Z",
+      "last_run": "2026-11-03T18:58:12Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-02T18:31:00+00:00",
-      "summary": "24h: 70 public \u00b7 0 homies \u00b7 browser 48 \u00b7 bingbot 6 \u00b7 Mozilla/5.0 (compatible; Barkrowler/0.9; 4 \u00b7 ClaudeBot 4 \u00b7 Amazonbot 3 \u00b7 Mozilla/5.0 (compatible; ibou-sear"
+      "last_run": "2026-11-03T18:01:02+00:00",
+      "summary": "24h: 303 public \u00b7 0 homies \u00b7 browser 218 \u00b7 Python-urllib/3.11 46 \u00b7 ClaudeBot 19 \u00b7 Amazonbot 4 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 3 \u00b7 Baiduspider 3 \u00b7 Moz"
     }
   ],
   "proposals_total": 261
