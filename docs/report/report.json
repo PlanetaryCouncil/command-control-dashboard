@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-06T19:00:00+00:00",
+  "generated_at": "2026-11-07T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-05T19:00:00+00:00",
+  "since": "2026-11-06T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "2d5f91c8",
+        "sha": "57b0903c",
         "author": "Marsita the Ultra",
-        "at": "2026-11-05T19:00:00+00:00",
-        "subject": "report: 2026-11-05 fleet summary"
+        "at": "2026-11-06T19:00:00+00:00",
+        "subject": "report: 2026-11-06 fleet summary"
       }
     ]
   },
@@ -88,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-11-06T18:59:39Z",
-      "summary": "compressor 1.8G; disk 91% 22.0G free"
+      "last_run": "2026-11-07T18:57:06Z",
+      "summary": "compressor 2.3G; disk 91% 21.8G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-11-06T18:59:39Z",
+      "last_run": "2026-11-07T18:57:06Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-06T18:26:43+00:00",
-      "summary": "24h: 82 public \u00b7 0 homies \u00b7 Python-urllib/3.11 46 \u00b7 browser 21 \u00b7 aiohttp 8 \u00b7 Baiduspider 3 \u00b7 Amazonbot 1 \u00b7 bingbot 1 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l "
+      "last_run": "2026-11-07T18:57:28+00:00",
+      "summary": "24h: 551 public \u00b7 0 homies \u00b7 browser 487 \u00b7 Python-urllib/3.11 46 \u00b7 aiohttp 6 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 2 \u00b7 Mozilla/5.0 (compatible; Barkrowler/"
     }
   ],
   "proposals_total": 261
