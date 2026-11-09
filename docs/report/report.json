@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-08T19:00:00+00:00",
+  "generated_at": "2026-11-09T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-07T19:00:00+00:00",
+  "since": "2026-11-08T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "4b867f5a",
+        "sha": "2197143f",
         "author": "Marsita the Ultra",
-        "at": "2026-11-07T19:00:00+00:00",
-        "subject": "report: 2026-11-07 fleet summary"
+        "at": "2026-11-08T19:00:00+00:00",
+        "subject": "report: 2026-11-08 fleet summary"
       }
     ]
   },
@@ -88,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-11-08T18:57:58Z",
-      "summary": "compressor 1.9G; disk 91% 21.9G free"
+      "last_run": "2026-11-09T18:56:52Z",
+      "summary": "compressor 1.8G; disk 91% 21.7G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-11-08T18:57:58Z",
+      "last_run": "2026-11-09T18:56:51Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-08T17:39:02+00:00",
-      "summary": "24h: 411 public \u00b7 1 homies \u00b7 browser 288 \u00b7 Python-urllib/3.11 46 \u00b7 Mozilla/5.0 (Windows NT 10.0; Win64; x64 22 \u00b7 bingbot 12 \u00b7 Mozilla/5.0 (Macintosh; Intel Mac "
+      "last_run": "2026-11-09T17:39:53+00:00",
+      "summary": "24h: 352 public \u00b7 1 homies \u00b7 browser 269 \u00b7 Python-urllib/3.11 46 \u00b7 SemrushBot 13 \u00b7 aiohttp 8 \u00b7 Googlebot 4 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 3 \u00b7 CCBot "
     }
   ],
   "proposals_total": 261
