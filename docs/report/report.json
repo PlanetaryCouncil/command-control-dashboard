@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-10T19:00:00+00:00",
+  "generated_at": "2026-11-11T19:00:04+00:00",
   "window_hours": 24,
-  "since": "2026-11-09T19:00:00+00:00",
+  "since": "2026-11-10T19:00:04+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,31 +24,56 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 1,
-    "list": [
-      {
-        "sha": "0153e8e9",
-        "author": "Marsita the Ultra",
-        "at": "2026-11-09T19:00:00+00:00",
-        "subject": "report: 2026-11-09 fleet summary"
-      }
-    ]
+    "count": 0,
+    "list": []
   },
   "pipeline": {
     "records": 0,
     "stages": {}
   },
   "events": {
-    "count": 6,
+    "count": 16,
     "by_level": {
-      "ok": 5,
-      "info": 1
+      "ok": 10,
+      "needs_you": 6
     },
     "by_agent": {
-      "visitors": 6
+      "quotas": 11,
+      "visitors": 5
     }
   },
-  "needs_you": [],
+  "needs_you": [
+    {
+      "at": "2026-11-10T22:46:59+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-10T23:19:05+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-11T08:52:17+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-11T09:08:15+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-11T09:40:30+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-11T09:56:00+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    }
+  ],
   "workers": [
     {
       "worker": "agent-comms",
@@ -88,21 +113,21 @@
     },
     {
       "worker": "pressure",
-      "status": "pass",
-      "last_run": "2026-11-10T18:58:37Z",
-      "summary": "ok \u00b7 disk 90% 23G free"
+      "status": "warn",
+      "last_run": "2026-11-11T18:59:22Z",
+      "summary": "compressor 1.8G; disk 91% 21.8G free"
     },
     {
       "worker": "quotas",
-      "status": "pass",
-      "last_run": "2026-11-10T18:58:37Z",
-      "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
+      "status": "alert",
+      "last_run": "2026-11-11T18:59:22Z",
+      "summary": "scheduled logged out: claude"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-10T18:08:36+00:00",
-      "summary": "24h: 248 public \u00b7 1 homies \u00b7 browser 138 \u00b7 Python-urllib/3.11 46 \u00b7 Googlebot 34 \u00b7 Baiduspider 9 \u00b7 aiohttp 6 \u00b7 Mozilla/5.0 (Windows NT 10.0; Win64; x64 3 \u00b7 Amazo"
+      "last_run": "2026-11-11T18:29:49+00:00",
+      "summary": "24h: 211 public \u00b7 0 homies \u00b7 browser 135 \u00b7 Python-urllib/3.11 46 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 6 \u00b7 aiohttp 5 \u00b7 Meta-External 5 \u00b7 Mozilla/5.0 (compa"
     }
   ],
   "proposals_total": 261

@@ -1,14 +1,12 @@
 # The fleet — last 24 hours
 
-*2026-11-10T19:00:00+00:00*
+*2026-11-11T19:00:04+00:00*
 
-**1 commit merged in the last 24 hours.**
+**Nothing was merged in the last 24 hours.**
 
 ## Merged
 
-| commit | subject |
-|---|---|
-| `0153e8e9` | report: 2026-11-09 fleet summary |
+Nothing.
 
 ## Pipeline
 
@@ -16,7 +14,12 @@ No decisions recorded.
 
 ## Asked for a person
 
-Nothing.
+- `2026-11-10T22:46:59` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+- `2026-11-10T23:19:05` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+- `2026-11-11T08:52:17` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+- `2026-11-11T09:08:15` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+- `2026-11-11T09:40:30` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+- `2026-11-11T09:56:00` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
 
 ## Workers
 
@@ -28,9 +31,9 @@ Nothing.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 90% 23G free |
-| quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 248 public · 1 homies · browser 138 · Python-urllib/3.11 46 · Googlebot 34 · Baiduspi |
+| pressure | warn | compressor 1.8G; disk 91% 21.8G free |
+| quotas | alert | scheduled logged out: claude |
+| visitors | pass | 24h: 211 public · 0 homies · browser 135 · Python-urllib/3.11 46 · Mozilla/5.0 AppleWebKit |
 
 ## The partnership
 
