@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-12T19:00:00+00:00",
+  "generated_at": "2026-11-13T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-11T19:00:00+00:00",
+  "since": "2026-11-12T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "2ee93bfd",
+        "sha": "55b3c9de",
         "author": "Marsita the Ultra",
-        "at": "2026-11-11T19:00:04+00:00",
-        "subject": "report: 2026-11-11 fleet summary"
+        "at": "2026-11-12T19:00:00+00:00",
+        "subject": "report: 2026-11-12 fleet summary"
       }
     ]
   },
@@ -39,28 +39,15 @@
     "stages": {}
   },
   "events": {
-    "count": 9,
+    "count": 5,
     "by_level": {
-      "ok": 7,
-      "needs_you": 2
+      "ok": 5
     },
     "by_agent": {
-      "visitors": 5,
-      "quotas": 4
+      "visitors": 5
     }
   },
-  "needs_you": [
-    {
-      "at": "2026-11-11T20:31:44+00:00",
-      "agent": "quotas",
-      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
-    },
-    {
-      "at": "2026-11-11T23:34:38+00:00",
-      "agent": "quotas",
-      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
-    }
-  ],
+  "needs_you": [],
   "workers": [
     {
       "worker": "agent-comms",
@@ -101,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "warn",
-      "last_run": "2026-11-12T18:56:48Z",
-      "summary": "compressor 1.6G; disk 91% 21.6G free"
+      "last_run": "2026-11-13T18:59:01Z",
+      "summary": "compressor 1.9G; disk 91% 20.7G free"
     },
     {
       "worker": "quotas",
       "status": "alert",
-      "last_run": "2026-11-12T18:56:48Z",
+      "last_run": "2026-11-13T18:59:01Z",
       "summary": "scheduled logged out: claude"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-12T18:51:02+00:00",
-      "summary": "24h: 238 public \u00b7 0 homies \u00b7 browser 168 \u00b7 Python-urllib/3.11 46 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 9 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 4 \u00b7 aio"
+      "last_run": "2026-11-13T18:05:13+00:00",
+      "summary": "24h: 311 public \u00b7 0 homies \u00b7 browser 208 \u00b7 Python-urllib/3.11 46 \u00b7 Meta-External 20 \u00b7 SemrushBot 7 \u00b7 Googlebot 7 \u00b7 ChatGPT-User 5 \u00b7 aiohttp 4 \u00b7 Mozilla/5.0 (com"
     }
   ],
   "proposals_total": 261

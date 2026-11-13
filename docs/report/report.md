@@ -1,14 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-11-12T19:00:00+00:00*
+*2026-11-13T19:00:00+00:00*
 
-**1 commit merged in the last 24 hours, and 2 things asked for a person.**
+**1 commit merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `2ee93bfd` | report: 2026-11-11 fleet summary |
+| `55b3c9de` | report: 2026-11-12 fleet summary |
 
 ## Pipeline
 
@@ -16,8 +16,7 @@ No decisions recorded.
 
 ## Asked for a person
 
-- `2026-11-11T20:31:44` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
-- `2026-11-11T23:34:38` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
+Nothing.
 
 ## Workers
 
@@ -29,9 +28,9 @@ No decisions recorded.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | compressor 1.6G; disk 91% 21.6G free |
+| pressure | warn | compressor 1.9G; disk 91% 20.7G free |
 | quotas | alert | scheduled logged out: claude |
-| visitors | pass | 24h: 238 public · 0 homies · browser 168 · Python-urllib/3.11 46 · Mozilla/5.0 AppleWebKit |
+| visitors | pass | 24h: 311 public · 0 homies · browser 208 · Python-urllib/3.11 46 · Meta-External 20 · Semr |
 
 ## The partnership
 
