@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-13T19:00:00+00:00",
+  "generated_at": "2026-11-14T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-12T19:00:00+00:00",
+  "since": "2026-11-13T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "55b3c9de",
+        "sha": "424c2baa",
         "author": "Marsita the Ultra",
-        "at": "2026-11-12T19:00:00+00:00",
-        "subject": "report: 2026-11-12 fleet summary"
+        "at": "2026-11-13T19:00:00+00:00",
+        "subject": "report: 2026-11-13 fleet summary"
       }
     ]
   },
@@ -39,15 +39,33 @@
     "stages": {}
   },
   "events": {
-    "count": 5,
+    "count": 11,
     "by_level": {
-      "ok": 5
+      "ok": 8,
+      "needs_you": 3
     },
     "by_agent": {
+      "quotas": 6,
       "visitors": 5
     }
   },
-  "needs_you": [],
+  "needs_you": [
+    {
+      "at": "2026-11-13T23:45:21+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-14T01:07:11+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    },
+    {
+      "at": "2026-11-14T01:45:39+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    }
+  ],
   "workers": [
     {
       "worker": "agent-comms",
@@ -87,21 +105,21 @@
     },
     {
       "worker": "pressure",
-      "status": "warn",
-      "last_run": "2026-11-13T18:59:01Z",
-      "summary": "compressor 1.9G; disk 91% 20.7G free"
+      "status": "pass",
+      "last_run": "2026-11-14T18:55:41Z",
+      "summary": "ok \u00b7 disk 89% 25G free"
     },
     {
       "worker": "quotas",
       "status": "alert",
-      "last_run": "2026-11-13T18:59:01Z",
+      "last_run": "2026-11-14T18:55:41Z",
       "summary": "scheduled logged out: claude"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-13T18:05:13+00:00",
-      "summary": "24h: 311 public \u00b7 0 homies \u00b7 browser 208 \u00b7 Python-urllib/3.11 46 \u00b7 Meta-External 20 \u00b7 SemrushBot 7 \u00b7 Googlebot 7 \u00b7 ChatGPT-User 5 \u00b7 aiohttp 4 \u00b7 Mozilla/5.0 (com"
+      "last_run": "2026-11-14T17:36:07+00:00",
+      "summary": "24h: 293 public \u00b7 0 homies \u00b7 browser 219 \u00b7 Python-urllib/3.11 46 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 6 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 5 \u00b7 Bai"
     }
   ],
   "proposals_total": 261
