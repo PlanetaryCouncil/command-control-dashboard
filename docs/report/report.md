@@ -1,14 +1,12 @@
 # The fleet — last 24 hours
 
-*2026-11-15T19:00:00+00:00*
+*2026-11-16T19:00:05+00:00*
 
-**1 commit merged in the last 24 hours.**
+**Nothing was merged in the last 24 hours.**
 
 ## Merged
 
-| commit | subject |
-|---|---|
-| `b67b6a86` | report: 2026-11-14 fleet summary |
+Nothing.
 
 ## Pipeline
 
@@ -16,7 +14,7 @@ No decisions recorded.
 
 ## Asked for a person
 
-Nothing.
+- `2026-11-15T23:36:47` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
 
 ## Workers
 
@@ -28,9 +26,9 @@ Nothing.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | warn | compressor 2.0G |
+| pressure | warn | compressor 1.7G |
 | quotas | alert | scheduled logged out: claude |
-| visitors | pass | 24h: 132 public · 0 homies · Python-urllib/3.11 80 · browser 22 · Mozilla/5.0 AppleWebKit/ |
+| visitors | pass | 24h: 629 public · 0 homies · browser 552 · Python-urllib/3.11 48 · ClaudeBot 8 · curl 5 ·  |
 
 ## The partnership
 
