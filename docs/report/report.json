@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-16T19:00:05+00:00",
+  "generated_at": "2026-11-17T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-15T19:00:05+00:00",
+  "since": "2026-11-16T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,31 +24,30 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 0,
-    "list": []
+    "count": 1,
+    "list": [
+      {
+        "sha": "bc1d5d46",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-16T19:00:05+00:00",
+        "subject": "report: 2026-11-16 fleet summary"
+      }
+    ]
   },
   "pipeline": {
     "records": 0,
     "stages": {}
   },
   "events": {
-    "count": 9,
+    "count": 5,
     "by_level": {
-      "ok": 8,
-      "needs_you": 1
+      "ok": 5
     },
     "by_agent": {
-      "visitors": 7,
-      "quotas": 2
+      "visitors": 5
     }
   },
-  "needs_you": [
-    {
-      "at": "2026-11-15T23:36:47+00:00",
-      "agent": "quotas",
-      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
-    }
-  ],
+  "needs_you": [],
   "workers": [
     {
       "worker": "agent-comms",
@@ -88,21 +87,21 @@
     },
     {
       "worker": "pressure",
-      "status": "warn",
-      "last_run": "2026-11-16T18:58:09Z",
-      "summary": "compressor 1.7G"
+      "status": "pass",
+      "last_run": "2026-11-17T18:58:19Z",
+      "summary": "ok \u00b7 disk 90% 24G free"
     },
     {
       "worker": "quotas",
       "status": "alert",
-      "last_run": "2026-11-16T18:58:09Z",
+      "last_run": "2026-11-17T18:58:19Z",
       "summary": "scheduled logged out: claude"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-16T16:31:41+00:00",
-      "summary": "24h: 629 public \u00b7 0 homies \u00b7 browser 552 \u00b7 Python-urllib/3.11 48 \u00b7 ClaudeBot 8 \u00b7 curl 5 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 4 \u00b7 Mozilla/5.0 (compatible; "
+      "last_run": "2026-11-17T18:58:11+00:00",
+      "summary": "24h: 657 public \u00b7 3 homies \u00b7 browser 536 \u00b7 Python-urllib/3.11 48 \u00b7 Meta-External 47 \u00b7 bingbot 6 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 6 \u00b7 SemrushBot 4 \u00b7 Go"
     }
   ],
   "proposals_total": 261
