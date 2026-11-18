@@ -1,6 +1,6 @@
 # The fleet — last 24 hours
 
-*2026-11-17T19:00:00+00:00*
+*2026-11-18T19:00:00+00:00*
 
 **1 commit merged in the last 24 hours.**
 
@@ -8,7 +8,7 @@
 
 | commit | subject |
 |---|---|
-| `bc1d5d46` | report: 2026-11-16 fleet summary |
+| `ec4abc85` | report: 2026-11-17 fleet summary |
 
 ## Pipeline
 
@@ -30,7 +30,7 @@ Nothing.
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
 | pressure | pass | ok · disk 90% 24G free |
 | quotas | alert | scheduled logged out: claude |
-| visitors | pass | 24h: 657 public · 3 homies · browser 536 · Python-urllib/3.11 48 · Meta-External 47 · bing |
+| visitors | pass | 24h: 1128 public · 0 homies · browser 1057 · Python-urllib/3.11 48 · Mozilla/5.0 (compatib |
 
 ## The partnership
 
