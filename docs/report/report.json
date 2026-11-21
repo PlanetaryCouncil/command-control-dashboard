@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-20T19:00:00+00:00",
+  "generated_at": "2026-11-21T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-19T19:00:00+00:00",
+  "since": "2026-11-20T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "3375b13e",
+        "sha": "9c8e82fc",
         "author": "Marsita the Ultra",
-        "at": "2026-11-19T19:00:00+00:00",
-        "subject": "report: 2026-11-19 fleet summary"
+        "at": "2026-11-20T19:00:00+00:00",
+        "subject": "report: 2026-11-20 fleet summary"
       }
     ]
   },
@@ -39,15 +39,23 @@
     "stages": {}
   },
   "events": {
-    "count": 5,
+    "count": 7,
     "by_level": {
-      "ok": 5
+      "ok": 6,
+      "needs_you": 1
     },
     "by_agent": {
-      "visitors": 5
+      "visitors": 5,
+      "quotas": 2
     }
   },
-  "needs_you": [],
+  "needs_you": [
+    {
+      "at": "2026-11-21T06:28:36+00:00",
+      "agent": "quotas",
+      "msg": "[quotas] scheduled logged out: claude \u2014 top up, log in, or take them off the roster"
+    }
+  ],
   "workers": [
     {
       "worker": "agent-comms",
@@ -88,20 +96,20 @@
     {
       "worker": "pressure",
       "status": "pass",
-      "last_run": "2026-11-20T18:59:28Z",
+      "last_run": "2026-11-21T18:59:18Z",
       "summary": "ok \u00b7 disk 88% 28G free"
     },
     {
       "worker": "quotas",
       "status": "alert",
-      "last_run": "2026-11-20T18:59:28Z",
+      "last_run": "2026-11-21T18:59:18Z",
       "summary": "scheduled logged out: claude"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-20T18:51:34+00:00",
-      "summary": "24h: 410 public \u00b7 0 homies \u00b7 browser 340 \u00b7 Python-urllib/3.11 48 \u00b7 bingbot 6 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 4 \u00b7 Mozilla/5.0 (compatible; Barkrowler/"
+      "last_run": "2026-11-21T17:59:41+00:00",
+      "summary": "24h: 419 public \u00b7 0 homies \u00b7 browser 325 \u00b7 Python-urllib/3.11 48 \u00b7 Mozilla/5.0 (Macintosh; Intel Mac OS X 1 17 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 5 \u00b7 Mo"
     }
   ],
   "proposals_total": 261

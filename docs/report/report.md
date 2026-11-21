@@ -1,14 +1,14 @@
 # The fleet — last 24 hours
 
-*2026-11-20T19:00:00+00:00*
+*2026-11-21T19:00:00+00:00*
 
-**1 commit merged in the last 24 hours.**
+**1 commit merged in the last 24 hours, and 1 thing asked for a person.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `3375b13e` | report: 2026-11-19 fleet summary |
+| `9c8e82fc` | report: 2026-11-20 fleet summary |
 
 ## Pipeline
 
@@ -16,7 +16,7 @@ No decisions recorded.
 
 ## Asked for a person
 
-Nothing.
+- `2026-11-21T06:28:36` **quotas** — [quotas] scheduled logged out: claude — top up, log in, or take them off the roster
 
 ## Workers
 
@@ -30,7 +30,7 @@ Nothing.
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
 | pressure | pass | ok · disk 88% 28G free |
 | quotas | alert | scheduled logged out: claude |
-| visitors | pass | 24h: 410 public · 0 homies · browser 340 · Python-urllib/3.11 48 · bingbot 6 · Mozilla/5.0 |
+| visitors | pass | 24h: 419 public · 0 homies · browser 325 · Python-urllib/3.11 48 · Mozilla/5.0 (Macintosh; |
 
 ## The partnership
 
