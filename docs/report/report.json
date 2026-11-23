@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-22T19:00:00+00:00",
+  "generated_at": "2026-11-23T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-21T19:00:00+00:00",
+  "since": "2026-11-22T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "237e9b2a",
+        "sha": "e96b2a99",
         "author": "Marsita the Ultra",
-        "at": "2026-11-21T19:00:00+00:00",
-        "subject": "report: 2026-11-21 fleet summary"
+        "at": "2026-11-22T19:00:00+00:00",
+        "subject": "report: 2026-11-22 fleet summary"
       }
     ]
   },
@@ -39,12 +39,13 @@
     "stages": {}
   },
   "events": {
-    "count": 5,
+    "count": 7,
     "by_level": {
-      "ok": 5
+      "ok": 7
     },
     "by_agent": {
-      "visitors": 5
+      "visitors": 6,
+      "quotas": 1
     }
   },
   "needs_you": [],
@@ -88,20 +89,20 @@
     {
       "worker": "pressure",
       "status": "pass",
-      "last_run": "2026-11-22T18:59:28Z",
+      "last_run": "2026-11-23T18:55:50Z",
       "summary": "ok \u00b7 disk 88% 28G free"
     },
     {
       "worker": "quotas",
-      "status": "alert",
-      "last_run": "2026-11-22T18:59:27Z",
-      "summary": "scheduled logged out: claude"
+      "status": "pass",
+      "last_run": "2026-11-23T18:55:50Z",
+      "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-22T16:42:29+00:00",
-      "summary": "24h: 318 public \u00b7 0 homies \u00b7 browser 241 \u00b7 Python-urllib/3.11 48 \u00b7 bingbot 8 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 6 \u00b7 Mozilla/5.0 (compatible; ExaSearchBo"
+      "last_run": "2026-11-23T18:23:31+00:00",
+      "summary": "24h: 268 public \u00b7 0 homies \u00b7 browser 164 \u00b7 Python-urllib/3.11 48 \u00b7 Baiduspider 18 \u00b7 curl 7 \u00b7 MJ12bot 6 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 5 \u00b7 bingbot 4 "
     }
   ],
   "proposals_total": 261
