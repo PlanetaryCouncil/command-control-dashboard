@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-23T19:00:00+00:00",
+  "generated_at": "2026-11-24T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-22T19:00:00+00:00",
+  "since": "2026-11-23T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -27,10 +27,10 @@
     "count": 1,
     "list": [
       {
-        "sha": "e96b2a99",
+        "sha": "5235cc57",
         "author": "Marsita the Ultra",
-        "at": "2026-11-22T19:00:00+00:00",
-        "subject": "report: 2026-11-22 fleet summary"
+        "at": "2026-11-23T19:00:00+00:00",
+        "subject": "report: 2026-11-23 fleet summary"
       }
     ]
   },
@@ -39,13 +39,12 @@
     "stages": {}
   },
   "events": {
-    "count": 7,
+    "count": 5,
     "by_level": {
-      "ok": 7
+      "ok": 5
     },
     "by_agent": {
-      "visitors": 6,
-      "quotas": 1
+      "visitors": 5
     }
   },
   "needs_you": [],
@@ -89,20 +88,20 @@
     {
       "worker": "pressure",
       "status": "pass",
-      "last_run": "2026-11-23T18:55:50Z",
+      "last_run": "2026-11-24T18:57:29Z",
       "summary": "ok \u00b7 disk 88% 28G free"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-11-23T18:55:50Z",
+      "last_run": "2026-11-24T18:57:29Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-23T18:23:31+00:00",
-      "summary": "24h: 268 public \u00b7 0 homies \u00b7 browser 164 \u00b7 Python-urllib/3.11 48 \u00b7 Baiduspider 18 \u00b7 curl 7 \u00b7 MJ12bot 6 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 5 \u00b7 bingbot 4 "
+      "last_run": "2026-11-24T18:43:27+00:00",
+      "summary": "24h: 747 public \u00b7 1 homies \u00b7 browser 669 \u00b7 Python-urllib/3.11 48 \u00b7 Baiduspider 15 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 4 \u00b7 bingbot 3 \u00b7 Googlebot 2 \u00b7 Twitt"
     }
   ],
   "proposals_total": 261
