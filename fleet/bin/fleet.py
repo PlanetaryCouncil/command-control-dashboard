@@ -858,7 +858,7 @@ def workspaces() -> list[str]:
 # arriving agent reads. Moving the door must not move the letterbox.
 COCKPIT = "http://127.0.0.1:8770"
 FORWARD_EXACT = {
-    "/auth", "/about", "/moderation", "/boot", "/llms.txt", "/health",
+    "/auth", "/about", "/moderation", "/boot", "/llms.txt", "/llms-full.txt", "/health",
     "/api/dashboard", "/api/signals", "/api/pair", "/api/fleet",
     "/api/approvals", "/legacy-green-cockpit",
     # Named by the site map, so they have to answer at the front door rather

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# One intro, everywhere. llms.txt at the repo root is the hand-edited source;
+# this copies it into README.md and refuses a commit where it no longer fits
+# 80 columns by one A4 page (Marsita, 2026-11-25).
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+readme_dirty=$(git diff --name-only -- README.md)
+python3 fleet/bin/firstcontact.py --sync || {
+  echo "pre-commit: llms.txt must fit 80 columns x 60 lines" >&2; exit 1; }
+if [[ -n "$(git diff --name-only -- README.md)" ]]; then
+  if [[ -n "$readme_dirty" ]]; then
+    echo "pre-commit: README.md has other unstaged edits; stage it yourself" >&2
+    exit 1
+  fi
+  git add README.md
+fi

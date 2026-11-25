@@ -115,7 +115,7 @@ def test_the_auth_doc_is_served_to_the_things_that_need_it():
 
 
 def test_llms_txt_points_agents_at_it():
-    assert "/auth" in client.get("/llms.txt").text
+    assert "/auth" in client.get("/llms-full.txt").text
 
 
 def test_the_about_page_is_checkable_not_just_readable():

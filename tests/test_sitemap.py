@@ -143,7 +143,7 @@ def test_every_row_of_the_human_map_carries_an_address():
 def test_llms_txt_carries_the_map_rather_than_a_copy_of_it():
     import sys
     sys.path.insert(0, str(ROOT / "legacy"))
-    from app.main import llms_txt          # noqa: PLC0415
+    from app.main import llms_full_txt as llms_txt          # noqa: PLC0415
     body = llms_txt()
     assert "map unavailable" not in body, "the map failed to load into /llms.txt"
     for _s, subject, _h, _m, _n in sitemap.rows():
@@ -155,7 +155,7 @@ def test_boot_is_named_as_the_one_fetch():
     stops being the answer, this is the sentence that has to change."""
     import sys
     sys.path.insert(0, str(ROOT / "legacy"))
-    from app.main import llms_txt          # noqa: PLC0415
+    from app.main import llms_full_txt as llms_txt          # noqa: PLC0415
     body = llms_txt()
     assert "One fetch loads the lot" in body
     assert "/boot" in body.split("## The map")[1][:400]
@@ -225,7 +225,7 @@ def test_the_name_is_consistent_across_every_public_surface():
 def test_the_fractal_reaches_the_manifest():
     import sys
     sys.path.insert(0, str(ROOT / "legacy"))
-    from app.main import llms_txt          # noqa: PLC0415
+    from app.main import llms_full_txt as llms_txt          # noqa: PLC0415
     body = llms_txt()
     for rung, _c, _t, _b in fractal.SCOPE:
         assert f"`{rung}`" in body, f"scope rung {rung} missing from /llms.txt"

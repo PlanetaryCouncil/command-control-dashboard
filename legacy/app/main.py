@@ -359,8 +359,17 @@ def _ladder() -> list[dict]:
 
 @app.get("/llms.txt", response_class=PlainTextResponse)
 def llms_txt() -> str:
-    """The /llms.txt convention: a plain-markdown description of this site for
-    agents, so they do not have to scrape HTML to understand what it is."""
+    """The repo-root llms.txt, verbatim: hand-edited markdown, 80 columns, one
+    A4 page, so what an agent fetches is what gets printed and handed on
+    (Marsita, 2026-11-25). The live, generated manifest moved to
+    /llms-full.txt, the convention's name for the long version."""
+    return _from_fleet("firstcontact", lambda m: m.as_text(),
+                       "FIRST CONTACT — see /join") + "\n"
+
+
+@app.get("/llms-full.txt", response_class=PlainTextResponse)
+def llms_full_txt() -> str:
+    """Everything an agent might want, generated live from the dashboard."""
     payload = dashboard_payload()
     operator = payload["operator"]
     counts = payload["counts"]

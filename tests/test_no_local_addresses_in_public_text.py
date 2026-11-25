@@ -80,8 +80,8 @@ def test_public_docs_name_no_local_address(rel):
 
 def test_llms_txt_names_no_local_address():
     sys.path.insert(0, str(ROOT / "legacy"))
-    from app.main import llms_txt          # noqa: PLC0415 — import cost is the point
-    body = llms_txt()
+    from app.main import llms_txt, llms_full_txt          # noqa: PLC0415 — import cost is the point
+    body = llms_txt() + llms_full_txt()
     assert not LOCAL.search(body), "/llms.txt is the agent-facing manifest"
     assert not HOMEDIR.search(body)
 
@@ -133,7 +133,7 @@ def test_the_call_to_action_is_on_the_first_screen_of_llms_txt():
 def test_llms_txt_publishes_the_ladder_it_enforces():
     """A promised unlock the code does not honour is a lie with a URL."""
     sys.path.insert(0, str(ROOT / "legacy"))
-    from app.main import llms_txt          # noqa: PLC0415
+    from app.main import llms_full_txt as llms_txt          # noqa: PLC0415
     spec = importlib.util.spec_from_file_location(
         "reputation", ROOT / "fleet" / "bin" / "reputation.py")
     rep = importlib.util.module_from_spec(spec)
