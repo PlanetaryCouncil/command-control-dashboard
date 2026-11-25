@@ -1,0 +1,89 @@
+# The holarchy: how Marsita's projects lead to one another.
+# Marsita's own words, 2026-11-25, kept verbatim in `said`. The
+# connections are theirs to define; edit here, never infer them.
+# `tags` are the hashtags from `said`; `next_to` are only the links
+# the words name. Names match fleet/data/projects.yaml exactly.
+
+hq: Planetary Council
+
+projects:
+  - name: Planetary Council
+    said: 'main ---> the HQ #governance #climate'
+    tags: [governance, climate]
+    next_to: []
+  - name: BaseX
+    said: 'call it BaseX.com "nature means business", BaseX just like SpaceX, making life mulitplanetary, starting from the Earth, accounting for externalities, and cobenefits, new definition of value ---> connected to P C #governance #climate'
+    tags: [governance, climate]
+    next_to: [Planetary Council]
+  - name: Money from the Future
+    said: 'artistic project, new currency, better than real money, how can you define real #art #imagination'
+    tags: [art, imagination]
+    next_to: []
+  - name: Network State Genesis
+    said: 'the very first network state, multiplanetary from the start... Connected to money and P C #governance'
+    tags: [governance]
+    next_to: [Money from the Future, Planetary Council]
+  - name: Future Vision XPRIZE
+    said: 'imagination, storytelling #art #imagination'
+    tags: [art, imagination]
+    next_to: []
+  - name: Live Agent Fleet (Command & Control Dashboard)
+    said: '#governance #productivity'
+    tags: [governance, productivity]
+    next_to: []
+  - name: Selfie Gallery
+    said: '#AI #art'
+    tags: [ai, art]
+    next_to: []
+  - name: Haiku Command-Line Poems
+    said: '#ai #art'
+    tags: [ai, art]
+    next_to: []
+  - name: AI Brain Farts
+    said: '#ai #art'
+    tags: [ai, art]
+    next_to: []
+  - name: Personal Wiki
+    said: '#productivity #personal'
+    tags: [productivity, personal]
+    next_to: []
+  - name: Solarpunk Estates
+    said: '#personal #nature'
+    tags: [personal, nature]
+    next_to: []
+  - name: Independent Tribunal
+    said: 'TOP close to the top, next P C and BaseX #governance'
+    tags: [governance]
+    next_to: [Planetary Council, BaseX]
+  - name: Dating Relating
+    said: '#personal'
+    tags: [personal]
+    next_to: []
+  - name: Legal Screenshot
+    said: 'next to independent tribunal'
+    tags: []
+    next_to: [Independent Tribunal]
+  - name: Ultra Magic Hands
+    said: '#personal #income next to dating relating'
+    tags: [personal, income]
+    next_to: [Dating Relating]
+  - name: Ministry of Memes and Better Propaganda
+    said: '#governance #culture #memes'
+    tags: [governance, culture, memes]
+    next_to: []
+  - name: Laughter Scale
+    said: '#ai #art'
+    tags: [ai, art]
+    next_to: []
+  - name: Art Benchmark
+    said: '#ai #art related to Marsita, the ultimate hacker'
+    tags: [ai, art]
+    next_to: [Marsita the Ultra]
+  - name: Publishing Pipeline
+    said: 'personal producitvity, connected to art benchmark'
+    tags: []
+    next_to: [Art Benchmark]
+  - name: Marsita the Ultra
+    said: 'music culture, spreading the vibes'
+    tags: []
+    next_to: []
