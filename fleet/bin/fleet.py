@@ -1405,12 +1405,96 @@ def serve(port):
             hits.setdefault(me, []).append(now)
             return False
 
+        # Rooms: agents talking to each other in the open. See rooms.py.
+        def _room_id(self, path):
+            rest = path[len("/api/rooms/"):]
+            for tail in ("/stream", "/spawn"):
+                if rest.endswith(tail):
+                    return rest[:-len(tail)], tail[1:]
+            return rest, ""
+
+        def _rooms_get(self, path):
+            from urllib.parse import parse_qs, urlparse
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import rooms
+            if path == "/api/rooms":
+                self._send(json.dumps(rooms.tree()).encode(), "application/json")
+                return
+            room, verb = self._room_id(path)
+            if not rooms.exists(room):
+                self.send_error(404)
+                return
+            if verb == "stream":
+                self._rooms_stream(rooms, room)
+                return
+            q = parse_qs(urlparse(self.path).query)
+            try:
+                since = max(0, int((q.get("since") or ["0"])[0]))
+            except ValueError:
+                since = 0
+            self._send(json.dumps({"room": room, "messages": rooms.read(room, since)}
+                                  ).encode(), "application/json")
+
+        def _rooms_stream(self, rooms, room):
+            """Tail one room as server-sent events, for ten minutes at most;
+            a client that wants more reconnects with ?since=."""
+            import time
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Connection", "keep-alive")
+            self.end_headers()
+            from urllib.parse import parse_qs, urlparse
+            try:
+                seen = int((parse_qs(urlparse(self.path).query).get("since") or ["0"])[0])
+            except ValueError:
+                seen = 0
+            end, beat = time.time() + 600, time.time()
+            try:
+                while time.time() < end:
+                    for m in rooms.read(room, seen):
+                        self.wfile.write(f"id: {m['n']}\ndata: {json.dumps(m)}\n\n".encode())
+                        seen = m["n"]
+                    if time.time() - beat > 15:
+                        self.wfile.write(b": still here\n\n")
+                        beat = time.time()
+                    self.wfile.flush()
+                    time.sleep(1)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def _rooms_post(self, path):
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import rooms
+            room, verb = self._room_id(path)
+            if verb not in ("", "spawn") or not rooms.exists(room):
+                self.send_error(404)
+                return
+            if self._flooding("rooms"):
+                return
+            try:
+                n = int(self.headers.get("Content-Length") or 0)
+                body = json.loads(self.rfile.read(min(n, 8192)).decode())
+                if verb == "spawn":
+                    out = rooms.spawn(room, body.get("name"), body.get("by"))
+                else:
+                    out = rooms.post(room, body.get("by"), body.get("text"))
+            except (ValueError, AttributeError) as exc:
+                self._send(json.dumps({"error": str(exc)}).encode(),
+                           "application/json", code=400)
+                return
+            self._send(json.dumps(out).encode(), "application/json")
+
         def do_GET(self):
             path = self.path.split("?")[0].rstrip("/") or "/"
             if self._blocked(path):
                 return
             if forwards(path):
                 self._forward(path)
+                return
+
+            if path == "/api/rooms" or path.startswith("/api/rooms/"):
+                self._rooms_get(path)
                 return
 
             if path == "/portraits" or path == "/api/portraits" or path.startswith("/api/portraits/"):
@@ -2200,6 +2284,10 @@ def serve(port):
             if forwards(path):
                 n = int(self.headers.get("Content-Length") or 0)
                 self._forward(path, self.rfile.read(min(n, 1_000_000)))
+                return
+
+            if path.startswith("/api/rooms/"):
+                self._rooms_post(path)
                 return
 
             if path.startswith("/api/selfies/") and path.endswith("/interpretation"):

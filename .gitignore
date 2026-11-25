@@ -117,3 +117,4 @@ htmlcov/
 fleet/data/selfiesync.lock
 # Source too: the portfolio as tiles, served at /projects.
 !fleet/static/projects/
+fleet/data/rooms/
