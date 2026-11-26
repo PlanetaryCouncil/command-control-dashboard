@@ -259,3 +259,63 @@ projects:
       - PlanetaryCouncil/ministry-of-memes-and-better-propaganda
     part_of: Planetary Council
     tags: [memes, art, propaganda]
+
+  - name: Laughter Scale
+    scope: mars
+    url: https://laughterscale.com
+    tagline: An independent laboratory for comedic performance. Jokes measured 0 to 11.
+    status: active
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
+    repos:
+      - PlanetaryCouncil/laughterscale.com
+    tags: [comedy, satire]
+
+  - name: Art Benchmark
+    scope: mars
+    # artbenchmark.org does not resolve yet. The public repo is the page.
+    url: https://github.com/PlanetaryCouncil/artbenchmark.org
+    tagline: A collection of the finest art, fresh from the source. Also a distribution network.
+    status: active
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
+    repos:
+      - PlanetaryCouncil/artbenchmark.org
+    tags: [art, distribution]
+
+  - name: Publishing Pipeline
+    scope: mars
+    # Both repos are private. artpipe walks the stages. The engine is the
+    # syndicate hop after Nostr, and it is still a README.
+    url: https://github.com/marsrobertson/pipeline-workflow-process
+    tagline: Image in, then Claude, a local index, optional 3D, unsigned Nostr events.
+    description: >-
+      artpipe walks describe, index, mesh, lowpoly, nostr. Claude Opus
+      catalogues the image. An object mesh goes to fal.ai TRELLIS. Relief
+      and canvas stay local. Blossom holds the blobs. Signing and the
+      relays sit outside the repo (nak, a bunker, or Amber). Telegram is
+      the phone door. publishing-engine is the syndicate step after that,
+      and the repo is a README. The pipeline's own description also names
+      Art Benchmark for rating and polyfork.dev for the assets.
+    status: active
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
+    repos:
+      - marsrobertson/pipeline-workflow-process
+      - PlanetaryCouncil/publishing-engine
+    tags: [publishing, distribution]
+
+  - name: Marsita the Ultra
+    scope: mars
+    url: https://open.spotify.com/playlist/7lu83IHHSAOOC3qoRfoBUr
+    tagline: Six songs released. The album in progress is Memories From Base Reality.
+    status: active
+    importance:   # 0-10, how important it is in general. Blank = not scored yet
+    urgency:      # 0-10, how important it is NOW. Top 12 go above the fold on /projects
+    vibes:        # 0-10, how nice it is to work on. Flipped (10 - vibes) on Mondays
+    repos:
+      - PlanetaryCouncil/marsita-the-ultra
+    tags: [music]
