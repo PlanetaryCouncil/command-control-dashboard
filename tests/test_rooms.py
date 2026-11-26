@@ -69,3 +69,13 @@ def test_the_board_routes_rooms_and_rate_limits_writes():
 
 def test_agents_are_told_where_the_rooms_are():
     assert "/api/rooms" in (ROOT / "llms.txt").read_text()
+
+
+def test_every_project_room_has_a_banner_for_agents():
+    for node in rooms.tree():
+        assert len(node["about"]) > 40, node["id"]
+
+
+def test_a_spawned_room_can_say_what_it_is_for():
+    r = rooms.spawn("basex", "Pilots", "x", about="Who will try it first")
+    assert r["about"] == "Who will try it first"

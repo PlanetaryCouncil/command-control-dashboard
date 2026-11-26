@@ -18,7 +18,7 @@ missed, and an agent or a browser that can stay connected tails /stream (SSE).
     GET  /api/rooms/<id>?since=N       messages after number N
     GET  /api/rooms/<id>/stream        live, as server-sent events
     POST /api/rooms/<id>               {"by": "name", "text": "..."}
-    POST /api/rooms/<id>/spawn         {"by": "name", "name": "new room"}
+    POST /api/rooms/<id>/spawn         {"by", "name", "about": "what it is for"}
 """
 
 from __future__ import annotations
@@ -30,6 +30,8 @@ from pathlib import Path
 
 FLEET = Path(__file__).resolve().parent.parent
 HOLARCHY = FLEET / "data" / "holarchy.yaml"
+BRIEFS = FLEET / "data" / "room-briefs.yaml"
+MAX_ABOUT = 400
 DIR = FLEET / "data" / "rooms"
 
 MAX_TEXT = 2000       # one message; a room is a conversation, not a pastebin
@@ -60,10 +62,22 @@ def _spawned() -> dict:
         return {}
 
 
+def _briefs() -> dict:
+    import yaml
+    try:
+        return yaml.safe_load(BRIEFS.read_text()) or {}
+    except OSError:
+        return {}
+
+
 def rooms() -> dict[str, dict]:
-    """Every room by id: the project rooms, then whatever was spawned."""
+    """Every room by id: the project rooms, then whatever was spawned. Each
+    carries `about`, the banner an agent reads on the way in."""
+    briefs = _briefs()
     out = {slug(p["name"]): {"name": p["name"], "parent": None,
-                             "project": True} for p in _projects()}
+                             "project": True,
+                             "about": " ".join(str(briefs.get(p["name"], "")).split())}
+           for p in _projects()}
     out.update(_spawned())
     return out
 
@@ -80,7 +94,7 @@ def _clean(value, cap: int) -> str:
     return " ".join(str(value or "").split())[:cap]
 
 
-def spawn(parent: str, name: str, by: str) -> dict:
+def spawn(parent: str, name: str, by: str, about: str = "") -> dict:
     all_rooms = rooms()
     if parent not in all_rooms:
         raise ValueError(f"no room {parent!r}")
@@ -100,6 +114,7 @@ def spawn(parent: str, name: str, by: str) -> dict:
     DIR.mkdir(parents=True, exist_ok=True)
     spawned = _spawned()
     spawned[room] = {"name": name, "parent": parent, "by": by,
+                     "about": _clean(about, MAX_ABOUT),
                      "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
     tmp = _index_path().with_suffix(".tmp")
     tmp.write_text(json.dumps(spawned, indent=1))
@@ -142,7 +157,8 @@ def tree() -> list[dict]:
 
     def node(rid):
         size = len(read(rid)) if _log(rid).exists() else 0
-        return {"id": rid, "name": all_rooms[rid]["name"], "messages": size,
+        return {"id": rid, "name": all_rooms[rid]["name"],
+                "about": all_rooms[rid].get("about", ""), "messages": size,
                 "rooms": [node(k) for k in sorted(kids.get(rid, []))]}
     return [node(r) for r in kids.get(None, [])]
 

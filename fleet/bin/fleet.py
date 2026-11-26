@@ -1432,7 +1432,9 @@ def serve(port):
                 since = max(0, int((q.get("since") or ["0"])[0]))
             except ValueError:
                 since = 0
-            self._send(json.dumps({"room": room, "messages": rooms.read(room, since)}
+            self._send(json.dumps({"room": room,
+                                   "about": rooms.rooms()[room].get("about", ""),
+                                   "messages": rooms.read(room, since)}
                                   ).encode(), "application/json")
 
         def _rooms_stream(self, rooms, room):
@@ -1476,7 +1478,8 @@ def serve(port):
                 n = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(min(n, 8192)).decode())
                 if verb == "spawn":
-                    out = rooms.spawn(room, body.get("name"), body.get("by"))
+                    out = rooms.spawn(room, body.get("name"), body.get("by"),
+                                      body.get("about", ""))
                 else:
                     out = rooms.post(room, body.get("by"), body.get("text"))
             except (ValueError, AttributeError) as exc:
