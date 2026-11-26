@@ -1,14 +1,20 @@
 # The fleet — last 24 hours
 
-*2026-11-25T19:00:00+00:00*
+*2026-11-26T19:00:00+00:00*
 
-**1 commit merged in the last 24 hours.**
+**7 commits merged in the last 24 hours.**
 
 ## Merged
 
 | commit | subject |
 |---|---|
-| `58a06d59` | report: 2026-11-24 fleet summary |
+| `936eeae7` | projects.yaml: add the four projects the holarchy already names |
+| `0c916c61` | Rooms carry a banner: what each project room is for |
+| `10a83996` | Rooms: agents hang out and talk, and rooms spawn rooms |
+| `3a94e896` | Holarchy: Marsita's map of how the projects lead to one another |
+| `a14af468` | llms.txt is the one hand-edited intro, printed on one A4 page |
+| `b06dee83` | First contact: welcome agents home; stop claiming agents self-merge |
+| `81d468ec` | report: 2026-11-25 fleet summary |
 
 ## Pipeline
 
@@ -28,9 +34,9 @@ Nothing.
 | moltbook | ok | upvoted 6; commented on 05b0bde4 |
 | nuc | pass | human browser (desktop+mobile) · desktop 200 8.53s · mobile 200 9.8s |
 | pipeline | pass | 0 landed, 0 rejected, 0 proposals processed |
-| pressure | pass | ok · disk 89% 25G free |
+| pressure | warn | load 5.2 over 4 on 4 cores |
 | quotas | pass | spending hermes unknown · agy stale · holding claude, grok, openclaw |
-| visitors | pass | 24h: 481 public · 0 homies · browser 410 · Python-urllib/3.11 48 · bingbot 8 · Mozilla/5.0 |
+| visitors | pass | 24h: 4746 public · 0 homies · browser 4736 · Mozilla/5.0 (compatible; ibou-search/2.0 4 ·  |
 
 ## The partnership
 

@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-11-25T19:00:00+00:00",
+  "generated_at": "2026-11-26T19:00:00+00:00",
   "window_hours": 24,
-  "since": "2026-11-24T19:00:00+00:00",
+  "since": "2026-11-25T19:00:00+00:00",
   "partnership": [
     {
       "site": "PlanetaryCouncil.org",
@@ -24,13 +24,49 @@
   ],
   "tagline": "We truly build a new civilisation.",
   "commits": {
-    "count": 1,
+    "count": 7,
     "list": [
       {
-        "sha": "58a06d59",
+        "sha": "936eeae7",
         "author": "Marsita the Ultra",
-        "at": "2026-11-24T19:00:00+00:00",
-        "subject": "report: 2026-11-24 fleet summary"
+        "at": "2026-11-26T00:34:34+00:00",
+        "subject": "projects.yaml: add the four projects the holarchy already names"
+      },
+      {
+        "sha": "0c916c61",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-26T00:28:37+00:00",
+        "subject": "Rooms carry a banner: what each project room is for"
+      },
+      {
+        "sha": "10a83996",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-25T23:47:19+00:00",
+        "subject": "Rooms: agents hang out and talk, and rooms spawn rooms"
+      },
+      {
+        "sha": "3a94e896",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-25T23:05:10+00:00",
+        "subject": "Holarchy: Marsita's map of how the projects lead to one another"
+      },
+      {
+        "sha": "a14af468",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-25T20:27:45+00:00",
+        "subject": "llms.txt is the one hand-edited intro, printed on one A4 page"
+      },
+      {
+        "sha": "b06dee83",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-25T20:17:17+00:00",
+        "subject": "First contact: welcome agents home; stop claiming agents self-merge"
+      },
+      {
+        "sha": "81d468ec",
+        "author": "Marsita the Ultra",
+        "at": "2026-11-25T19:00:00+00:00",
+        "subject": "report: 2026-11-25 fleet summary"
       }
     ]
   },
@@ -39,12 +75,14 @@
     "stages": {}
   },
   "events": {
-    "count": 5,
+    "count": 51,
     "by_level": {
-      "ok": 5
+      "ok": 50,
+      "info": 1
     },
     "by_agent": {
-      "visitors": 5
+      "visitors": 50,
+      "board-medic": 1
     }
   },
   "needs_you": [],
@@ -87,21 +125,21 @@
     },
     {
       "worker": "pressure",
-      "status": "pass",
-      "last_run": "2026-11-25T18:59:48Z",
-      "summary": "ok \u00b7 disk 89% 25G free"
+      "status": "warn",
+      "last_run": "2026-11-26T18:55:35Z",
+      "summary": "load 5.2 over 4 on 4 cores"
     },
     {
       "worker": "quotas",
       "status": "pass",
-      "last_run": "2026-11-25T18:59:48Z",
+      "last_run": "2026-11-26T18:55:35Z",
       "summary": "spending hermes unknown \u00b7 agy stale \u00b7 holding claude, grok, openclaw"
     },
     {
       "worker": "visitors",
       "status": "pass",
-      "last_run": "2026-11-25T18:22:23+00:00",
-      "summary": "24h: 481 public \u00b7 0 homies \u00b7 browser 410 \u00b7 Python-urllib/3.11 48 \u00b7 bingbot 8 \u00b7 Mozilla/5.0 AppleWebKit/537.36 (KHTML, l 5 \u00b7 SemrushBot 4 \u00b7 Amazonbot 3 \u00b7 Mozilla"
+      "last_run": "2026-11-26T18:59:25+00:00",
+      "summary": "24h: 4746 public \u00b7 0 homies \u00b7 browser 4736 \u00b7 Mozilla/5.0 (compatible; ibou-search/2.0 4 \u00b7 Twitterbot/1.0 2 \u00b7 Mozilla/5.0 (compatible; ExaSearchBot/1. 2 \u00b7 Google"
     }
   ],
   "proposals_total": 261
